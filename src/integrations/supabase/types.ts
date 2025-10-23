@@ -14,7 +14,275 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      clientes: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          email: string
+          id: string
+          nombre: string
+          presupuesto_max: number | null
+          presupuesto_min: number | null
+          telefono: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          email: string
+          id?: string
+          nombre: string
+          presupuesto_max?: number | null
+          presupuesto_min?: number | null
+          telefono?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          nombre?: string
+          presupuesto_max?: number | null
+          presupuesto_min?: number | null
+          telefono?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      criterios_busqueda: {
+        Row: {
+          ano_construccion_min: number | null
+          cliente_id: string | null
+          condition: string[] | null
+          created_at: string | null
+          dormitorios_min: number | null
+          id: string
+          metros_max: number | null
+          metros_min: number | null
+          precio_m2_max: number | null
+          tiene_ascensor: boolean | null
+          tiene_parking: boolean | null
+          tipo_propiedad: string[] | null
+          ubicaciones: string[]
+          updated_at: string | null
+        }
+        Insert: {
+          ano_construccion_min?: number | null
+          cliente_id?: string | null
+          condition?: string[] | null
+          created_at?: string | null
+          dormitorios_min?: number | null
+          id?: string
+          metros_max?: number | null
+          metros_min?: number | null
+          precio_m2_max?: number | null
+          tiene_ascensor?: boolean | null
+          tiene_parking?: boolean | null
+          tipo_propiedad?: string[] | null
+          ubicaciones: string[]
+          updated_at?: string | null
+        }
+        Update: {
+          ano_construccion_min?: number | null
+          cliente_id?: string | null
+          condition?: string[] | null
+          created_at?: string | null
+          dormitorios_min?: number | null
+          id?: string
+          metros_max?: number | null
+          metros_min?: number | null
+          precio_m2_max?: number | null
+          tiene_ascensor?: boolean | null
+          tiene_parking?: boolean | null
+          tipo_propiedad?: string[] | null
+          ubicaciones?: string[]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "criterios_busqueda_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      matchings: {
+        Row: {
+          cliente_id: string | null
+          created_at: string | null
+          criterios_cumplidos: Json | null
+          favorito: boolean | null
+          id: string
+          notificado: boolean | null
+          propiedad_id: string | null
+          score: number
+          updated_at: string | null
+          visto: boolean | null
+        }
+        Insert: {
+          cliente_id?: string | null
+          created_at?: string | null
+          criterios_cumplidos?: Json | null
+          favorito?: boolean | null
+          id?: string
+          notificado?: boolean | null
+          propiedad_id?: string | null
+          score: number
+          updated_at?: string | null
+          visto?: boolean | null
+        }
+        Update: {
+          cliente_id?: string | null
+          created_at?: string | null
+          criterios_cumplidos?: Json | null
+          favorito?: boolean | null
+          id?: string
+          notificado?: boolean | null
+          propiedad_id?: string | null
+          score?: number
+          updated_at?: string | null
+          visto?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matchings_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "matchings_propiedad_id_fkey"
+            columns: ["propiedad_id"]
+            isOneToOne: false
+            referencedRelation: "propiedades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      propiedades: {
+        Row: {
+          activo: boolean | null
+          ano_construccion: number | null
+          banos: number | null
+          condition: string | null
+          created_at: string | null
+          descripcion: string | null
+          dormitorios: number | null
+          external_id: string
+          fecha_publicacion: string | null
+          fecha_scraping: string | null
+          id: string
+          imagenes: string[] | null
+          metros: number | null
+          portal_origen: string
+          precio: number
+          precio_m2: number | null
+          tiene_ascensor: boolean | null
+          tiene_parking: boolean | null
+          tipo_propiedad: string
+          titulo: string
+          ubicacion: string
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          activo?: boolean | null
+          ano_construccion?: number | null
+          banos?: number | null
+          condition?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          dormitorios?: number | null
+          external_id: string
+          fecha_publicacion?: string | null
+          fecha_scraping?: string | null
+          id?: string
+          imagenes?: string[] | null
+          metros?: number | null
+          portal_origen: string
+          precio: number
+          precio_m2?: number | null
+          tiene_ascensor?: boolean | null
+          tiene_parking?: boolean | null
+          tipo_propiedad: string
+          titulo: string
+          ubicacion: string
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          activo?: boolean | null
+          ano_construccion?: number | null
+          banos?: number | null
+          condition?: string | null
+          created_at?: string | null
+          descripcion?: string | null
+          dormitorios?: number | null
+          external_id?: string
+          fecha_publicacion?: string | null
+          fecha_scraping?: string | null
+          id?: string
+          imagenes?: string[] | null
+          metros?: number | null
+          portal_origen?: string
+          precio?: number
+          precio_m2?: number | null
+          tiene_ascensor?: boolean | null
+          tiene_parking?: boolean | null
+          tipo_propiedad?: string
+          titulo?: string
+          ubicacion?: string
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: []
+      }
+      scraping_logs: {
+        Row: {
+          created_at: string | null
+          duracion_segundos: number | null
+          errores: string[] | null
+          id: string
+          portal: string
+          propiedades_actualizadas: number | null
+          propiedades_encontradas: number | null
+          propiedades_nuevas: number | null
+          status: string
+          ubicacion: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          duracion_segundos?: number | null
+          errores?: string[] | null
+          id?: string
+          portal: string
+          propiedades_actualizadas?: number | null
+          propiedades_encontradas?: number | null
+          propiedades_nuevas?: number | null
+          status: string
+          ubicacion?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          duracion_segundos?: number | null
+          errores?: string[] | null
+          id?: string
+          portal?: string
+          propiedades_actualizadas?: number | null
+          propiedades_encontradas?: number | null
+          propiedades_nuevas?: number | null
+          status?: string
+          ubicacion?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
