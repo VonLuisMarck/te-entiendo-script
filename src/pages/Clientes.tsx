@@ -11,6 +11,27 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
+import { z } from "zod";
+
+const clienteSchema = z.object({
+  nombre: z.string().trim().min(1, "El nombre es requerido").max(100, "Nombre demasiado largo"),
+  email: z.string().email("Email inválido").max(255, "Email demasiado largo"),
+  telefono: z.string().regex(/^[+]?[0-9]{9,15}$/, "Teléfono inválido (9-15 dígitos)").optional().or(z.literal("")),
+  presupuesto_min: z.number().positive("El presupuesto mínimo debe ser positivo").max(10000000, "Presupuesto demasiado alto"),
+  presupuesto_max: z.number().positive("El presupuesto máximo debe ser positivo").max(10000000, "Presupuesto demasiado alto"),
+  ubicaciones: z.array(z.string().trim().min(1).max(100)).min(1, "Debe seleccionar al menos una ubicación").max(10, "Máximo 10 ubicaciones"),
+  tipo_propiedad: z.array(z.string()).min(1, "Debe seleccionar al menos un tipo de propiedad"),
+  dormitorios_min: z.number().int().min(0).max(10).optional(),
+  metros_min: z.number().positive().max(10000).optional(),
+  metros_max: z.number().positive().max(10000).optional(),
+  condition: z.array(z.string()),
+}).refine(data => data.presupuesto_max >= data.presupuesto_min, {
+  message: "El presupuesto máximo debe ser mayor o igual al mínimo",
+  path: ["presupuesto_max"],
+}).refine(data => !data.metros_max || !data.metros_min || data.metros_max >= data.metros_min, {
+  message: "Los metros máximos deben ser mayores o iguales a los mínimos",
+  path: ["metros_max"],
+});
 
 interface Cliente {
   id: string;
@@ -97,14 +118,29 @@ const Clientes = () => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) throw new Error("No hay sesión activa");
 
+      // Validate form data
+      const validated = clienteSchema.parse({
+        nombre: formData.nombre,
+        email: formData.email,
+        telefono: formData.telefono || undefined,
+        presupuesto_min: parseFloat(formData.presupuesto_min),
+        presupuesto_max: parseFloat(formData.presupuesto_max),
+        ubicaciones: formData.ubicaciones,
+        tipo_propiedad: formData.tipo_propiedad,
+        dormitorios_min: formData.dormitorios_min ? parseInt(formData.dormitorios_min) : undefined,
+        metros_min: formData.metros_min ? parseFloat(formData.metros_min) : undefined,
+        metros_max: formData.metros_max ? parseFloat(formData.metros_max) : undefined,
+        condition: formData.condition,
+      });
+
       // Crear cliente
       const { data: newCliente, error: clienteError } = await supabase.from("clientes").insert({
         user_id: session.session.user.id,
-        nombre: formData.nombre,
-        email: formData.email,
-        telefono: formData.telefono,
-        presupuesto_min: parseFloat(formData.presupuesto_min) || null,
-        presupuesto_max: parseFloat(formData.presupuesto_max) || null,
+        nombre: validated.nombre,
+        email: validated.email,
+        telefono: validated.telefono || null,
+        presupuesto_min: validated.presupuesto_min,
+        presupuesto_max: validated.presupuesto_max,
         perfil: formData.perfil,
       }).select().single();
 
@@ -113,12 +149,12 @@ const Clientes = () => {
       // Crear criterios de búsqueda
       const { error: criteriosError } = await supabase.from("criterios_busqueda").insert({
         cliente_id: newCliente.id,
-        ubicaciones: formData.ubicaciones,
-        tipo_propiedad: formData.tipo_propiedad,
-        dormitorios_min: formData.dormitorios_min ? parseInt(formData.dormitorios_min) : null,
-        metros_min: formData.metros_min ? parseFloat(formData.metros_min) : null,
-        metros_max: formData.metros_max ? parseFloat(formData.metros_max) : null,
-        condition: formData.condition,
+        ubicaciones: validated.ubicaciones,
+        tipo_propiedad: validated.tipo_propiedad,
+        dormitorios_min: validated.dormitorios_min || null,
+        metros_min: validated.metros_min || null,
+        metros_max: validated.metros_max || null,
+        condition: validated.condition,
         tiene_ascensor: formData.tiene_ascensor ? true : null,
         tiene_parking: formData.tiene_parking ? true : null,
       });
@@ -135,7 +171,11 @@ const Clientes = () => {
       setUbicacionInput("");
       loadClientes();
     } catch (error: any) {
-      toast.error(error.message || "Error al crear cliente");
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      } else {
+        toast.error("Error al crear cliente. Por favor verifica los datos.");
+      }
     }
   };
 

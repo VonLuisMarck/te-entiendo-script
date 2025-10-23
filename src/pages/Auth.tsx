@@ -7,6 +7,21 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { Building2 } from "lucide-react";
+import { z } from "zod";
+
+const authSchema = z.object({
+  email: z.string().email("Email inválido").max(255, "Email demasiado largo"),
+  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(100, "Contraseña demasiado larga"),
+  nombre: z.string().trim().min(1, "El nombre es requerido").max(100, "Nombre demasiado largo").regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "El nombre solo puede contener letras y espacios"),
+});
+
+const ERROR_MESSAGES: Record<string, string> = {
+  'User already registered': 'Esta dirección de correo ya está en uso',
+  'Invalid login credentials': 'Credenciales incorrectas',
+  'Email rate limit exceeded': 'Demasiados intentos. Inténtalo más tarde',
+  'Invalid email or password': 'Credenciales incorrectas',
+  'Email not confirmed': 'Por favor confirma tu email',
+};
 
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -21,10 +36,17 @@ const Auth = () => {
     setLoading(true);
 
     try {
+      // Validate inputs
+      const validationData = isLogin 
+        ? { email, password, nombre: "placeholder" }
+        : { email, password, nombre };
+      
+      const validated = authSchema.parse(validationData);
+
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
+          email: validated.email,
+          password: validated.password,
         });
 
         if (error) throw error;
@@ -32,12 +54,12 @@ const Auth = () => {
         navigate("/dashboard");
       } else {
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
+          email: validated.email,
+          password: validated.password,
           options: {
             emailRedirectTo: `${window.location.origin}/dashboard`,
             data: {
-              nombre,
+              nombre: validated.nombre,
             },
           },
         });
@@ -49,8 +71,8 @@ const Auth = () => {
             .from("clientes")
             .insert({
               user_id: authData.user.id,
-              nombre,
-              email,
+              nombre: validated.nombre,
+              email: validated.email,
             });
 
           if (clienteError) throw clienteError;
@@ -60,7 +82,12 @@ const Auth = () => {
         }
       }
     } catch (error: any) {
-      toast.error(error.message || "Error en la autenticación");
+      if (error instanceof z.ZodError) {
+        toast.error(error.errors[0].message);
+      } else {
+        const userFriendlyError = ERROR_MESSAGES[error.message] || "Error en la autenticación. Por favor intenta de nuevo.";
+        toast.error(userFriendlyError);
+      }
     } finally {
       setLoading(false);
     }
@@ -115,7 +142,7 @@ const Auth = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                minLength={6}
+                minLength={8}
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
