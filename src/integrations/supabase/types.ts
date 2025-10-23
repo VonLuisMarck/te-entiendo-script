@@ -21,6 +21,7 @@ export type Database = {
           email: string
           id: string
           nombre: string
+          perfil: string
           presupuesto_max: number | null
           presupuesto_min: number | null
           telefono: string | null
@@ -33,6 +34,7 @@ export type Database = {
           email: string
           id?: string
           nombre: string
+          perfil?: string
           presupuesto_max?: number | null
           presupuesto_min?: number | null
           telefono?: string | null
@@ -45,6 +47,7 @@ export type Database = {
           email?: string
           id?: string
           nombre?: string
+          perfil?: string
           presupuesto_max?: number | null
           presupuesto_min?: number | null
           telefono?: string | null
