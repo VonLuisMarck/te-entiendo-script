@@ -34,6 +34,7 @@ serve(async (req) => {
       .from('clientes')
       .select(`
         id,
+        perfil,
         presupuesto_min,
         presupuesto_max,
         criterios_busqueda (*)
@@ -56,7 +57,17 @@ serve(async (req) => {
       const criterios = cliente.criterios_busqueda?.[0];
       
       for (const propiedad of propiedades) {
-        const score = calcularScore(cliente, criterios, propiedad);
+        // Calcular score base
+        const scoreBase = calcularScore(cliente, criterios, propiedad);
+        
+        // Analizar precio vs mercado
+        const analisisMercado = await analizarPrecioMercado(supabase, propiedad, cliente.perfil);
+        
+        // Calcular bonus por oportunidad de mercado según perfil
+        const bonusMercado = calcularBonusPerfil(cliente.perfil, analisisMercado);
+        
+        // Score final
+        const score = Math.min(100, scoreBase + bonusMercado);
         
         if (score >= 50) { // Solo guardar matchings con score >= 50
           const criteriosCumplidos = evaluarCriterios(cliente, criterios, propiedad);
@@ -75,6 +86,7 @@ serve(async (req) => {
               .update({
                 score,
                 criterios_cumplidos: criteriosCumplidos,
+                analisis_mercado: analisisMercado,
               })
               .eq('id', existing.id);
           } else {
@@ -85,6 +97,7 @@ serve(async (req) => {
                 propiedad_id: propiedad.id,
                 score,
                 criterios_cumplidos: criteriosCumplidos,
+                analisis_mercado: analisisMercado,
               });
             matchingsCreados++;
           }
@@ -122,26 +135,26 @@ function calcularScore(cliente: any, criterios: any, propiedad: any): number {
   let score = 0;
   let maxScore = 0;
 
-  // Presupuesto (peso: 30 puntos)
-  maxScore += 30;
+  // Presupuesto (peso: 25 puntos, reducido para dar espacio al análisis de mercado)
+  maxScore += 25;
   if (propiedad.precio >= (cliente.presupuesto_min || 0) && 
       propiedad.precio <= (cliente.presupuesto_max || Infinity)) {
-    score += 30;
+    score += 25;
   } else {
     const desviacion = Math.min(
       Math.abs(propiedad.precio - (cliente.presupuesto_min || 0)),
       Math.abs(propiedad.precio - (cliente.presupuesto_max || Infinity))
     );
-    const penalizacion = Math.min(30, (desviacion / 10000) * 5);
-    score += Math.max(0, 30 - penalizacion);
+    const penalizacion = Math.min(25, (desviacion / 10000) * 5);
+    score += Math.max(0, 25 - penalizacion);
   }
 
   if (!criterios) return (score / maxScore) * 100;
 
-  // Ubicación (peso: 25 puntos)
-  maxScore += 25;
+  // Ubicación (peso: 20 puntos)
+  maxScore += 20;
   if (criterios.ubicaciones?.includes(propiedad.ubicacion)) {
-    score += 25;
+    score += 20;
   }
 
   // Tipo de propiedad (peso: 15 puntos)
@@ -192,4 +205,105 @@ function evaluarCriterios(cliente: any, criterios: any, propiedad: any): any {
     ascensor: criterios?.tiene_ascensor === propiedad.tiene_ascensor,
     parking: criterios?.tiene_parking === propiedad.tiene_parking,
   };
+}
+
+async function analizarPrecioMercado(supabase: any, propiedad: any, perfil: string): Promise<any> {
+  if (!propiedad.precio_m2 || !propiedad.ubicacion) {
+    return { disponible: false };
+  }
+
+  // Extraer ciudad y barrio
+  const partes = propiedad.ubicacion.split('-').map((p: string) => p.trim());
+  const ciudad = partes[0];
+  const barrio = partes[1] || null;
+
+  // Buscar métricas del barrio, o de la ciudad si no hay barrio
+  const { data: metricas } = await supabase
+    .from('metricas_barrios')
+    .select('*')
+    .eq('ciudad', ciudad)
+    .eq('barrio', barrio)
+    .maybeSingle();
+
+  // Si no hay métricas del barrio, buscar de la ciudad
+  let metricasUsadas = metricas;
+  if (!metricasUsadas) {
+    const { data: metricasCiudad } = await supabase
+      .from('metricas_barrios')
+      .select('*')
+      .eq('ciudad', ciudad)
+      .is('barrio', null)
+      .maybeSingle();
+    metricasUsadas = metricasCiudad;
+  }
+
+  if (!metricasUsadas || !metricasUsadas.precio_m2_medio) {
+    return { disponible: false };
+  }
+
+  // Calcular desviación porcentual
+  const precioM2Propiedad = propiedad.precio_m2;
+  const precioM2Mercado = metricasUsadas.precio_m2_medio;
+  const desviacionPorcentaje = ((precioM2Propiedad - precioM2Mercado) / precioM2Mercado) * 100;
+
+  // Determinar nivel de oportunidad
+  let nivelOportunidad = 'normal';
+  let esChollo = false;
+
+  if (desviacionPorcentaje <= -20) {
+    nivelOportunidad = 'chollazo';
+    esChollo = true;
+  } else if (desviacionPorcentaje <= -10) {
+    nivelOportunidad = 'buena_oportunidad';
+    esChollo = true;
+  } else if (desviacionPorcentaje <= -5) {
+    nivelOportunidad = 'oportunidad';
+  } else if (desviacionPorcentaje >= 20) {
+    nivelOportunidad = 'sobrevalorado';
+  } else if (desviacionPorcentaje >= 10) {
+    nivelOportunidad = 'caro';
+  }
+
+  return {
+    disponible: true,
+    precio_m2_propiedad: precioM2Propiedad,
+    precio_m2_mercado: precioM2Mercado,
+    desviacion_porcentaje: Math.round(desviacionPorcentaje * 10) / 10,
+    nivel_oportunidad: nivelOportunidad,
+    es_chollo: esChollo,
+    metricas_usadas: barrio ? 'barrio' : 'ciudad',
+    total_propiedades_comparadas: metricasUsadas.total_propiedades,
+  };
+}
+
+function calcularBonusPerfil(perfil: string, analisisMercado: any): number {
+  if (!analisisMercado.disponible) return 0;
+
+  const desviacion = analisisMercado.desviacion_porcentaje;
+
+  switch (perfil) {
+    case 'reformar':
+      // Flippers: Solo interesa si es chollo significativo
+      if (desviacion <= -20) return 15; // Chollazo: bonus grande
+      if (desviacion <= -15) return 10;
+      if (desviacion <= -10) return 5;
+      return 0;
+
+    case 'alquilar':
+      // Landlords: Precio medio está bien, pero valoran chollos moderados
+      if (desviacion <= -15) return 10; // Buen chollo
+      if (desviacion <= -10) return 7;
+      if (desviacion <= -5) return 3;
+      if (Math.abs(desviacion) <= 5) return 2; // Precio justo también vale
+      return 0;
+
+    case 'vivir':
+    default:
+      // End users: Valoran chollos pero también aceptan precio justo
+      if (desviacion <= -15) return 8;
+      if (desviacion <= -10) return 5;
+      if (desviacion <= -5) return 3;
+      if (desviacion <= 0) return 1; // Cualquier descuento mínimo vale
+      return 0;
+  }
 }

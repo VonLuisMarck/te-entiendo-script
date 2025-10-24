@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Building2, Users, Search, TrendingUp, LogOut } from "lucide-react";
+import { Building2, Users, Search, TrendingUp, LogOut, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -158,6 +158,16 @@ const Dashboard = () => {
                 Scraper
               </CardTitle>
               <CardDescription>Configura y ejecuta scrapers de portales inmobiliarios</CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/metricas")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Métricas de Mercado
+              </CardTitle>
+              <CardDescription>Análisis de precios por ciudad y barrio - Detecta chollos</CardDescription>
             </CardHeader>
           </Card>
         </div>

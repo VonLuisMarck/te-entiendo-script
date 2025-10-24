@@ -117,6 +117,7 @@ export type Database = {
       }
       matchings: {
         Row: {
+          analisis_mercado: Json | null
           cliente_id: string | null
           created_at: string | null
           criterios_cumplidos: Json | null
@@ -129,6 +130,7 @@ export type Database = {
           visto: boolean | null
         }
         Insert: {
+          analisis_mercado?: Json | null
           cliente_id?: string | null
           created_at?: string | null
           criterios_cumplidos?: Json | null
@@ -141,6 +143,7 @@ export type Database = {
           visto?: boolean | null
         }
         Update: {
+          analisis_mercado?: Json | null
           cliente_id?: string | null
           created_at?: string | null
           criterios_cumplidos?: Json | null
@@ -168,6 +171,87 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      metricas_barrios: {
+        Row: {
+          barrio: string | null
+          ciudad: string
+          created_at: string | null
+          id: string
+          metros_medio_chalet: number | null
+          metros_medio_piso: number | null
+          precio_m2_max: number | null
+          precio_m2_medio: number | null
+          precio_m2_medio_chalet: number | null
+          precio_m2_medio_piso: number | null
+          precio_m2_min: number | null
+          precio_m2_percentil_25: number | null
+          precio_m2_percentil_50: number | null
+          precio_m2_percentil_75: number | null
+          precio_medio: number | null
+          precio_medio_chalet: number | null
+          precio_medio_piso: number | null
+          tendencia: string | null
+          total_chalets: number | null
+          total_otros: number | null
+          total_pisos: number | null
+          total_propiedades: number | null
+          ultima_actualizacion: string | null
+          variacion_mensual: number | null
+        }
+        Insert: {
+          barrio?: string | null
+          ciudad: string
+          created_at?: string | null
+          id?: string
+          metros_medio_chalet?: number | null
+          metros_medio_piso?: number | null
+          precio_m2_max?: number | null
+          precio_m2_medio?: number | null
+          precio_m2_medio_chalet?: number | null
+          precio_m2_medio_piso?: number | null
+          precio_m2_min?: number | null
+          precio_m2_percentil_25?: number | null
+          precio_m2_percentil_50?: number | null
+          precio_m2_percentil_75?: number | null
+          precio_medio?: number | null
+          precio_medio_chalet?: number | null
+          precio_medio_piso?: number | null
+          tendencia?: string | null
+          total_chalets?: number | null
+          total_otros?: number | null
+          total_pisos?: number | null
+          total_propiedades?: number | null
+          ultima_actualizacion?: string | null
+          variacion_mensual?: number | null
+        }
+        Update: {
+          barrio?: string | null
+          ciudad?: string
+          created_at?: string | null
+          id?: string
+          metros_medio_chalet?: number | null
+          metros_medio_piso?: number | null
+          precio_m2_max?: number | null
+          precio_m2_medio?: number | null
+          precio_m2_medio_chalet?: number | null
+          precio_m2_medio_piso?: number | null
+          precio_m2_min?: number | null
+          precio_m2_percentil_25?: number | null
+          precio_m2_percentil_50?: number | null
+          precio_m2_percentil_75?: number | null
+          precio_medio?: number | null
+          precio_medio_chalet?: number | null
+          precio_medio_piso?: number | null
+          tendencia?: string | null
+          total_chalets?: number | null
+          total_otros?: number | null
+          total_pisos?: number | null
+          total_propiedades?: number | null
+          ultima_actualizacion?: string | null
+          variacion_mensual?: number | null
+        }
+        Relationships: []
       }
       propiedades: {
         Row: {
