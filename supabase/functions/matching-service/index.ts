@@ -24,98 +24,136 @@ serve(async (req) => {
 
     const { cliente_id, propiedad_id, recalcular_todos } = await req.json() as MatchingRequest;
     
-    console.log('[Matching Service] Iniciando cálculo de matchings');
-    const startTime = Date.now();
+    console.log('[Matching Service] Iniciando cálculo de matchings en background');
 
-    let matchingsCreados = 0;
+    // Definir la tarea de procesamiento en background
+    const processMatchings = async () => {
+      const startTime = Date.now();
+      let matchingsCreados = 0;
+      let matchingsActualizados = 0;
 
-    // Obtener clientes y propiedades según los filtros
-    const { data: clientes } = await supabase
-      .from('clientes')
-      .select(`
-        id,
-        perfil,
-        presupuesto_min,
-        presupuesto_max,
-        criterios_busqueda (*)
-      `)
-      .eq('activo', true)
-      .eq(cliente_id ? 'id' : 'activo', cliente_id || true);
+      try {
+        // Obtener clientes y propiedades según los filtros (con límite razonable)
+        const { data: clientes } = await supabase
+          .from('clientes')
+          .select(`
+            id,
+            perfil,
+            presupuesto_min,
+            presupuesto_max,
+            criterios_busqueda (*)
+          `)
+          .eq('activo', true)
+          .eq(cliente_id ? 'id' : 'activo', cliente_id || true)
+          .limit(20); // Limitar a 20 clientes máximo
 
-    const { data: propiedades } = await supabase
-      .from('propiedades')
-      .select('*')
-      .eq('activo', true)
-      .eq(propiedad_id ? 'id' : 'activo', propiedad_id || true);
+        const { data: propiedades } = await supabase
+          .from('propiedades')
+          .select('*')
+          .eq('activo', true)
+          .eq(propiedad_id ? 'id' : 'activo', propiedad_id || true)
+          .limit(100); // Limitar a 100 propiedades máximo
 
-    if (!clientes || !propiedades) {
-      throw new Error('No se encontraron clientes o propiedades');
-    }
+        if (!clientes || !propiedades) {
+          console.error('[Matching Service] No se encontraron clientes o propiedades');
+          return;
+        }
 
-    // Calcular matchings
-    for (const cliente of clientes) {
-      const criterios = cliente.criterios_busqueda?.[0];
-      
-      for (const propiedad of propiedades) {
-        // Calcular score base
-        const scoreBase = calcularScore(cliente, criterios, propiedad);
-        
-        // Analizar precio vs mercado
-        const analisisMercado = await analizarPrecioMercado(supabase, propiedad, cliente.perfil);
-        
-        // Calcular bonus por oportunidad de mercado según perfil
-        const bonusMercado = calcularBonusPerfil(cliente.perfil, analisisMercado);
-        
-        // Score final
-        const score = Math.min(100, scoreBase + bonusMercado);
-        
-        if (score >= 50) { // Solo guardar matchings con score >= 50
-          const criteriosCumplidos = evaluarCriterios(cliente, criterios, propiedad);
+        console.log(`[Matching Service] Procesando ${clientes.length} clientes x ${propiedades.length} propiedades`);
+
+        // Pre-cargar TODAS las métricas en memoria para evitar queries repetidas
+        const { data: todasMetricas } = await supabase
+          .from('metricas_barrios')
+          .select('*');
+
+        const metricasMap = new Map();
+        if (todasMetricas) {
+          todasMetricas.forEach((metrica: any) => {
+            const key = `${metrica.ciudad}|${metrica.barrio || 'ciudad'}`;
+            metricasMap.set(key, metrica);
+          });
+        }
+
+        // Procesar en lotes de 50 para evitar timeout
+        const BATCH_SIZE = 50;
+        const matchingsToUpsert: any[] = [];
+
+        for (const cliente of clientes) {
+          const criterios = cliente.criterios_busqueda?.[0];
           
-          // Verificar si ya existe el matching
-          const { data: existing } = await supabase
-            .from('matchings')
-            .select('id')
-            .eq('cliente_id', cliente.id)
-            .eq('propiedad_id', propiedad.id)
-            .maybeSingle();
-
-          if (existing) {
-            await supabase
-              .from('matchings')
-              .update({
-                score,
-                criterios_cumplidos: criteriosCumplidos,
-                analisis_mercado: analisisMercado,
-              })
-              .eq('id', existing.id);
-          } else {
-            await supabase
-              .from('matchings')
-              .insert({
+          for (const propiedad of propiedades) {
+            // Calcular score base
+            const scoreBase = calcularScore(cliente, criterios, propiedad);
+            
+            // Analizar precio vs mercado usando cache en memoria
+            const analisisMercado = analizarPrecioMercadoEnMemoria(propiedad, metricasMap);
+            
+            // Calcular bonus por oportunidad de mercado según perfil
+            const bonusMercado = calcularBonusPerfil(cliente.perfil, analisisMercado);
+            
+            // Score final
+            const score = Math.min(100, scoreBase + bonusMercado);
+            
+            if (score >= 50) {
+              const criteriosCumplidos = evaluarCriterios(cliente, criterios, propiedad);
+              
+              matchingsToUpsert.push({
                 cliente_id: cliente.id,
                 propiedad_id: propiedad.id,
                 score,
                 criterios_cumplidos: criteriosCumplidos,
                 analisis_mercado: analisisMercado,
               });
-            matchingsCreados++;
+
+              // Cuando alcanzamos el tamaño del lote, hacemos upsert
+              if (matchingsToUpsert.length >= BATCH_SIZE) {
+                const { error } = await supabase
+                  .from('matchings')
+                  .upsert(matchingsToUpsert, {
+                    onConflict: 'cliente_id,propiedad_id',
+                    ignoreDuplicates: false
+                  });
+
+                if (!error) {
+                  matchingsCreados += matchingsToUpsert.length;
+                }
+                matchingsToUpsert.length = 0; // Limpiar array
+              }
+            }
           }
         }
+
+        // Procesar los matchings restantes
+        if (matchingsToUpsert.length > 0) {
+          const { error } = await supabase
+            .from('matchings')
+            .upsert(matchingsToUpsert, {
+              onConflict: 'cliente_id,propiedad_id',
+              ignoreDuplicates: false
+            });
+
+          if (!error) {
+            matchingsCreados += matchingsToUpsert.length;
+          }
+        }
+
+        const duracionSegundos = Math.floor((Date.now() - startTime) / 1000);
+        console.log(`[Matching Service] Completado: ${matchingsCreados} matchings procesados en ${duracionSegundos}s`);
+      } catch (error) {
+        console.error('[Matching Service] Error en background:', error);
       }
-    }
+    };
 
-    const duracionSegundos = Math.floor((Date.now() - startTime) / 1000);
+    // Iniciar procesamiento en background
+    // @ts-ignore - EdgeRuntime está disponible en Supabase Edge Functions
+    EdgeRuntime.waitUntil(processMatchings());
 
-    console.log(`[Matching Service] Completado: ${matchingsCreados} matchings creados en ${duracionSegundos}s`);
-
+    // Devolver respuesta inmediata
     return new Response(
       JSON.stringify({
         success: true,
-        matchings_creados: matchingsCreados,
-        clientes_procesados: clientes.length,
-        propiedades_procesadas: propiedades.length,
-        duracion_segundos: duracionSegundos,
+        message: 'Cálculo de matchings iniciado en background',
+        status: 'processing'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -207,34 +245,21 @@ function evaluarCriterios(cliente: any, criterios: any, propiedad: any): any {
   };
 }
 
-async function analizarPrecioMercado(supabase: any, propiedad: any, perfil: string): Promise<any> {
+// Versión optimizada que usa cache en memoria
+function analizarPrecioMercadoEnMemoria(propiedad: any, metricasMap: Map<string, any>): any {
   if (!propiedad.precio_m2 || !propiedad.ubicacion) {
     return { disponible: false };
   }
 
   // Extraer ciudad y barrio
-  const partes = propiedad.ubicacion.split('-').map((p: string) => p.trim());
+  const partes = propiedad.ubicacion.split(',').map((p: string) => p.trim());
   const ciudad = partes[0];
   const barrio = partes[1] || null;
 
-  // Buscar métricas del barrio, o de la ciudad si no hay barrio
-  const { data: metricas } = await supabase
-    .from('metricas_barrios')
-    .select('*')
-    .eq('ciudad', ciudad)
-    .eq('barrio', barrio)
-    .maybeSingle();
-
-  // Si no hay métricas del barrio, buscar de la ciudad
-  let metricasUsadas = metricas;
+  // Buscar en el Map primero por barrio, luego por ciudad
+  let metricasUsadas = metricasMap.get(`${ciudad}|${barrio}`);
   if (!metricasUsadas) {
-    const { data: metricasCiudad } = await supabase
-      .from('metricas_barrios')
-      .select('*')
-      .eq('ciudad', ciudad)
-      .is('barrio', null)
-      .maybeSingle();
-    metricasUsadas = metricasCiudad;
+    metricasUsadas = metricasMap.get(`${ciudad}|ciudad`);
   }
 
   if (!metricasUsadas || !metricasUsadas.precio_m2_medio) {
