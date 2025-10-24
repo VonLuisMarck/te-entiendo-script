@@ -1,11 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Home, LogOut, TrendingUp, RefreshCw, BarChart3 } from "lucide-react";
+import { Home, LogOut, TrendingUp, RefreshCw, BarChart3, Search, Filter } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
 interface Metrica {
@@ -27,6 +31,12 @@ const Metricas = () => {
   const [metricas, setMetricas] = useState<Metrica[]>([]);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
+  const [filtros, setFiltros] = useState({
+    ciudad: "todas",
+    busquedaBarrio: "",
+    soloBarrios: false,
+    ordenPor: "ciudad"
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -101,6 +111,59 @@ const Metricas = () => {
     return num.toLocaleString('es-ES');
   };
 
+  // Obtener lista de ciudades únicas
+  const ciudades = useMemo(() => {
+    const ciudadesUnicas = Array.from(new Set(metricas.map(m => m.ciudad))).sort();
+    return ciudadesUnicas;
+  }, [metricas]);
+
+  // Filtrar y ordenar métricas
+  const metricasFiltradas = useMemo(() => {
+    let resultado = [...metricas];
+
+    // Filtro por ciudad
+    if (filtros.ciudad !== "todas") {
+      resultado = resultado.filter(m => m.ciudad === filtros.ciudad);
+    }
+
+    // Filtro por barrio (búsqueda)
+    if (filtros.busquedaBarrio) {
+      const busqueda = filtros.busquedaBarrio.toLowerCase();
+      resultado = resultado.filter(m => 
+        m.barrio?.toLowerCase().includes(busqueda) || 
+        (!m.barrio && "total ciudad".includes(busqueda))
+      );
+    }
+
+    // Filtro solo barrios (excluir totales de ciudad)
+    if (filtros.soloBarrios) {
+      resultado = resultado.filter(m => m.barrio !== null);
+    }
+
+    // Ordenamiento
+    resultado.sort((a, b) => {
+      switch (filtros.ordenPor) {
+        case "precio_alto":
+          return (b.precio_m2_medio || 0) - (a.precio_m2_medio || 0);
+        case "precio_bajo":
+          return (a.precio_m2_medio || 0) - (b.precio_m2_medio || 0);
+        case "propiedades":
+          return b.total_propiedades - a.total_propiedades;
+        default: // ciudad
+          if (a.ciudad !== b.ciudad) {
+            return a.ciudad.localeCompare(b.ciudad);
+          }
+          // Dentro de la misma ciudad, los totales primero
+          if (!a.barrio && b.barrio) return -1;
+          if (a.barrio && !b.barrio) return 1;
+          if (!a.barrio && !b.barrio) return 0;
+          return (a.barrio || '').localeCompare(b.barrio || '');
+      }
+    });
+
+    return resultado;
+  }, [metricas, filtros]);
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
@@ -133,18 +196,124 @@ const Metricas = () => {
             <p className="text-muted-foreground">Cargando métricas...</p>
           </div>
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle>Métricas por Ciudad y Barrio</CardTitle>
-              <CardDescription>
-                Datos agregados de {metricas.length} zonas - Actualizado: {
-                  metricas.length > 0 
-                    ? new Date(metricas[0].ultima_actualizacion).toLocaleString('es-ES')
-                    : '-'
-                }
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
+          <>
+            {/* Filtros */}
+            <Card className="mb-6">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Filter className="h-5 w-5" />
+                  Filtros
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Filtro por ciudad */}
+                  <div className="space-y-2">
+                    <Label>Ciudad</Label>
+                    <Select
+                      value={filtros.ciudad}
+                      onValueChange={(value) => setFiltros({ ...filtros, ciudad: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="todas">Todas las ciudades</SelectItem>
+                        {ciudades.map((ciudad) => (
+                          <SelectItem key={ciudad} value={ciudad}>
+                            {ciudad}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Búsqueda por barrio */}
+                  <div className="space-y-2">
+                    <Label>Buscar Barrio</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Nombre del barrio..."
+                        value={filtros.busquedaBarrio}
+                        onChange={(e) => setFiltros({ ...filtros, busquedaBarrio: e.target.value })}
+                        className="pl-9"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Ordenar por */}
+                  <div className="space-y-2">
+                    <Label>Ordenar por</Label>
+                    <Select
+                      value={filtros.ordenPor}
+                      onValueChange={(value) => setFiltros({ ...filtros, ordenPor: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ciudad">Ciudad</SelectItem>
+                        <SelectItem value="precio_alto">€/m² Mayor a Menor</SelectItem>
+                        <SelectItem value="precio_bajo">€/m² Menor a Mayor</SelectItem>
+                        <SelectItem value="propiedades">Más Propiedades</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Solo barrios */}
+                  <div className="flex items-end pb-2">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="soloBarrios"
+                        checked={filtros.soloBarrios}
+                        onCheckedChange={(checked) => 
+                          setFiltros({ ...filtros, soloBarrios: checked as boolean })
+                        }
+                      />
+                      <Label htmlFor="soloBarrios" className="text-sm cursor-pointer">
+                        Solo barrios específicos
+                      </Label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Resumen de filtros */}
+                <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>
+                    Mostrando {metricasFiltradas.length} de {metricas.length} zonas
+                  </span>
+                  {(filtros.ciudad !== "todas" || filtros.busquedaBarrio || filtros.soloBarrios) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFiltros({
+                        ciudad: "todas",
+                        busquedaBarrio: "",
+                        soloBarrios: false,
+                        ordenPor: "ciudad"
+                      })}
+                    >
+                      Limpiar filtros
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tabla de métricas */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Métricas por Ciudad y Barrio</CardTitle>
+                <CardDescription>
+                  Datos agregados - Actualizado: {
+                    metricas.length > 0 
+                      ? new Date(metricas[0].ultima_actualizacion).toLocaleString('es-ES')
+                      : '-'
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
               <div className="overflow-x-auto">
                 <Table>
                   <TableHeader>
@@ -160,7 +329,7 @@ const Metricas = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {metricas.map((metrica) => (
+                    {metricasFiltradas.map((metrica) => (
                       <TableRow key={metrica.id}>
                         <TableCell className="font-medium">{metrica.ciudad}</TableCell>
                         <TableCell>
@@ -199,6 +368,7 @@ const Metricas = () => {
               </div>
             </CardContent>
           </Card>
+          </>
         )}
 
         {!loading && metricas.length === 0 && (
