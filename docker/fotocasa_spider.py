@@ -1,30 +1,22 @@
 """
-Spider de Fotocasa - Copia tu spider aquí
-Este es un placeholder - reemplaza con tu spider real
+Spider de Fotocasa con User-Agent rotation y anti-detección
 """
 from __future__ import annotations
 import json
 import time
 import scrapy
+from config import get_random_headers, get_random_delay, SCRAPY_SETTINGS
 
 API_SEARCH = "https://web.gw.fotocasa.es/v2/propertysearch/search?portal=www-fotocasa-es"
 
 class FotocasaApiSpider(scrapy.Spider):
     """
     Spider que consume la API pública de Fotocasa sin renderizado.
-    Descarga anuncios en formato JSON y los procesa.
+    Usa rotación de User-Agents y delays aleatorios para evitar detección.
     """
     
     name = "fotocasa_api"
-    custom_settings = {
-        "DOWNLOAD_DELAY": 0.5,
-        "CONCURRENT_REQUESTS": 4,
-        "AUTOTHROTTLE_ENABLED": True,
-        "AUTOTHROTTLE_START_DELAY": 0.25,
-        "AUTOTHROTTLE_MAX_DELAY": 3.0,
-        "RETRY_TIMES": 3,
-        "RETRY_HTTP_CODES": [429, 500, 502, 503, 504],
-    }
+    custom_settings = SCRAPY_SETTINGS
     
     def __init__(self, search_path: str = None, max_pages: int = 50, **kwargs):
         """
@@ -38,12 +30,10 @@ class FotocasaApiSpider(scrapy.Spider):
         self.max_pages = int(max_pages)
     
     def start_requests(self):
-        headers = {
-            "content-type": "application/json",
-            "accept": "application/json, text/plain, */*",
-            "origin": "https://www.fotocasa.es",
-            "referer": "https://www.fotocasa.es/",
-        }
+        """Inicia requests con headers aleatorios"""
+        headers = get_random_headers()
+        
+        self.logger.info(f"🎭 Usando User-Agent: {headers['User-Agent'][:50]}...")
         
         payload = self._build_payload(self.search_path, page=1)
         yield scrapy.Request(
@@ -53,6 +43,7 @@ class FotocasaApiSpider(scrapy.Spider):
             body=json.dumps(payload),
             callback=self.parse_search,
             cb_kwargs={"search_path": self.search_path, "page": 1},
+            dont_filter=True,
         )
     
     def parse_search(self, response, search_path: str, page: int):
@@ -80,16 +71,19 @@ class FotocasaApiSpider(scrapy.Spider):
                 "raw": rec,
             }
         
-        # Paginación
+        # Paginación con User-Agent y delay aleatorios
         next_page = page + 1
         if next_page <= self.max_pages and records:
+            # Delay aleatorio entre páginas (simular humano)
+            delay = get_random_delay(0.8, 2.5)
+            self.logger.info(f"⏱️  Esperando {delay:.2f}s antes de página {next_page}...")
+            
             payload = self._build_payload(search_path, page=next_page)
-            headers = {
-                "content-type": "application/json",
-                "accept": "application/json, text/plain, */*",
-                "origin": "https://www.fotocasa.es",
-                "referer": "https://www.fotocasa.es/",
-            }
+            
+            # Nuevo User-Agent para cada página
+            headers = get_random_headers()
+            self.logger.info(f"🎭 Rotando User-Agent para página {next_page}")
+            
             yield scrapy.Request(
                 API_SEARCH,
                 method="POST",
@@ -97,6 +91,8 @@ class FotocasaApiSpider(scrapy.Spider):
                 body=json.dumps(payload),
                 callback=self.parse_search,
                 cb_kwargs={"search_path": search_path, "page": next_page},
+                dont_filter=True,
+                meta={'download_delay': delay},
             )
     
     def _build_payload(self, path: str, page: int) -> dict:

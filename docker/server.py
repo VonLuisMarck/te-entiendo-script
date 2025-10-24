@@ -1,6 +1,8 @@
 """
 Servidor Flask que expone API para triggear el scraper de Fotocasa
 y envía resultados al Edge Function via webhook
+
+Incluye rotación de User-Agents y anti-detección
 """
 import os
 import json
@@ -10,6 +12,7 @@ from flask import Flask, request, jsonify
 from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 import requests
+from config import get_random_user_agent, SCRAPY_SETTINGS
 
 app = Flask(__name__)
 
@@ -17,17 +20,19 @@ app = Flask(__name__)
 jobs = {}
 
 def run_spider(job_id, portal, ubicacion, tipo_propiedad, max_pages, webhook_url, webhook_auth):
-    """Ejecuta el spider de Scrapy en background"""
+    """Ejecuta el spider de Scrapy en background con User-Agent rotation"""
     try:
         jobs[job_id]['status'] = 'running'
         
-        # Configurar el proceso de Scrapy
-        process = CrawlerProcess({
-            'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-            'ROBOTSTXT_OBEY': False,
-            'CONCURRENT_REQUESTS': 4,
-            'DOWNLOAD_DELAY': 0.5,
-        })
+        # Obtener User-Agent aleatorio para este job
+        user_agent = get_random_user_agent()
+        print(f"🎭 [Job {job_id[:8]}] User-Agent: {user_agent[:60]}...")
+        
+        # Configurar el proceso de Scrapy con settings anti-detección
+        settings = SCRAPY_SETTINGS.copy()
+        settings['USER_AGENT'] = user_agent  # Override con UA específico del job
+        
+        process = CrawlerProcess(settings)
         
         # Construir search_path
         search_path = f'/es/comprar/viviendas/{ubicacion.lower().replace(" ", "-")}/todas-las-zonas'

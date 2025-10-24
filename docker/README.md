@@ -1,6 +1,14 @@
-# Docker Scraper - Fotocasa
+# Docker Scraper - Fotocasa 🕵️
 
-Este contenedor Docker ejecuta el scraper de Fotocasa en Python/Scrapy y envía los resultados al backend via webhook.
+Este contenedor Docker ejecuta el scraper de Fotocasa en Python/Scrapy con **rotación automática de User-Agents** y técnicas anti-detección, enviando los resultados al backend via webhook.
+
+## ✨ Features
+
+- 🎭 **Rotación de User-Agents**: Pool de 17+ User-Agents realistas (Chrome, Firefox, Safari, Edge)
+- ⏱️ **Delays aleatorios**: Simula comportamiento humano entre requests
+- 🔄 **Headers dinámicos**: Accept-Language y viewports variables
+- 🛡️ **Anti-detección**: Configuración optimizada de Scrapy
+- 📊 **Logging detallado**: Monitoreo de User-Agents y delays en uso
 
 ## Estructura
 
@@ -8,8 +16,10 @@ Este contenedor Docker ejecuta el scraper de Fotocasa en Python/Scrapy y envía 
 docker/
 ├── Dockerfile          # Imagen Docker
 ├── requirements.txt    # Dependencias Python
-├── server.py          # Servidor Flask que expone API
-├── fotocasa_spider.py # Spider de Scrapy (reemplaza con el tuyo)
+├── server.py          # Servidor Flask con API
+├── fotocasa_spider.py # Spider con User-Agent rotation
+├── config.py          # Pool de User-Agents y configuración
+├── test_rotation.py   # Test de rotación
 └── README.md          # Esta documentación
 ```
 
