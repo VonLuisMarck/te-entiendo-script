@@ -94,10 +94,20 @@ serve(async (req) => {
           body: JSON.stringify(payload),
         });
 
+        console.log(`[Scraping] Response status: ${response.status}`);
+        console.log(`[Scraping] Response headers:`, Object.fromEntries(response.headers.entries()));
+        
         if (!response.ok) {
           const errorText = await response.text();
+          console.error(`[Scraping] Error response body:`, errorText);
           errores.push(`Error en página ${page}: HTTP ${response.status} - ${errorText}`);
           console.error(`[Scraping] Error HTTP en página ${page}:`, response.status);
+          
+          // Si es 405, intenta con ScraperAPI o Apify como alternativa
+          if (response.status === 405) {
+            console.error('[Scraping] Fotocasa está bloqueando el acceso directo. Se requiere proxy/servicio externo.');
+            errores.push('Fotocasa bloquea el acceso directo desde servidores. Considera usar Python + Scrapy localmente o un servicio como ScraperAPI/Apify.');
+          }
           break;
         }
 
