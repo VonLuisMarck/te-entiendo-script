@@ -104,19 +104,37 @@ function agruparPorCiudadBarrio(propiedades: any[]): Record<string, any[]> {
   const grupos: Record<string, any[]> = {};
 
   for (const prop of propiedades) {
-    // Intentar extraer barrio de la ubicación
-    // Formato esperado: "Ciudad - Barrio" o solo "Ciudad"
+    // Intentar extraer ciudad y barrio de la ubicación
+    // Formatos esperados: "Ciudad, Barrio" o "Ciudad - Barrio" o solo "Ciudad"
     const ubicacion = prop.ubicacion || '';
-    const partes = ubicacion.split('-').map((p: string) => p.trim());
-    const ciudad = partes[0] || 'Desconocida';
-    const barrio = partes[1] || null;
+    
+    let ciudad = 'Desconocida';
+    let barrio = null;
+    
+    // Intentar separar por coma primero
+    if (ubicacion.includes(',')) {
+      const partes = ubicacion.split(',').map((p: string) => p.trim());
+      ciudad = partes[0] || 'Desconocida';
+      barrio = partes[1] || null;
+    }
+    // Luego intentar por guión
+    else if (ubicacion.includes('-')) {
+      const partes = ubicacion.split('-').map((p: string) => p.trim());
+      ciudad = partes[0] || 'Desconocida';
+      barrio = partes[1] || null;
+    }
+    // Si no hay separador, toda la ubicación es la ciudad
+    else {
+      ciudad = ubicacion.trim() || 'Desconocida';
+      barrio = null;
+    }
 
     // Agrupar por ciudad+barrio
     const key = `${ciudad}|${barrio || ''}`;
     if (!grupos[key]) grupos[key] = [];
     grupos[key].push(prop);
 
-    // También agrupar solo por ciudad (agregado)
+    // También agrupar solo por ciudad (agregado total)
     const keyCiudad = `${ciudad}|`;
     if (!grupos[keyCiudad]) grupos[keyCiudad] = [];
     grupos[keyCiudad].push(prop);
