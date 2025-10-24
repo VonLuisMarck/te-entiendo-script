@@ -26,6 +26,7 @@ const Scraper = () => {
   const [logs, setLogs] = useState<ScrapingLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [scraping, setScraping] = useState(false);
+  const [generatingFake, setGeneratingFake] = useState(false);
   const [formData, setFormData] = useState({
     portal: "fotocasa",
     ubicacion: "Murcia",
@@ -78,6 +79,28 @@ const Scraper = () => {
       toast.error(error.message || "Error al ejecutar scraping");
     } finally {
       setScraping(false);
+    }
+  };
+
+  const handleGenerateFakeData = async () => {
+    setGeneratingFake(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-fake-data', {
+        body: {
+          cantidad: 50,
+          ciudades: ['Madrid', 'Barcelona', 'Valencia', 'Sevilla', 'Málaga']
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success(`✨ ${data.propiedades_creadas} propiedades fake generadas! Precio medio: ${data.precio_medio.toLocaleString()}€`);
+      loadLogs();
+    } catch (error: any) {
+      toast.error(error.message || "Error al generar datos fake");
+    } finally {
+      setGeneratingFake(false);
     }
   };
 
@@ -168,14 +191,26 @@ const Scraper = () => {
                   </Button>
                 </form>
 
-                <div className="mt-6 p-4 bg-muted/50 rounded-lg">
-                  <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <Activity className="h-4 w-4" />
-                    Nota
-                  </h4>
-                  <p className="text-sm text-muted-foreground">
-                    Este scraper es un simulador para desarrollo. Conecta tu scraper Python real mediante el endpoint de la Edge Function.
-                  </p>
+                <div className="mt-6 space-y-4">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={handleGenerateFakeData}
+                    disabled={generatingFake}
+                  >
+                    <Activity className={`h-4 w-4 mr-2 ${generatingFake ? 'animate-pulse' : ''}`} />
+                    {generatingFake ? 'Generando...' : '✨ Generar Datos Fake'}
+                  </Button>
+
+                  <div className="p-4 bg-muted/50 rounded-lg">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2">
+                      <Activity className="h-4 w-4" />
+                      Datos de Prueba
+                    </h4>
+                    <p className="text-sm text-muted-foreground">
+                      Genera 50 propiedades fake realistas en varias ciudades para probar el sistema sin necesidad del scraper real.
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>

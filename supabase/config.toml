@@ -1,10 +1,13 @@
 project_id = "mtjomlpwpiuhflwmgctk"
 
-[functions.scraping-service]
-verify_jwt = true
+[functions.calculate-metrics]
+verify_jwt = false
+
+[functions.generate-fake-data]
+verify_jwt = false
 
 [functions.matching-service]
-verify_jwt = true
+verify_jwt = false
 
-[functions.calculate-metrics]
-verify_jwt = true
+[functions.scraping-service]
+verify_jwt = false
