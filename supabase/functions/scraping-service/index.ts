@@ -6,10 +6,25 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const FOTOCASA_API = "https://web.gw.fotocasa.es/v2/propertysearch/search?portal=www-fotocasa-es";
+
 interface ScrapingRequest {
   portal: string;
   ubicacion: string;
   tipo_propiedad?: string;
+  max_pages?: number;
+}
+
+interface FotocasaPayload {
+  filter: {
+    isNewConstruction: null;
+    isDevelopment: null;
+    hasMultimedia: null;
+    sortType: string;
+    maxItems: number;
+    pageNumber: number;
+    path: string;
+  };
 }
 
 serve(async (req) => {
@@ -22,82 +37,132 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const { portal, ubicacion, tipo_propiedad } = await req.json() as ScrapingRequest;
+    const { portal, ubicacion, tipo_propiedad, max_pages = 5 } = await req.json() as ScrapingRequest;
     
     console.log(`[Scraping Service] Iniciando scraping: ${portal} - ${ubicacion}`);
     const startTime = Date.now();
 
-    // Simulación de scraping (en producción conectarías con tu scraper Python/Scrapy)
-    // Aquí podrías hacer una llamada HTTP a tu servicio de scraping Python externo
-    const propiedadesMock = [
-      {
-        external_id: `${portal}-${Date.now()}-1`,
-        portal_origen: portal,
-        titulo: `Piso en ${ubicacion} - Céntrico`,
-        descripcion: `Amplio piso en el centro de ${ubicacion} con todas las comodidades`,
-        precio: 150000,
-        ubicacion: ubicacion,
-        tipo_propiedad: tipo_propiedad || 'piso',
-        dormitorios: 3,
-        banos: 2,
-        metros: 95,
-        condition: 'buen estado',
-        ano_construccion: 2010,
-        tiene_ascensor: true,
-        tiene_parking: false,
-        url: `https://${portal}.com/propiedad/ejemplo-1`,
-        imagenes: [],
-        activo: true,
-      },
-      {
-        external_id: `${portal}-${Date.now()}-2`,
-        portal_origen: portal,
-        titulo: `Chalet en ${ubicacion} - Zona Residencial`,
-        descripcion: `Hermoso chalet con jardín privado en ${ubicacion}`,
-        precio: 350000,
-        ubicacion: ubicacion,
-        tipo_propiedad: 'chalet',
-        dormitorios: 4,
-        banos: 3,
-        metros: 180,
-        condition: 'nuevo',
-        ano_construccion: 2022,
-        tiene_ascensor: false,
-        tiene_parking: true,
-        url: `https://${portal}.com/propiedad/ejemplo-2`,
-        imagenes: [],
-        activo: true,
-      },
-    ];
+    if (portal !== 'fotocasa') {
+      throw new Error(`Portal ${portal} no soportado. Solo 'fotocasa' está disponible.`);
+    }
+
+    // Construir el search_path basado en ubicación
+    // Ejemplo: "/es/comprar/viviendas/murcia-capital/todas-las-zonas"
+    const searchPath = `/es/comprar/viviendas/${ubicacion.toLowerCase().replace(/\s+/g, '-')}/todas-las-zonas`;
 
     let propiedadesNuevas = 0;
     let propiedadesActualizadas = 0;
     const errores: string[] = [];
+    let totalPropiedades = 0;
 
-    // Insertar o actualizar propiedades
-    for (const propiedad of propiedadesMock) {
-      try {
-        const { data: existing } = await supabase
-          .from('propiedades')
-          .select('id')
-          .eq('external_id', propiedad.external_id)
-          .maybeSingle();
+    // Paginar resultados
+    for (let page = 1; page <= max_pages; page++) {
+      console.log(`[Scraping] Procesando página ${page}...`);
 
-        if (existing) {
-          await supabase
-            .from('propiedades')
-            .update(propiedad)
-            .eq('id', existing.id);
-          propiedadesActualizadas++;
-        } else {
-          await supabase
-            .from('propiedades')
-            .insert(propiedad);
-          propiedadesNuevas++;
+      const payload: FotocasaPayload = {
+        filter: {
+          isNewConstruction: null,
+          isDevelopment: null,
+          hasMultimedia: null,
+          sortType: "relevance",
+          maxItems: 36,
+          pageNumber: page,
+          path: searchPath,
         }
+      };
+
+      try {
+        const response = await fetch(FOTOCASA_API, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json, text/plain, */*',
+            'Origin': 'https://www.fotocasa.es',
+            'Referer': 'https://www.fotocasa.es/',
+          },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          errores.push(`Error en página ${page}: HTTP ${response.status} - ${errorText}`);
+          console.error(`[Scraping] Error HTTP en página ${page}:`, response.status);
+          break;
+        }
+
+        const data = await response.json();
+        const records = data.list || data.realEstates || [];
+
+        if (!Array.isArray(records) || records.length === 0) {
+          console.log(`[Scraping] No hay más resultados en página ${page}`);
+          break;
+        }
+
+        console.log(`[Scraping] Encontrados ${records.length} resultados en página ${page}`);
+        totalPropiedades += records.length;
+
+        // Procesar cada propiedad
+        for (const rec of records) {
+          try {
+            const adId = String(rec.id || rec.propertyId || '');
+            if (!adId) {
+              errores.push('Propiedad sin ID, omitida');
+              continue;
+            }
+
+            const propiedad = {
+              external_id: `fotocasa-${adId}`,
+              portal_origen: 'fotocasa',
+              titulo: rec.title || rec.description || 'Sin título',
+              descripcion: rec.description || null,
+              precio: rec.price?.amount || rec.transactionPrice || 0,
+              ubicacion: rec.address?.location || rec.location || ubicacion,
+              tipo_propiedad: rec.typology || tipo_propiedad || 'piso',
+              dormitorios: rec.features?.bedrooms || rec.rooms || null,
+              banos: rec.features?.bathrooms || rec.bathrooms || null,
+              metros: rec.surface || rec.size || null,
+              condition: rec.features?.condition || rec.condition || null,
+              ano_construccion: rec.features?.builtYear || null,
+              tiene_ascensor: rec.features?.hasLift || rec.hasLift || false,
+              tiene_parking: rec.features?.parking || rec.hasParking || false,
+              url: rec.url || rec.link || `https://www.fotocasa.es/vivienda/${adId}`,
+              imagenes: rec.images || rec.multimedia || [],
+              activo: true,
+            };
+
+            const { data: existing } = await supabase
+              .from('propiedades')
+              .select('id')
+              .eq('external_id', propiedad.external_id)
+              .maybeSingle();
+
+            if (existing) {
+              await supabase
+                .from('propiedades')
+                .update(propiedad)
+                .eq('id', existing.id);
+              propiedadesActualizadas++;
+            } else {
+              await supabase
+                .from('propiedades')
+                .insert(propiedad);
+              propiedadesNuevas++;
+            }
+          } catch (error) {
+            const errorMsg = error instanceof Error ? error.message : 'Unknown error';
+            errores.push(`Error procesando propiedad: ${errorMsg}`);
+            console.error('[Scraping] Error procesando propiedad:', error);
+          }
+        }
+
+        // Rate limiting entre páginas
+        await new Promise(resolve => setTimeout(resolve, 500));
+
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-        errores.push(`Error procesando ${propiedad.external_id}: ${errorMsg}`);
+        errores.push(`Error en página ${page}: ${errorMsg}`);
+        console.error(`[Scraping] Error en página ${page}:`, error);
+        break;
       }
     }
 
@@ -107,7 +172,7 @@ serve(async (req) => {
     await supabase.from('scraping_logs').insert({
       portal,
       ubicacion,
-      propiedades_encontradas: propiedadesMock.length,
+      propiedades_encontradas: totalPropiedades,
       propiedades_nuevas: propiedadesNuevas,
       propiedades_actualizadas: propiedadesActualizadas,
       errores: errores.length > 0 ? errores : null,
@@ -120,7 +185,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        propiedades_encontradas: propiedadesMock.length,
+        propiedades_encontradas: totalPropiedades,
         propiedades_nuevas: propiedadesNuevas,
         propiedades_actualizadas: propiedadesActualizadas,
         errores,
