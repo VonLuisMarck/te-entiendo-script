@@ -116,29 +116,39 @@ function agruparPorCiudadBarrio(propiedades: any[]): Record<string, any[]> {
       const partes = ubicacion.split(',').map((p: string) => p.trim());
       ciudad = partes[0] || 'Desconocida';
       barrio = partes[1] || null;
+      console.log(`Ubicación: "${ubicacion}" -> Ciudad: "${ciudad}", Barrio: "${barrio}"`);
     }
     // Luego intentar por guión
     else if (ubicacion.includes('-')) {
       const partes = ubicacion.split('-').map((p: string) => p.trim());
       ciudad = partes[0] || 'Desconocida';
       barrio = partes[1] || null;
+      console.log(`Ubicación con guión: "${ubicacion}" -> Ciudad: "${ciudad}", Barrio: "${barrio}"`);
     }
     // Si no hay separador, toda la ubicación es la ciudad
     else {
       ciudad = ubicacion.trim() || 'Desconocida';
       barrio = null;
+      console.log(`Ubicación sin separador: "${ubicacion}" -> Ciudad: "${ciudad}"`);
     }
 
-    // Agrupar por ciudad+barrio
-    const key = `${ciudad}|${barrio || ''}`;
-    if (!grupos[key]) grupos[key] = [];
-    grupos[key].push(prop);
+    // Agrupar por ciudad+barrio específico
+    if (barrio) {
+      const key = `${ciudad}|${barrio}`;
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push(prop);
+    }
 
-    // También agrupar solo por ciudad (agregado total)
+    // Agrupar por ciudad (agregado total) - siempre
     const keyCiudad = `${ciudad}|`;
     if (!grupos[keyCiudad]) grupos[keyCiudad] = [];
     grupos[keyCiudad].push(prop);
   }
+
+  console.log(`Grupos creados: ${Object.keys(grupos).length}`);
+  Object.keys(grupos).slice(0, 5).forEach(key => {
+    console.log(`  ${key} -> ${grupos[key].length} propiedades`);
+  });
 
   return grupos;
 }
