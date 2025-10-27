@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Home, LogOut, TrendingUp, RefreshCw, ChevronDown, ExternalLink } from "lucide-react";
+import { Search, Home, LogOut, TrendingUp, RefreshCw, ChevronDown, ExternalLink, MessageCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,9 +16,11 @@ interface Matching {
   analisis_mercado: any;
   created_at: string;
   cliente_id: string;
+  notificado: boolean;
   clientes: {
     nombre: string;
     email: string;
+    telefono: string;
   };
   propiedades: {
     titulo: string;
@@ -27,6 +29,8 @@ interface Matching {
     tipo_propiedad: string;
     metros: number;
     dormitorios: number;
+    banos: number;
+    precio_m2: number;
     url: string;
   };
 }
@@ -43,6 +47,7 @@ const Matchings = () => {
   const [matchings, setMatchings] = useState<Matching[]>([]);
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
+  const [sendingNotification, setSendingNotification] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -61,8 +66,8 @@ const Matchings = () => {
         .from("matchings")
         .select(`
           *,
-          clientes (nombre, email),
-          propiedades (titulo, precio, ubicacion, tipo_propiedad, metros, dormitorios, url)
+          clientes (nombre, email, telefono),
+          propiedades (titulo, precio, ubicacion, tipo_propiedad, metros, dormitorios, banos, precio_m2, url)
         `)
         .order("score", { ascending: false });
 
@@ -91,6 +96,34 @@ const Matchings = () => {
       toast.error(error.message || "Error al recalcular matchings");
     } finally {
       setCalculating(false);
+    }
+  };
+
+  const enviarNotificacionWhatsApp = async (matching: Matching) => {
+    if (!matching.clientes.telefono) {
+      toast.error("Este cliente no tiene número de teléfono registrado");
+      return;
+    }
+
+    setSendingNotification(matching.id);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-whatsapp-notification', {
+        body: {
+          clienteId: matching.cliente_id,
+          matchingId: matching.id,
+          telefono: matching.clientes.telefono
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.success("Notificación enviada por WhatsApp");
+      loadMatchings(); // Recargar para actualizar el estado de notificado
+    } catch (error: any) {
+      console.error("Error al enviar notificación:", error);
+      toast.error(error.message || "Error al enviar notificación por WhatsApp");
+    } finally {
+      setSendingNotification(null);
     }
   };
 
@@ -288,18 +321,35 @@ const Matchings = () => {
                               </div>
                             )}
 
-                            <div className="flex justify-between items-center">
+                            <div className="flex justify-between items-center gap-2">
                               <p className="text-xs text-muted-foreground">
                                 {new Date(matching.created_at).toLocaleDateString('es-ES')}
                               </p>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => window.open(matching.propiedades?.url, '_blank')}
-                              >
-                                Ver propiedad
-                                <ExternalLink className="h-3 w-3 ml-2" />
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant={matching.notificado ? "secondary" : "default"}
+                                  size="sm"
+                                  onClick={() => enviarNotificacionWhatsApp(matching)}
+                                  disabled={sendingNotification === matching.id}
+                                >
+                                  {sendingNotification === matching.id ? (
+                                    <>Enviando...</>
+                                  ) : (
+                                    <>
+                                      <MessageCircle className="h-3 w-3 mr-2" />
+                                      {matching.notificado ? 'Reenviar' : 'Notificar'}
+                                    </>
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => window.open(matching.propiedades?.url, '_blank')}
+                                >
+                                  Ver propiedad
+                                  <ExternalLink className="h-3 w-3 ml-2" />
+                                </Button>
+                              </div>
                             </div>
                           </CardContent>
                         </Card>
