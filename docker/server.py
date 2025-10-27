@@ -19,7 +19,7 @@ app = Flask(__name__)
 # Almacén de jobs en memoria (en producción usar Redis/DB)
 jobs = {}
 
-def run_spider(job_id, portal, ubicacion, tipo_propiedad, max_pages, webhook_url, webhook_auth):
+def run_spider(job_id, portal, max_pages, webhook_url, webhook_auth):
     """Ejecuta el spider de Scrapy en background con User-Agent rotation"""
     try:
         jobs[job_id]['status'] = 'running'
@@ -34,29 +34,30 @@ def run_spider(job_id, portal, ubicacion, tipo_propiedad, max_pages, webhook_url
         
         process = CrawlerProcess(settings)
         
-        # Construir search_path
-        search_path = f'/es/comprar/viviendas/{ubicacion.lower().replace(" ", "-")}/todas-las-zonas'
-        
         # Datos que se enviarán al webhook
         propiedades = []
         
-        # Aquí deberías importar y ejecutar tu spider de Fotocasa
-        # Por ahora simulamos datos
+        # Importar spider actualizado
         from fotocasa_spider import FotocasaApiSpider
         
         # Recolectar resultados
         def collect_items(item, response, spider):
+            # Extraer ubicación de los datos de la API
+            province = item.get('province') or 'Desconocida'
+            municipality = item.get('municipality') or ''
+            ubicacion_completa = f"{municipality}, {province}" if municipality else province
+            
             propiedades.append({
                 'external_id': f"fotocasa-{item.get('ad_id')}",
                 'portal_origen': 'fotocasa',
                 'titulo': item['raw'].get('title', 'Sin título'),
                 'descripcion': item['raw'].get('description'),
                 'precio': item['raw'].get('price', {}).get('amount', 0),
-                'ubicacion': ubicacion,
-                'tipo_propiedad': tipo_propiedad or 'piso',
+                'ubicacion': ubicacion_completa,
+                'tipo_propiedad': item['raw'].get('propertyType', {}).get('id', 'piso'),
                 'dormitorios': item['raw'].get('features', {}).get('bedrooms'),
                 'banos': item['raw'].get('features', {}).get('bathrooms'),
-                'metros': item['raw'].get('surface'),
+                'metros': item.get('surface'),
                 'condition': item['raw'].get('features', {}).get('condition'),
                 'ano_construccion': item['raw'].get('features', {}).get('builtYear'),
                 'tiene_ascensor': item['raw'].get('features', {}).get('hasLift', False),
@@ -70,10 +71,9 @@ def run_spider(job_id, portal, ubicacion, tipo_propiedad, max_pages, webhook_url
         from scrapy.signalmanager import dispatcher
         dispatcher.connect(collect_items, signal=signals.item_scraped)
         
-        # Ejecutar spider
+        # Ejecutar spider (ya no necesita search_path)
         process.crawl(
             FotocasaApiSpider,
-            search_path=search_path,
             max_pages=max_pages
         )
         process.start(stop_after_crawl=True)
@@ -84,7 +84,7 @@ def run_spider(job_id, portal, ubicacion, tipo_propiedad, max_pages, webhook_url
                 'propiedades': propiedades,
                 'metadata': {
                     'portal': portal,
-                    'ubicacion': ubicacion,
+                    'ubicacion': None,  # Ya no filtramos por ubicación
                     'total_encontradas': len(propiedades)
                 }
             }
@@ -121,12 +121,10 @@ def health():
 @app.route('/scrape', methods=['POST'])
 def scrape():
     """
-    Endpoint para triggear scraping
+    Endpoint para triggear scraping de toda España
     Body: {
         "portal": "fotocasa",
-        "ubicacion": "madrid",
-        "tipo_propiedad": "piso",
-        "max_pages": 5,
+        "max_pages": 50,
         "webhook_url": "https://...",
         "webhook_auth": "Bearer ..."
     }
@@ -137,29 +135,25 @@ def scrape():
         return jsonify({'error': 'No data provided'}), 400
     
     portal = data.get('portal')
-    ubicacion = data.get('ubicacion')
-    tipo_propiedad = data.get('tipo_propiedad', 'piso')
-    max_pages = data.get('max_pages', 5)
+    max_pages = data.get('max_pages', 50)
     webhook_url = data.get('webhook_url')
     webhook_auth = data.get('webhook_auth')
     
-    if not all([portal, ubicacion, webhook_url, webhook_auth]):
-        return jsonify({'error': 'Missing required fields'}), 400
+    if not all([portal, webhook_url, webhook_auth]):
+        return jsonify({'error': 'Missing required fields: portal, webhook_url, webhook_auth'}), 400
     
     # Crear job
     job_id = str(uuid.uuid4())
     jobs[job_id] = {
         'status': 'pending',
         'portal': portal,
-        'ubicacion': ubicacion,
-        'tipo_propiedad': tipo_propiedad,
         'max_pages': max_pages,
     }
     
     # Ejecutar spider en background thread
     thread = Thread(
         target=run_spider,
-        args=(job_id, portal, ubicacion, tipo_propiedad, max_pages, webhook_url, webhook_auth)
+        args=(job_id, portal, max_pages, webhook_url, webhook_auth)
     )
     thread.daemon = True
     thread.start()
@@ -167,7 +161,7 @@ def scrape():
     return jsonify({
         'job_id': job_id,
         'status': 'pending',
-        'message': 'Scraping iniciado'
+        'message': 'Scraping de toda España iniciado'
     }), 202
 
 @app.route('/jobs/<job_id>', methods=['GET'])

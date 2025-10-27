@@ -184,8 +184,6 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
       },
       body: JSON.stringify({
         portal,
-        ubicacion,
-        tipo_propiedad,
         max_pages,
         webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/scraping-service`,
         webhook_auth: Deno.env.get('SCRAPER_SECRET'),
