@@ -73,7 +73,16 @@ const Scraper = () => {
 
       if (error) throw error;
       
-      toast.success(`Scraping completado: ${data.propiedades_nuevas} nuevas propiedades`);
+      if (data.success) {
+        toast.success(`✅ Scraping iniciado en Fly.io (Job ID: ${data.job_id.substring(0, 8)}...)`);
+        toast.info('Los resultados aparecerán en el historial cuando el scraping termine', { duration: 5000 });
+        
+        // Recargar logs después de unos segundos para ver si ya hay resultados
+        setTimeout(() => loadLogs(), 10000);
+      } else {
+        toast.error(data.message || "Error al iniciar scraping");
+      }
+      
       loadLogs();
     } catch (error: any) {
       toast.error(error.message || "Error al ejecutar scraping");
