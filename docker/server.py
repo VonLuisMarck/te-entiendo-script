@@ -23,6 +23,7 @@ def run_spider(job_id, portal, max_pages, webhook_url, webhook_auth):
     """Ejecuta el spider de Scrapy en background con User-Agent rotation"""
     try:
         jobs[job_id]['status'] = 'running'
+        print(f"🚀 [Job {job_id[:8]}] Iniciando spider: {portal}, max_pages={max_pages}")
         
         # Obtener User-Agent aleatorio para este job
         user_agent = get_random_user_agent()
@@ -30,15 +31,18 @@ def run_spider(job_id, portal, max_pages, webhook_url, webhook_auth):
         
         # Configurar el proceso de Scrapy con settings anti-detección
         settings = SCRAPY_SETTINGS.copy()
-        settings['USER_AGENT'] = user_agent  # Override con UA específico del job
-        
-        process = CrawlerProcess(settings)
+        settings['USER_AGENT'] = user_agent
+        settings['LOG_LEVEL'] = 'INFO'
         
         # Datos que se enviarán al webhook
         propiedades = []
         
         # Importar spider actualizado
         from fotocasa_spider import FotocasaApiSpider
+        
+        # Recolectar resultados usando señales de Scrapy
+        from scrapy import signals
+        from scrapy.signalmanager import dispatcher
         
         # Recolectar resultados
         def collect_items(item, response, spider):
@@ -47,7 +51,7 @@ def run_spider(job_id, portal, max_pages, webhook_url, webhook_auth):
             municipality = item.get('municipality') or ''
             ubicacion_completa = f"{municipality}, {province}" if municipality else province
             
-            propiedades.append({
+            prop = {
                 'external_id': f"fotocasa-{item.get('ad_id')}",
                 'portal_origen': 'fotocasa',
                 'titulo': item['raw'].get('title', 'Sin título'),
@@ -64,19 +68,22 @@ def run_spider(job_id, portal, max_pages, webhook_url, webhook_auth):
                 'tiene_parking': item['raw'].get('features', {}).get('parking', False),
                 'url': item['raw'].get('url', f"https://www.fotocasa.es/vivienda/{item.get('ad_id')}"),
                 'imagenes': item['raw'].get('images', []),
-            })
+            }
+            propiedades.append(prop)
+            print(f"📦 [Job {job_id[:8]}] Propiedad recolectada: {prop['external_id']} - {prop['ubicacion']}")
         
         # Conectar señal
-        from scrapy import signals
-        from scrapy.signalmanager import dispatcher
         dispatcher.connect(collect_items, signal=signals.item_scraped)
         
-        # Ejecutar spider (ya no necesita search_path)
+        # Ejecutar spider
+        print(f"🕷️  [Job {job_id[:8]}] Iniciando CrawlerProcess...")
+        process = CrawlerProcess(settings)
         process.crawl(
             FotocasaApiSpider,
             max_pages=max_pages
         )
         process.start(stop_after_crawl=True)
+        print(f"✅ [Job {job_id[:8]}] Spider finalizado. Total propiedades: {len(propiedades)}")
         
         # Enviar resultados al webhook
         if propiedades:
