@@ -1,150 +1,286 @@
-# Docker Scraper - Fotocasa 🕵️
+# 🏠 InmoFinder Scraper Service
 
-Este contenedor Docker ejecuta el scraper de Fotocasa en Python/Scrapy con **rotación automática de User-Agents** y técnicas anti-detección, enviando los resultados al backend via webhook.
+Servicio de scraping de propiedades inmobiliarias desplegado en Fly.io que proporciona APIs REST para extraer datos de portales inmobiliarios españoles.
 
-## ✨ Features
+## 🌐 URL del Servicio
 
-- 🎭 **Rotación de User-Agents**: Pool de 17+ User-Agents realistas (Chrome, Firefox, Safari, Edge)
-- ⏱️ **Delays aleatorios**: Simula comportamiento humano entre requests
-- 🔄 **Headers dinámicos**: Accept-Language y viewports variables
-- 🛡️ **Anti-detección**: Configuración optimizada de Scrapy
-- 📊 **Logging detallado**: Monitoreo de User-Agents y delays en uso
+**Producción**: https://inmofinder-scraper.fly.dev
 
-## Estructura
+## 📋 Índice de Documentación
 
-```
-docker/
-├── Dockerfile          # Imagen Docker
-├── requirements.txt    # Dependencias Python
-├── server.py          # Servidor Flask con API
-├── fotocasa_spider.py # Spider con User-Agent rotation
-├── config.py          # Pool de User-Agents y configuración
-├── test_rotation.py   # Test de rotación
-└── README.md          # Esta documentación
-```
+### 📖 Guías Disponibles
 
-## Configuración
+1. **[ADMIN-GUIDE.md](./ADMIN-GUIDE.md)** - Guía completa de administración
+   - Monitoreo y logs
+   - Comandos de administración
+   - Actualización y despliegue
+   - Escalado y recursos
+   - Troubleshooting
+   - Costos y optimización
 
-### 1. Reemplazar el spider
+2. **[INTEGRATION-GUIDE.md](./INTEGRATION-GUIDE.md)** - Guía de integración de scrapers
+   - Arquitectura del sistema
+   - Endpoints disponibles
+   - Cómo agregar nuevos scrapers
+   - Ejemplos de integración
+   - Best practices
 
-Copia tu spider real de Fotocasa a `fotocasa_spider.py` (el que tienes en tu repo de GitHub).
+3. **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Guía de despliegue inicial
+   - Railway, Render, Fly.io
+   - Configuración inicial
+   - Testing local
 
-### 2. Build de la imagen
+---
 
+## 🚀 Quick Start
+
+### Health Check
 ```bash
-cd docker
-docker build -t fotocasa-scraper .
+curl https://inmofinder-scraper.fly.dev/health
 ```
 
-### 3. Ejecutar localmente
-
+### Scraping de Propiedades
 ```bash
-docker run -p 8000:8000 fotocasa-scraper
-```
-
-### 4. Test del endpoint
-
-```bash
-curl -X POST http://localhost:8000/scrape \
+curl -X POST https://inmofinder-scraper.fly.dev/scrape \
   -H "Content-Type: application/json" \
   -d '{
-    "portal": "fotocasa",
-    "ubicacion": "madrid",
-    "tipo_propiedad": "piso",
-    "max_pages": 2,
-    "webhook_url": "https://mtjomlpwpiuhflwmgctk.supabase.co/functions/v1/scraping-service",
-    "webhook_auth": "YOUR_SERVICE_ROLE_KEY"
+    "url": "https://www.fotocasa.es/es/comprar/viviendas/madrid-capital/todas-las-zonas/l",
+    "max_pages": 3
   }'
 ```
 
-## Deployment
+---
 
-### Opción 1: Railway
+## 📦 Estructura del Proyecto
 
-1. Crea proyecto en [Railway](https://railway.app)
-2. Conecta tu repo de GitHub o deploy desde CLI
-3. Railway auto-detectará el Dockerfile
-4. Anota la URL pública (ej: `https://your-app.railway.app`)
-
-### Opción 2: Render
-
-1. Crea servicio en [Render](https://render.com)
-2. Selecciona "Docker"
-3. Conecta repo y selecciona el directorio `docker/`
-4. Anota la URL pública
-
-### Opción 3: Fly.io
-
-```bash
-fly launch
-fly deploy
+```
+docker/
+├── README.md                 # Este archivo
+├── ADMIN-GUIDE.md           # Guía de administración
+├── INTEGRATION-GUIDE.md     # Guía de integración
+├── DEPLOYMENT.md            # Guía de despliegue
+│
+├── Dockerfile               # Configuración Docker
+├── fly.toml                 # Configuración Fly.io
+├── requirements.txt         # Dependencias Python
+│
+├── server.py                # Servidor Flask (API REST)
+├── config.py                # Configuración del scraper
+├── fotocasa_spider.py       # Spider de Fotocasa
+│
+└── test_rotation.py         # Tests de user agents
 ```
 
-## Configurar en Lovable
+---
 
-Una vez deployado, configura el secret en Lovable Cloud:
+## 🔧 Tecnologías
 
-1. Ve a Cloud > Settings > Secrets
-2. Añade: `PYTHON_SCRAPER_URL` = `https://your-scraper.railway.app`
-3. Ya puedes usar el scraper desde el frontend
+- **Python 3.11**
+- **Scrapy 2.11** - Framework de scraping
+- **Flask 3.0** - API REST
+- **Gunicorn 21.2** - WSGI server
+- **Fly.io** - Hosting y deployment
 
-## API Endpoints
+---
 
-### `POST /scrape`
-Triggea un scraping job
+## 🎯 Funcionalidades
 
-**Body:**
+### ✅ Implementadas
+
+- [x] Scraping de Fotocasa
+- [x] API REST para scraping
+- [x] Health checks
+- [x] Paginación automática
+- [x] Rate limiting
+- [x] Manejo de errores robusto
+- [x] Logging detallado
+- [x] User agents rotativos
+- [x] Despliegue en Fly.io
+
+### 🚧 Roadmap
+
+- [ ] Scraping de Idealista
+- [ ] Scraping de Pisos.com
+- [ ] Cache de resultados
+- [ ] Webhooks para notificaciones
+- [ ] Proxy rotation
+- [ ] Selenium para sitios con JavaScript
+- [ ] Rate limiting por cliente
+- [ ] Autenticación con API keys
+
+---
+
+## 📊 Endpoints
+
+### GET /health
+Health check del servicio
+
+**Response:**
 ```json
 {
-  "portal": "fotocasa",
-  "ubicacion": "madrid",
-  "tipo_propiedad": "piso",
-  "max_pages": 5,
-  "webhook_url": "https://...",
-  "webhook_auth": "Bearer ..."
+  "status": "healthy",
+  "service": "fotocasa-scraper",
+  "timestamp": "2025-01-15T10:30:00Z"
+}
+```
+
+### POST /scrape
+Scrapear propiedades de Fotocasa
+
+**Request:**
+```json
+{
+  "url": "https://www.fotocasa.es/...",
+  "max_pages": 3,
+  "location": "Madrid",
+  "min_price": 200000,
+  "max_price": 500000
 }
 ```
 
 **Response:**
 ```json
 {
-  "job_id": "uuid",
-  "status": "pending",
-  "message": "Scraping iniciado"
+  "success": true,
+  "properties": [...],
+  "total_found": 25,
+  "pages_scraped": 3
 }
 ```
 
-### `GET /jobs/<job_id>`
-Consulta estado de un job
+---
 
-### `GET /health`
-Health check
+## 🔐 Seguridad
 
-## Flujo de datos
+- HTTPS forzado en todas las conexiones
+- Headers CORS configurados
+- Rate limiting implementado
+- Validación de inputs
+- Logs sin información sensible
 
+---
+
+## 💰 Costos
+
+**Configuración Actual:**
+- 256MB RAM, 1 CPU compartida
+- Región: Amsterdam
+- Costo estimado: ~$1.94/mes
+
+**Escalado recomendado según tráfico:**
+- Bajo (< 1000 scrapes/mes): 256MB - $1.94/mes
+- Medio (1000-5000 scrapes/mes): 512MB - $3.88/mes
+- Alto (> 5000 scrapes/mes): 1GB - $7.76/mes
+
+---
+
+## 🛠️ Mantenimiento
+
+### Comandos Rápidos
+
+```bash
+# Ver logs
+fly logs -a inmofinder-scraper
+
+# Estado del servicio
+fly status -a inmofinder-scraper
+
+# Desplegar cambios
+fly deploy -a inmofinder-scraper
+
+# Escalar recursos
+fly scale memory 512 -a inmofinder-scraper
+
+# SSH al contenedor
+fly ssh console -a inmofinder-scraper
 ```
-Frontend (/scraper)
-    ↓ trigger
-Edge Function (scraping-service)
-    ↓ POST /scrape
-Docker Container (Python + Scrapy)
-    ↓ scraping
-Fotocasa API
-    ↓ webhook con datos
-Edge Function (scraping-service)
-    ↓ insert/update
-Supabase Database
+
+---
+
+## 🐛 Troubleshooting
+
+### Servicio no responde
+```bash
+fly status -a inmofinder-scraper
+fly logs -a inmofinder-scraper --since 1h
 ```
 
-## Troubleshooting
+### Errores de scraping
+```bash
+fly logs -a inmofinder-scraper | grep ERROR
+```
 
-### El spider no encuentra resultados
-- Verifica que el `search_path` sea correcto
-- Revisa logs: `docker logs <container_id>`
+### Testing local
+```bash
+docker build -t scraper-test .
+docker run -p 8000:8000 scraper-test
+curl http://localhost:8000/health
+```
 
-### Error 405 al scrapear
-- Fotocasa puede estar bloqueando. Considera usar proxies residenciales
+**Ver guía completa**: [ADMIN-GUIDE.md](./ADMIN-GUIDE.md#-troubleshooting)
 
-### Webhook falla
-- Verifica que `webhook_url` y `webhook_auth` sean correctos
-- Comprueba logs del Edge Function
+---
+
+## 📚 Recursos
+
+- [Guía de Administración](./ADMIN-GUIDE.md)
+- [Guía de Integración](./INTEGRATION-GUIDE.md)
+- [Guía de Despliegue](./DEPLOYMENT.md)
+- [Fly.io Documentation](https://fly.io/docs/)
+- [Scrapy Documentation](https://docs.scrapy.org/)
+
+---
+
+## 🤝 Contribuir
+
+### Agregar nuevo scraper
+
+1. Crear spider siguiendo el patrón de `fotocasa_spider.py`
+2. Actualizar `server.py` con nuevo endpoint
+3. Probar localmente
+4. Desplegar con `fly deploy`
+5. Actualizar documentación
+
+**Ver guía detallada**: [INTEGRATION-GUIDE.md](./INTEGRATION-GUIDE.md#-agregar-nuevo-scraper)
+
+---
+
+## 📞 Soporte
+
+- **Logs en vivo**: `fly logs -a inmofinder-scraper`
+- **Dashboard**: `fly dashboard -a inmofinder-scraper`
+- **Documentación completa**: Ver guías en este directorio
+
+---
+
+## ⚠️ Disclaimer
+
+Este servicio es para uso educativo y de desarrollo. Asegúrate de:
+- Respetar términos de servicio de los portales
+- No hacer scraping agresivo
+- Cumplir con GDPR y leyes de privacidad
+- Obtener permisos necesarios para uso comercial
+
+---
+
+## 📝 Changelog
+
+### v1.0.0 (2025-01-15)
+- ✨ Despliegue inicial en Fly.io
+- ✨ Spider de Fotocasa funcional
+- ✨ API REST con Flask
+- ✨ Health checks configurados
+- ✨ Documentación completa
+- ✨ Rate limiting implementado
+
+---
+
+## 📄 Licencia
+
+Este proyecto es parte de InmoFinder. Todos los derechos reservados.
+
+---
+
+**Última actualización**: 2025-01-15
+**Versión del servicio**: 1.0.0
+**URL de producción**: https://inmofinder-scraper.fly.dev
