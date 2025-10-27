@@ -122,8 +122,7 @@ def run_spider_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
         print(f"[OK] Output file: {output_file}")
         
         cmd = [
-            'python', '-m', 'scrapy', 'runspider', 
-            spider_path,
+            'scrapy', 'crawl', 'fotocasa',
             '-a', f'max_pages={max_pages}',
             '-o', output_file,
             '--loglevel=INFO'
