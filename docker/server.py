@@ -4,14 +4,34 @@ y envía resultados al Edge Function via webhook
 
 Ejecuta Scrapy como subprocess para evitar conflictos con Twisted reactor
 """
+import sys
 import os
-import json
-import uuid
-import subprocess
-from flask import Flask, request, jsonify
-from threading import Thread
-import requests
-from config import get_random_user_agent
+
+# Logging inmediato
+print("=" * 80, flush=True)
+print("🚀 INICIANDO SERVER.PY", flush=True)
+print(f"   Python: {sys.version}", flush=True)
+print(f"   CWD: {os.getcwd()}", flush=True)
+print(f"   PORT env: {os.environ.get('PORT', 'NOT SET')}", flush=True)
+print("=" * 80, flush=True)
+
+try:
+    import json
+    import uuid
+    import subprocess
+    from flask import Flask, request, jsonify
+    from threading import Thread
+    import requests
+    print("✅ Importaciones básicas OK", flush=True)
+    
+    from config import get_random_user_agent
+    print("✅ Config importado OK", flush=True)
+    
+except Exception as e:
+    print(f"❌ ERROR EN IMPORTS: {e}", flush=True)
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
 
 app = Flask(__name__)
 
@@ -297,17 +317,28 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
     host = '0.0.0.0'
     
-    print("=" * 80)
-    print("🚀 INICIANDO SERVIDOR FLASK")
-    print(f"   Host: {host}")
-    print(f"   Port: {port}")
-    print(f"   Debug: False")
-    print("=" * 80)
+    print("=" * 80, flush=True)
+    print("🚀 ARRANCANDO SERVIDOR FLASK", flush=True)
+    print(f"   Host: {host}", flush=True)
+    print(f"   Port: {port}", flush=True)
+    print(f"   Debug: False", flush=True)
+    print(f"   Threaded: True", flush=True)
+    print("=" * 80, flush=True)
     
     try:
+        # Verificar que Flask puede bindear al puerto
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((host, port))
+        sock.close()
+        print(f"✅ Puerto {port} disponible", flush=True)
+        
+        # Iniciar Flask
         app.run(host=host, port=port, debug=False, threaded=True)
+        
     except Exception as e:
-        print(f"❌ Error iniciando servidor: {e}")
+        print(f"❌ ERROR INICIANDO SERVIDOR: {e}", flush=True)
         import traceback
         traceback.print_exc()
-        raise
+        sys.exit(1)
