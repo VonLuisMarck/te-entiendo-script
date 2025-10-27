@@ -14,6 +14,14 @@ from scrapy.utils.project import get_project_settings
 import requests
 from config import get_random_user_agent, SCRAPY_SETTINGS
 
+# Habilitar pipelines
+SCRAPY_SETTINGS['ITEM_PIPELINES'] = {
+    'pipelines.DataValidationPipeline': 100,
+    'pipelines.DataCleaningPipeline': 200,
+    'pipelines.PropertyTransformPipeline': 300,
+    'pipelines.DuplicateFilterPipeline': 400,
+}
+
 app = Flask(__name__)
 
 # Almacén de jobs en memoria (en producción usar Redis/DB)
@@ -46,31 +54,9 @@ def run_spider(job_id, portal, max_pages, webhook_url, webhook_auth):
         
         # Recolectar resultados
         def collect_items(item, response, spider):
-            # Extraer ubicación de los datos de la API
-            province = item.get('province') or 'Desconocida'
-            municipality = item.get('municipality') or ''
-            ubicacion_completa = f"{municipality}, {province}" if municipality else province
-            
-            prop = {
-                'external_id': f"fotocasa-{item.get('ad_id')}",
-                'portal_origen': 'fotocasa',
-                'titulo': item['raw'].get('title', 'Sin título'),
-                'descripcion': item['raw'].get('description'),
-                'precio': item['raw'].get('price', {}).get('amount', 0),
-                'ubicacion': ubicacion_completa,
-                'tipo_propiedad': item['raw'].get('propertyType', {}).get('id', 'piso'),
-                'dormitorios': item['raw'].get('features', {}).get('bedrooms'),
-                'banos': item['raw'].get('features', {}).get('bathrooms'),
-                'metros': item.get('surface'),
-                'condition': item['raw'].get('features', {}).get('condition'),
-                'ano_construccion': item['raw'].get('features', {}).get('builtYear'),
-                'tiene_ascensor': item['raw'].get('features', {}).get('hasLift', False),
-                'tiene_parking': item['raw'].get('features', {}).get('parking', False),
-                'url': item['raw'].get('url', f"https://www.fotocasa.es/vivienda/{item.get('ad_id')}"),
-                'imagenes': item['raw'].get('images', []),
-            }
-            propiedades.append(prop)
-            print(f"📦 [Job {job_id[:8]}] Propiedad recolectada: {prop['external_id']} - {prop['ubicacion']}")
+            # Los datos ya vienen procesados por los pipelines
+            propiedades.append(dict(item))
+            print(f"📦 [Job {job_id[:8]}] Propiedad: {item['external_id']} - {item['ubicacion']}")
         
         # Conectar señal
         dispatcher.connect(collect_items, signal=signals.item_scraped)
