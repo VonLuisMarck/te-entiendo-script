@@ -14,8 +14,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copiar código del scraper
 COPY . .
 
+# Hacer ejecutable el script de inicio
+RUN chmod +x /app/start.sh
+
 # Exponer puerto
 EXPOSE 8000
 
 # Comando para ejecutar el servidor
-CMD ["python", "server.py"]
+CMD ["/app/start.sh"]

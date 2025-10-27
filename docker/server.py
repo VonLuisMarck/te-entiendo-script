@@ -207,7 +207,11 @@ def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
-    return jsonify({'status': 'healthy'}), 200
+    return jsonify({
+        'status': 'healthy',
+        'jobs_count': len(jobs),
+        'active_jobs': sum(1 for j in jobs.values() if j.get('status') == 'running')
+    }), 200
 
 @app.route('/scrape', methods=['POST'])
 def scrape():
@@ -291,4 +295,19 @@ def list_jobs():
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    host = '0.0.0.0'
+    
+    print("=" * 80)
+    print("🚀 INICIANDO SERVIDOR FLASK")
+    print(f"   Host: {host}")
+    print(f"   Port: {port}")
+    print(f"   Debug: False")
+    print("=" * 80)
+    
+    try:
+        app.run(host=host, port=port, debug=False, threaded=True)
+    except Exception as e:
+        print(f"❌ Error iniciando servidor: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
