@@ -1,13 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Home, LogOut, TrendingUp, RefreshCw, ChevronDown, ExternalLink, MessageCircle } from "lucide-react";
+import { Search, Home, LogOut, TrendingUp, RefreshCw, ChevronDown, ExternalLink, MessageCircle, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
+import { generarPDFAnalisis } from "@/lib/pdf-generator";
 
 interface Matching {
   id: string;
@@ -48,6 +49,7 @@ const Matchings = () => {
   const [loading, setLoading] = useState(true);
   const [calculating, setCalculating] = useState(false);
   const [sendingNotification, setSendingNotification] = useState<string | null>(null);
+  const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -124,6 +126,64 @@ const Matchings = () => {
       toast.error(error.message || "Error al enviar notificación por WhatsApp");
     } finally {
       setSendingNotification(null);
+    }
+  };
+
+  const handleDescargarAnalisis = async (matching: Matching) => {
+    setGeneratingPDF(matching.id);
+    try {
+      // Obtener cliente completo para perfil
+      const { data: cliente } = await supabase
+        .from("clientes")
+        .select("perfil")
+        .eq("id", matching.cliente_id)
+        .maybeSingle();
+
+      // Buscar métricas de la zona
+      const [ciudad, barrio] = matching.propiedades.ubicacion.split(',').map(s => s.trim());
+      
+      let metrica = null;
+      if (barrio) {
+        const { data } = await supabase
+          .from("metricas_barrios")
+          .select("*")
+          .eq("ciudad", ciudad)
+          .eq("barrio", barrio)
+          .maybeSingle();
+        metrica = data;
+      }
+      
+      if (!metrica) {
+        const { data } = await supabase
+          .from("metricas_barrios")
+          .select("*")
+          .eq("ciudad", ciudad)
+          .is("barrio", null)
+          .maybeSingle();
+        metrica = data;
+      }
+
+      // Generar PDF con propiedad completa
+      const propiedadCompleta = {
+        ...matching.propiedades,
+        condition: matching.criterios_cumplidos?.condition ? 'bueno' : 'a reformar',
+        tiene_ascensor: matching.criterios_cumplidos?.ascensor || false,
+        tiene_parking: matching.criterios_cumplidos?.parking || false,
+      };
+
+      await generarPDFAnalisis({
+        propiedad: propiedadCompleta,
+        matching,
+        metrica: metrica || undefined,
+        clientePerfil: cliente?.perfil || 'vivir'
+      });
+
+      toast.success("Análisis descargado correctamente");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Error al generar el análisis PDF");
+    } finally {
+      setGeneratingPDF(null);
     }
   };
 
@@ -325,7 +385,16 @@ const Matchings = () => {
                               <p className="text-xs text-muted-foreground">
                                 {new Date(matching.created_at).toLocaleDateString('es-ES')}
                               </p>
-                              <div className="flex gap-2">
+                              <div className="flex gap-2 flex-wrap">
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => handleDescargarAnalisis(matching)}
+                                  disabled={generatingPDF === matching.id}
+                                >
+                                  <FileText className="h-3 w-3 mr-2" />
+                                  {generatingPDF === matching.id ? "Generando..." : "Análisis"}
+                                </Button>
                                 <Button
                                   variant={matching.notificado ? "secondary" : "default"}
                                   size="sm"

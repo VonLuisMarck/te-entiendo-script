@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, MapPin, Bed, Bath, Maximize, Euro, Calendar, LogOut, Home } from "lucide-react";
+import { Building2, MapPin, Bed, Bath, Maximize, Euro, Calendar, LogOut, Home, FileText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
+import { generarPDFAnalisis } from "@/lib/pdf-generator";
 
 interface Propiedad {
   id: string;
@@ -29,6 +30,7 @@ const Propiedades = () => {
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -57,6 +59,74 @@ const Propiedades = () => {
       toast.error("Error al cargar propiedades");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDescargarAnalisis = async (propiedad: Propiedad) => {
+    setGeneratingPDF(propiedad.id);
+    try {
+      // Obtener sesión del usuario para buscar su perfil
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Debe iniciar sesión para descargar el análisis");
+        return;
+      }
+
+      // Buscar cliente del usuario
+      const { data: cliente } = await supabase
+        .from("clientes")
+        .select("perfil")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      // Buscar matching de esta propiedad con el usuario
+      const { data: matching } = await supabase
+        .from("matchings")
+        .select("*, clientes!inner(user_id)")
+        .eq("propiedad_id", propiedad.id)
+        .eq("clientes.user_id", session.user.id)
+        .maybeSingle();
+
+      // Buscar métricas de la zona
+      const [ciudad, barrio] = propiedad.ubicacion.split(',').map(s => s.trim());
+      
+      // Intentar primero con barrio específico, luego ciudad
+      let metrica = null;
+      if (barrio) {
+        const { data } = await supabase
+          .from("metricas_barrios")
+          .select("*")
+          .eq("ciudad", ciudad)
+          .eq("barrio", barrio)
+          .maybeSingle();
+        metrica = data;
+      }
+      
+      // Si no hay métricas de barrio, buscar de ciudad
+      if (!metrica) {
+        const { data } = await supabase
+          .from("metricas_barrios")
+          .select("*")
+          .eq("ciudad", ciudad)
+          .is("barrio", null)
+          .maybeSingle();
+        metrica = data;
+      }
+
+      // Generar PDF
+      await generarPDFAnalisis({
+        propiedad,
+        matching: matching || undefined,
+        metrica: metrica || undefined,
+        clientePerfil: cliente?.perfil || 'vivir'
+      });
+
+      toast.success("Análisis descargado correctamente");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      toast.error("Error al generar el análisis PDF");
+    } finally {
+      setGeneratingPDF(null);
     }
   };
 
@@ -154,14 +224,26 @@ const Propiedades = () => {
                     {new Date(propiedad.fecha_scraping).toLocaleDateString('es-ES')}
                   </div>
 
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => window.open(propiedad.url, '_blank')}
-                  >
-                    Ver en {propiedad.portal_origen}
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleDescargarAnalisis(propiedad)}
+                      disabled={generatingPDF === propiedad.id}
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      {generatingPDF === propiedad.id ? "Generando..." : "Análisis PDF"}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => window.open(propiedad.url, '_blank')}
+                    >
+                      Ver en {propiedad.portal_origen}
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             ))}
