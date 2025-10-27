@@ -13,7 +13,7 @@ import { toast } from "sonner";
 interface ScrapingLog {
   id: string;
   portal: string;
-  ubicacion: string;
+  ubicacion: string | null;
   propiedades_encontradas: number;
   propiedades_nuevas: number;
   propiedades_actualizadas: number;
@@ -28,9 +28,7 @@ const Scraper = () => {
   const [scraping, setScraping] = useState(false);
   const [generatingFake, setGeneratingFake] = useState(false);
   const [formData, setFormData] = useState({
-    portal: "fotocasa",
-    ubicacion: "Murcia",
-    tipo_propiedad: "piso",
+    portal: "fotocasa"
   });
   const navigate = useNavigate();
 
@@ -144,7 +142,9 @@ const Scraper = () => {
             <Card>
               <CardHeader>
                 <CardTitle>Configurar Scraping</CardTitle>
-                <CardDescription>Extrae propiedades de portales inmobiliarios</CardDescription>
+                <CardDescription>
+                  Scraping completo de toda España - Los filtros se aplicarán en el matching
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleScrape} className="space-y-4">
@@ -152,7 +152,7 @@ const Scraper = () => {
                     <Label htmlFor="portal">Portal</Label>
                     <Select
                       value={formData.portal}
-                      onValueChange={(value) => setFormData({ ...formData, portal: value })}
+                      onValueChange={(value) => setFormData({ portal: value })}
                     >
                       <SelectTrigger id="portal">
                         <SelectValue />
@@ -160,36 +160,6 @@ const Scraper = () => {
                       <SelectContent>
                         <SelectItem value="fotocasa">Fotocasa</SelectItem>
                         <SelectItem value="idealista">Idealista</SelectItem>
-                        <SelectItem value="pisos">Pisos.com</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="ubicacion">Ubicación</Label>
-                    <Input
-                      id="ubicacion"
-                      value={formData.ubicacion}
-                      onChange={(e) => setFormData({ ...formData, ubicacion: e.target.value })}
-                      placeholder="Ej: Murcia, Barcelona..."
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="tipo">Tipo de Propiedad</Label>
-                    <Select
-                      value={formData.tipo_propiedad}
-                      onValueChange={(value) => setFormData({ ...formData, tipo_propiedad: value })}
-                    >
-                      <SelectTrigger id="tipo">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="piso">Piso</SelectItem>
-                        <SelectItem value="casa">Casa</SelectItem>
-                        <SelectItem value="chalet">Chalet</SelectItem>
-                        <SelectItem value="atico">Ático</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -243,7 +213,9 @@ const Scraper = () => {
                             <Badge variant="outline" className="mb-2">
                               {log.portal}
                             </Badge>
-                            <h4 className="font-semibold">{log.ubicacion}</h4>
+                            <h4 className="font-semibold">
+                              {log.ubicacion || 'Toda España'}
+                            </h4>
                           </div>
                           <Badge variant={log.status === 'success' ? 'default' : 'destructive'}>
                             {log.status}
