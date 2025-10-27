@@ -9,7 +9,7 @@ const corsHeaders = {
 
 const ScrapingRequestSchema = z.object({
   portal: z.string().min(1).max(50),
-  ubicacion: z.string().min(1).max(200),
+  ubicacion: z.string().min(1).max(200).optional(),
   tipo_propiedad: z.string().min(1).max(50).optional(),
   max_pages: z.number().int().min(1).max(50).optional(),
 });
@@ -18,7 +18,7 @@ const WebhookDataSchema = z.object({
   propiedades: z.array(z.any()),
   metadata: z.object({
     portal: z.string(),
-    ubicacion: z.string(),
+    ubicacion: z.string().optional(),
     total_encontradas: z.number(),
   }),
 });
@@ -119,7 +119,7 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
   // Registrar log
   await supabase.from('scraping_logs').insert({
     portal: data.metadata.portal,
-    ubicacion: data.metadata.ubicacion,
+    ubicacion: data.metadata.ubicacion || null,
     propiedades_encontradas: data.metadata.total_encontradas,
     propiedades_nuevas: propiedadesNuevas,
     propiedades_actualizadas: propiedadesActualizadas,
@@ -144,8 +144,8 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
 
 // Función para triggerar el scraper Docker
 async function triggerDockerScraper(supabase: any, request: z.infer<typeof ScrapingRequestSchema>) {
-  const { portal, ubicacion, tipo_propiedad, max_pages = 5 } = request;
-  console.log(`[Trigger] Solicitando scraping: ${portal} - ${ubicacion}`);
+  const { portal, ubicacion, tipo_propiedad, max_pages = 50 } = request;
+  console.log(`[Trigger] Solicitando scraping: ${portal}${ubicacion ? ` - ${ubicacion}` : ' - Toda España'}`);
   const startTime = Date.now();
   
   const scraperUrl = Deno.env.get('PYTHON_SCRAPER_URL');
@@ -156,7 +156,7 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
     // Registrar log como "pendiente" para procesamiento manual
     await supabase.from('scraping_logs').insert({
       portal,
-      ubicacion,
+      ubicacion: ubicacion || null,
       propiedades_encontradas: 0,
       propiedades_nuevas: 0,
       propiedades_actualizadas: 0,
@@ -213,7 +213,7 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
     
     await supabase.from('scraping_logs').insert({
       portal,
-      ubicacion,
+      ubicacion: ubicacion || null,
       propiedades_encontradas: 0,
       propiedades_nuevas: 0,
       propiedades_actualizadas: 0,
