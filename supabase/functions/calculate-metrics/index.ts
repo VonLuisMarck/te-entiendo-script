@@ -57,13 +57,57 @@ serve(async (req) => {
       const [ciudad, barrio] = key.split('|');
       const metricas = calcularMetricas(props);
 
-      // Upsert de métricas
+      // Obtener métrica existente para calcular proyección
+      const { data: metricaExistente } = await supabase
+        .from('metricas_barrios')
+        .select('id, precio_m2_medio, created_at')
+        .eq('ciudad', ciudad)
+        .eq('barrio', barrio || null)
+        .maybeSingle();
+
+      let proyeccionRevalorizacion = null;
+      let indiceDinamismo = null;
+      let mesesDatosHistoricos = 0;
+
+      if (metricaExistente?.id) {
+        // Guardar snapshot histórico ANTES de actualizar
+        await supabase.from('metricas_barrios_historico').insert({
+          metrica_id: metricaExistente.id,
+          ciudad,
+          barrio: barrio || null,
+          precio_medio: metricaExistente.precio_m2_medio,
+          precio_m2_medio: metricaExistente.precio_m2_medio,
+          total_propiedades: metricas.total_propiedades,
+        });
+
+        // Obtener histórico para calcular tendencia
+        const { data: historico } = await supabase
+          .from('metricas_barrios_historico')
+          .select('precio_m2_medio, fecha_snapshot')
+          .eq('metrica_id', metricaExistente.id)
+          .order('fecha_snapshot', { ascending: false })
+          .limit(6); // Últimos 6 meses
+
+        if (historico && historico.length >= 3) {
+          // Calcular proyección real con datos históricos
+          proyeccionRevalorizacion = calcularProyeccionRevalorizacion(historico);
+          mesesDatosHistoricos = historico.length;
+        }
+      }
+
+      // Calcular índice de dinamismo temporal (siempre)
+      indiceDinamismo = calcularIndiceDinamismo(props);
+
+      // Upsert de métricas con proyección
       const { error: upsertError } = await supabase
         .from('metricas_barrios')
         .upsert({
           ciudad,
           barrio: barrio || null,
           ...metricas,
+          proyeccion_revalorizacion_anual: proyeccionRevalorizacion,
+          indice_dinamismo: indiceDinamismo,
+          meses_datos_historicos: mesesDatosHistoricos,
         }, {
           onConflict: 'ciudad,barrio'
         });
@@ -203,4 +247,76 @@ function avg(arr: number[]): number | null {
   if (arr.length === 0) return null;
   const sum = arr.reduce((a, b) => a + b, 0);
   return Math.round(sum / arr.length);
+}
+
+// Calcula proyección de revalorización anual en % basada en datos históricos
+function calcularProyeccionRevalorizacion(historico: any[]): number | null {
+  if (historico.length < 3) return null;
+
+  // Calcular tasa de crecimiento mensual promedio
+  let sumaVariaciones = 0;
+  let countVariaciones = 0;
+
+  for (let i = 0; i < historico.length - 1; i++) {
+    const precioActual = historico[i].precio_m2_medio;
+    const precioAnterior = historico[i + 1].precio_m2_medio;
+    
+    if (precioActual && precioAnterior && precioAnterior > 0) {
+      const variacionMensual = ((precioActual - precioAnterior) / precioAnterior) * 100;
+      sumaVariaciones += variacionMensual;
+      countVariaciones++;
+    }
+  }
+
+  if (countVariaciones === 0) return null;
+
+  // Promedio de variación mensual → Proyección anual
+  const variacionMensualPromedio = sumaVariaciones / countVariaciones;
+  const proyeccionAnual = variacionMensualPromedio * 12;
+
+  return Math.round(proyeccionAnual * 10) / 10; // Redondear a 1 decimal
+}
+
+// Calcula índice de dinamismo 0-100 basado en actividad del mercado
+function calcularIndiceDinamismo(propiedades: any[]): number {
+  let score = 50; // Base neutral
+
+  // Factor 1: Volumen de propiedades (más = más dinámico)
+  const volumen = propiedades.length;
+  if (volumen >= 50) score += 20;
+  else if (volumen >= 30) score += 15;
+  else if (volumen >= 15) score += 10;
+  else if (volumen < 5) score -= 10;
+
+  // Factor 2: Propiedades nuevas recientes (últimos 30 días)
+  const ahora = new Date();
+  const hace30Dias = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const nuevasRecientes = propiedades.filter(p => {
+    const fecha = new Date(p.fecha_publicacion || p.created_at);
+    return fecha >= hace30Dias;
+  }).length;
+  
+  const ratioNuevas = volumen > 0 ? (nuevasRecientes / volumen) * 100 : 0;
+  if (ratioNuevas >= 50) score += 15;
+  else if (ratioNuevas >= 30) score += 10;
+  else if (ratioNuevas >= 15) score += 5;
+  else if (ratioNuevas < 5) score -= 5;
+
+  // Factor 3: Diversidad de tipos de propiedad (más = más dinámico)
+  const tiposUnicos = new Set(propiedades.map(p => p.tipo_propiedad)).size;
+  if (tiposUnicos >= 4) score += 10;
+  else if (tiposUnicos >= 3) score += 5;
+
+  // Factor 4: Dispersión de precios (más variedad = más dinámico)
+  const precios = propiedades.map(p => p.precio_m2).filter(p => p > 0);
+  if (precios.length >= 5) {
+    const precioMin = Math.min(...precios);
+    const precioMax = Math.max(...precios);
+    const dispersion = precioMax > 0 ? ((precioMax - precioMin) / precioMax) * 100 : 0;
+    
+    if (dispersion >= 40) score += 5;
+    else if (dispersion >= 25) score += 3;
+  }
+
+  return Math.min(100, Math.max(0, score)); // Limitar 0-100
 }

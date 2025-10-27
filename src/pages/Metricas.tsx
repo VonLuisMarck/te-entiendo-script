@@ -24,6 +24,9 @@ interface Metrica {
   total_pisos: number;
   total_chalets: number;
   tendencia: string;
+  proyeccion_revalorizacion_anual: number | null;
+  indice_dinamismo: number | null;
+  meses_datos_historicos: number | null;
   ultima_actualizacion: string;
 }
 
@@ -83,6 +86,32 @@ const Metricas = () => {
     } finally {
       setCalculating(false);
     }
+  };
+
+  const getProyeccionColor = (proyeccion: number | null) => {
+    if (!proyeccion) return 'text-muted-foreground';
+    if (proyeccion >= 5) return 'text-green-600 dark:text-green-400';
+    if (proyeccion >= 2) return 'text-emerald-600 dark:text-emerald-400';
+    if (proyeccion > 0) return 'text-blue-600 dark:text-blue-400';
+    if (proyeccion >= -2) return 'text-orange-600 dark:text-orange-400';
+    return 'text-red-600 dark:text-red-400';
+  };
+
+  const getProyeccionIcon = (proyeccion: number | null) => {
+    if (!proyeccion) return '📊';
+    if (proyeccion >= 5) return '🚀';
+    if (proyeccion >= 2) return '📈';
+    if (proyeccion > 0) return '↗️';
+    if (proyeccion >= -2) return '→';
+    return '📉';
+  };
+
+  const getDinamismoColor = (dinamismo: number | null) => {
+    if (!dinamismo) return 'text-muted-foreground';
+    if (dinamismo >= 80) return 'text-green-600 dark:text-green-400';
+    if (dinamismo >= 60) return 'text-blue-600 dark:text-blue-400';
+    if (dinamismo >= 40) return 'text-yellow-600 dark:text-yellow-400';
+    return 'text-gray-600 dark:text-gray-400';
   };
 
   const getTendenciaColor = (tendencia: string) => {
@@ -321,10 +350,9 @@ const Metricas = () => {
                       <TableHead>Ciudad</TableHead>
                       <TableHead>Barrio</TableHead>
                       <TableHead className="text-right">€/m² Medio</TableHead>
-                      <TableHead className="text-right">€/m² Min-Max</TableHead>
-                      <TableHead className="text-right">Precio Medio</TableHead>
-                      <TableHead className="text-center">Propiedades</TableHead>
-                      <TableHead className="text-center">Pisos/Chalets</TableHead>
+                      <TableHead className="text-right">Propiedades</TableHead>
+                      <TableHead className="text-center">Proyección Anual</TableHead>
+                      <TableHead className="text-center">Dinamismo</TableHead>
                       <TableHead className="text-center">Tendencia</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -344,17 +372,51 @@ const Metricas = () => {
                         <TableCell className="text-right font-semibold">
                           {formatNumber(metrica.precio_m2_medio)} €
                         </TableCell>
-                        <TableCell className="text-right text-sm text-muted-foreground">
-                          {formatNumber(metrica.precio_m2_min)} - {formatNumber(metrica.precio_m2_max)} €
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {formatNumber(metrica.precio_medio)} €
-                        </TableCell>
                         <TableCell className="text-center">
                           <Badge variant="outline">{metrica.total_propiedades}</Badge>
                         </TableCell>
-                        <TableCell className="text-center text-sm text-muted-foreground">
-                          {metrica.total_pisos} / {metrica.total_chalets}
+                        <TableCell className="text-center">
+                          {metrica.proyeccion_revalorizacion_anual !== null ? (
+                            <div className="flex items-center justify-center gap-1">
+                              <span>{getProyeccionIcon(metrica.proyeccion_revalorizacion_anual)}</span>
+                              <span className={`font-semibold ${getProyeccionColor(metrica.proyeccion_revalorizacion_anual)}`}>
+                                {metrica.proyeccion_revalorizacion_anual > 0 ? '+' : ''}
+                                {metrica.proyeccion_revalorizacion_anual.toFixed(1)}%
+                              </span>
+                              {metrica.meses_datos_historicos && metrica.meses_datos_historicos >= 3 && (
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  ({metrica.meses_datos_historicos}m)
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-center gap-1">
+                              <span>📊</span>
+                              <span className="text-xs text-muted-foreground">Sin histórico</span>
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {metrica.indice_dinamismo !== null ? (
+                            <div className="flex items-center justify-center gap-2">
+                              <div className="w-16 bg-muted rounded-full h-2">
+                                <div 
+                                  className={`h-2 rounded-full transition-all ${
+                                    metrica.indice_dinamismo >= 80 ? 'bg-green-500' :
+                                    metrica.indice_dinamismo >= 60 ? 'bg-blue-500' :
+                                    metrica.indice_dinamismo >= 40 ? 'bg-yellow-500' :
+                                    'bg-gray-400'
+                                  }`}
+                                  style={{ width: `${metrica.indice_dinamismo}%` }}
+                                />
+                              </div>
+                              <span className={`font-medium text-sm ${getDinamismoColor(metrica.indice_dinamismo)}`}>
+                                {Math.round(metrica.indice_dinamismo)}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-muted-foreground">N/A</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-center">
                           <span className={getTendenciaColor(metrica.tendencia)}>

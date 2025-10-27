@@ -178,6 +178,8 @@ export type Database = {
           ciudad: string
           created_at: string | null
           id: string
+          indice_dinamismo: number | null
+          meses_datos_historicos: number | null
           metros_medio_chalet: number | null
           metros_medio_piso: number | null
           precio_m2_max: number | null
@@ -191,6 +193,7 @@ export type Database = {
           precio_medio: number | null
           precio_medio_chalet: number | null
           precio_medio_piso: number | null
+          proyeccion_revalorizacion_anual: number | null
           tendencia: string | null
           total_chalets: number | null
           total_otros: number | null
@@ -204,6 +207,8 @@ export type Database = {
           ciudad: string
           created_at?: string | null
           id?: string
+          indice_dinamismo?: number | null
+          meses_datos_historicos?: number | null
           metros_medio_chalet?: number | null
           metros_medio_piso?: number | null
           precio_m2_max?: number | null
@@ -217,6 +222,7 @@ export type Database = {
           precio_medio?: number | null
           precio_medio_chalet?: number | null
           precio_medio_piso?: number | null
+          proyeccion_revalorizacion_anual?: number | null
           tendencia?: string | null
           total_chalets?: number | null
           total_otros?: number | null
@@ -230,6 +236,8 @@ export type Database = {
           ciudad?: string
           created_at?: string | null
           id?: string
+          indice_dinamismo?: number | null
+          meses_datos_historicos?: number | null
           metros_medio_chalet?: number | null
           metros_medio_piso?: number | null
           precio_m2_max?: number | null
@@ -243,6 +251,7 @@ export type Database = {
           precio_medio?: number | null
           precio_medio_chalet?: number | null
           precio_medio_piso?: number | null
+          proyeccion_revalorizacion_anual?: number | null
           tendencia?: string | null
           total_chalets?: number | null
           total_otros?: number | null
@@ -252,6 +261,50 @@ export type Database = {
           variacion_mensual?: number | null
         }
         Relationships: []
+      }
+      metricas_barrios_historico: {
+        Row: {
+          barrio: string | null
+          ciudad: string
+          created_at: string | null
+          fecha_snapshot: string
+          id: string
+          metrica_id: string
+          precio_m2_medio: number | null
+          precio_medio: number | null
+          total_propiedades: number | null
+        }
+        Insert: {
+          barrio?: string | null
+          ciudad: string
+          created_at?: string | null
+          fecha_snapshot?: string
+          id?: string
+          metrica_id: string
+          precio_m2_medio?: number | null
+          precio_medio?: number | null
+          total_propiedades?: number | null
+        }
+        Update: {
+          barrio?: string | null
+          ciudad?: string
+          created_at?: string | null
+          fecha_snapshot?: string
+          id?: string
+          metrica_id?: string
+          precio_m2_medio?: number | null
+          precio_medio?: number | null
+          total_propiedades?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "metricas_barrios_historico_metrica_id_fkey"
+            columns: ["metrica_id"]
+            isOneToOne: false
+            referencedRelation: "metricas_barrios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       propiedades: {
         Row: {
