@@ -29,25 +29,38 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) throw new Error('No authorization header');
-    
+    const requestBody = await req.json();
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
-      global: { headers: { Authorization: authHeader } }
-    });
-    
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) throw new Error('Unauthorized');
-
-    const requestBody = await req.json();
     
     // Detectar si es webhook de Python o request de trigger
     if (requestBody.propiedades && Array.isArray(requestBody.propiedades)) {
+      // ===== WEBHOOK desde Python Scraper =====
+      // Validar secret token en vez de JWT
+      const scraperSecret = Deno.env.get('SCRAPER_SECRET');
+      const providedSecret = req.headers.get('X-Scraper-Secret');
+      
+      if (!scraperSecret || providedSecret !== scraperSecret) {
+        throw new Error('Unauthorized webhook');
+      }
+      
+      const supabase = createClient(supabaseUrl, supabaseKey);
       const webhookData = WebhookDataSchema.parse(requestBody);
       return await handleWebhookData(supabase, webhookData);
+      
     } else {
+      // ===== REQUEST normal desde Dashboard =====
+      // Requiere JWT authentication
+      const authHeader = req.headers.get('Authorization');
+      if (!authHeader) throw new Error('No authorization header');
+      
+      const supabase = createClient(supabaseUrl, supabaseKey, {
+        global: { headers: { Authorization: authHeader } }
+      });
+      
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) throw new Error('Unauthorized');
+      
       const scrapingRequest = ScrapingRequestSchema.parse(requestBody);
       return await triggerDockerScraper(supabase, scrapingRequest);
     }
