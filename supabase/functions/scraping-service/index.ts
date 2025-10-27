@@ -54,12 +54,17 @@ serve(async (req) => {
       const authHeader = req.headers.get('Authorization');
       if (!authHeader) throw new Error('No authorization header');
       
-      const supabase = createClient(supabaseUrl, supabaseKey, {
+      // Crear cliente para validar usuario con anon key
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } }
       });
       
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
       if (userError || !user) throw new Error('Unauthorized');
+      
+      // Usar service role key para operaciones de base de datos
+      const supabase = createClient(supabaseUrl, supabaseKey);
       
       const scrapingRequest = ScrapingRequestSchema.parse(requestBody);
       return await triggerDockerScraper(supabase, scrapingRequest);
