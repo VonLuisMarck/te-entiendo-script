@@ -94,7 +94,7 @@ def run_spider(job_id, portal, ubicacion, tipo_propiedad, max_pages, webhook_url
                 json=webhook_data,
                 headers={
                     'Content-Type': 'application/json',
-                    'Authorization': f'Bearer {webhook_auth}'
+                    'X-Scraper-Secret': webhook_auth
                 }
             )
             
