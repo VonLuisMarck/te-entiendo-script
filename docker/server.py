@@ -142,13 +142,21 @@ def run_spider_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
         print(f"[DONE] Return code: {result.returncode}")
         
         if result.stdout:
-            print(f"[STDOUT] {result.stdout[:1000]}")
+            print(f"[STDOUT] ({len(result.stdout)} chars)")
+            print(result.stdout)
         
         if result.stderr:
-            print(f"[STDERR] {result.stderr[:1000]}")
+            print(f"[STDERR] ({len(result.stderr)} chars)")
+            print(result.stderr)
         
         if result.returncode != 0:
-            raise Exception(f"Scrapy failed with code {result.returncode}")
+            error_msg = f"Scrapy failed with code {result.returncode}"
+            print(f"[ERROR] {error_msg}")
+            jobs[job_id]['status'] = 'error'
+            jobs[job_id]['error'] = error_msg
+            jobs[job_id]['stderr'] = result.stderr
+            jobs[job_id]['stdout'] = result.stdout
+            return
         
         if not os.path.exists(output_file):
             print(f"[WARN] No output file generated")
