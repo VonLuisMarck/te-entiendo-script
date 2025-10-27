@@ -1,16 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface MatchingRequest {
-  cliente_id?: string;
-  propiedad_id?: string;
-  recalcular_todos?: boolean;
-}
+const MatchingRequestSchema = z.object({
+  cliente_id: z.string().uuid().optional(),
+  propiedad_id: z.string().uuid().optional(),
+  recalcular_todos: z.boolean().optional(),
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -18,11 +19,20 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('Unauthorized');
 
-    const { cliente_id, propiedad_id, recalcular_todos } = await req.json() as MatchingRequest;
+    const requestBody = await req.json();
+    const { cliente_id, propiedad_id, recalcular_todos } = MatchingRequestSchema.parse(requestBody);
     
     console.log('[Matching Service] Iniciando cálculo de matchings en background');
 
@@ -157,12 +167,18 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
-    console.error('[Matching Service] Error:', error);
+  } catch (error: any) {
+    console.error('[Matching Service] Error:', error.message);
+    
+    const status = error.message?.includes('Unauthorized') ? 403 : 
+                   error.issues ? 400 : 500;
+    
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ 
+        error: error.issues ? 'Invalid request data' : 'Failed to process matching'
+      }),
       { 
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );

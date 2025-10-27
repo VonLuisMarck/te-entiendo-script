@@ -1,16 +1,17 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.76.1";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface WhatsAppNotificationRequest {
-  clienteId: string;
-  matchingId: string;
-  telefono: string;
-}
+const WhatsAppRequestSchema = z.object({
+  clienteId: z.string().uuid("Invalid cliente ID"),
+  matchingId: z.string().uuid("Invalid matching ID"),
+  telefono: z.string().min(9).max(20).regex(/^[\d+\s-]+$/, "Invalid phone format"),
+});
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -19,9 +20,32 @@ serve(async (req) => {
   }
 
   try {
-    const { clienteId, matchingId, telefono }: WhatsAppNotificationRequest = await req.json();
+    const requestBody = await req.json();
+    const { clienteId, matchingId, telefono } = WhatsAppRequestSchema.parse(requestBody);
     
-    console.log('Enviando notificación WhatsApp:', { clienteId, matchingId, telefono });
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
+    
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('Unauthorized');
+    
+    const { data: clienteAuth, error: clienteError } = await supabase
+      .from('clientes')
+      .select('user_id')
+      .eq('id', clienteId)
+      .single();
+    
+    if (clienteError || !clienteAuth || clienteAuth.user_id !== user.id) {
+      throw new Error('Unauthorized: cliente does not belong to user');
+    }
+    
+    console.log('Enviando notificación WhatsApp para matching:', matchingId);
 
     // Verificar que tenemos las credenciales de Twilio
     const twilioAccountSid = Deno.env.get('TWILIO_ACCOUNT_SID');
@@ -29,13 +53,8 @@ serve(async (req) => {
     const twilioWhatsAppNumber = Deno.env.get('TWILIO_WHATSAPP_NUMBER');
 
     if (!twilioAccountSid || !twilioAuthToken || !twilioWhatsAppNumber) {
-      throw new Error('Credenciales de Twilio no configuradas');
+      throw new Error('Twilio not configured');
     }
-
-    // Crear cliente de Supabase
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Obtener los datos del matching y la propiedad
     const { data: matching, error: matchingError } = await supabase
@@ -97,11 +116,11 @@ _Esta propiedad acaba de ser encontrada y te la enviamos de inmediato para que n
     const twilioData = await twilioResponse.json();
 
     if (!twilioResponse.ok) {
-      console.error('Error de Twilio:', twilioData);
-      throw new Error(`Error de Twilio: ${twilioData.message || 'Error desconocido'}`);
+      console.error('Twilio error');
+      throw new Error('Failed to send WhatsApp notification');
     }
 
-    console.log('Mensaje enviado exitosamente:', twilioData.sid);
+    console.log('WhatsApp notification sent successfully');
 
     // Actualizar el matching como notificado
     await supabase
@@ -122,15 +141,18 @@ _Esta propiedad acaba de ser encontrada y te la enviamos de inmediato para que n
     );
 
   } catch (error: any) {
-    console.error('Error al enviar notificación WhatsApp:', error);
+    console.error('Error sending WhatsApp notification:', error.message);
+    
+    const status = error.message?.includes('Unauthorized') ? 403 : 
+                   error.issues ? 400 : 500;
+    
     return new Response(
       JSON.stringify({ 
-        error: error.message || 'Error desconocido',
-        details: error.toString()
+        error: error.issues ? 'Invalid request data' : 'Failed to send notification'
       }),
       { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500 
+        status
       }
     );
   }

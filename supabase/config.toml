@@ -1,19 +1,19 @@
 project_id = "mtjomlpwpiuhflwmgctk"
 
 [functions.calculate-metrics]
-verify_jwt = false
+verify_jwt = true
 
 [functions.generate-fake-data]
-verify_jwt = false
+verify_jwt = true
 
 [functions.matching-service]
-verify_jwt = false
+verify_jwt = true
 
 [functions.scraping-service]
-verify_jwt = false
+verify_jwt = true
 
 [functions.send-whatsapp-notification]
-verify_jwt = false
+verify_jwt = true
 
 [functions.valoracion-reforma-ia]
-verify_jwt = false
+verify_jwt = true

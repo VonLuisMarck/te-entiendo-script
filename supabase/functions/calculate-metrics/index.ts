@@ -1,15 +1,16 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface MetricsRequest {
-  ciudad?: string;
-  recalcular_todo?: boolean;
-}
+const MetricsRequestSchema = z.object({
+  ciudad: z.string().min(2).max(100).optional(),
+  recalcular_todo: z.boolean().optional(),
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -17,11 +18,20 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('Unauthorized');
 
-    const { ciudad, recalcular_todo } = await req.json() as MetricsRequest;
+    const requestBody = await req.json();
+    const { ciudad, recalcular_todo } = MetricsRequestSchema.parse(requestBody);
     
     console.log('[Calculate Metrics] Iniciando cálculo de métricas');
     const startTime = Date.now();
@@ -132,12 +142,18 @@ serve(async (req) => {
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-  } catch (error) {
-    console.error('[Calculate Metrics] Error:', error);
+  } catch (error: any) {
+    console.error('[Calculate Metrics] Error:', error.message);
+    
+    const status = error.message?.includes('Unauthorized') ? 403 : 
+                   error.issues ? 400 : 500;
+    
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ 
+        error: error.issues ? 'Invalid request data' : 'Failed to calculate metrics'
+      }),
       { 
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );

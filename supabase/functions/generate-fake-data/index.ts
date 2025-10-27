@@ -1,14 +1,15 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface FakeDataRequest {
-  cantidad?: number;
-  ciudades?: string[];
-}
+const FakeDataRequestSchema = z.object({
+  cantidad: z.number().int().min(1).max(500).optional(),
+  ciudades: z.array(z.string().min(2).max(50)).max(20).optional(),
+});
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -16,11 +17,20 @@ Deno.serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('Unauthorized');
 
-    const body: FakeDataRequest = await req.json();
+    const requestBody = await req.json();
+    const body = FakeDataRequestSchema.parse(requestBody);
     const cantidad = body.cantidad || 50;
     const ciudades = body.ciudades || [
       'Madrid',
@@ -148,17 +158,20 @@ Deno.serve(async (req) => {
         status: 200,
       }
     );
-  } catch (error) {
-    console.error('Error en generate-fake-data:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+  } catch (error: any) {
+    console.error('Error generating fake data:', error.message);
+    
+    const status = error.message?.includes('Unauthorized') ? 403 : 
+                   error.issues ? 400 : 500;
+    
     return new Response(
       JSON.stringify({
         success: false,
-        error: errorMessage,
+        error: error.issues ? 'Invalid request data' : 'Failed to generate fake data',
       }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
+        status,
       }
     );
   }

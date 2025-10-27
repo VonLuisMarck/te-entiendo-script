@@ -1,43 +1,27 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ScrapingRequest {
-  portal: string;
-  ubicacion: string;
-  tipo_propiedad?: string;
-  max_pages?: number;
-}
+const ScrapingRequestSchema = z.object({
+  portal: z.string().min(1).max(50),
+  ubicacion: z.string().min(1).max(200),
+  tipo_propiedad: z.string().min(1).max(50).optional(),
+  max_pages: z.number().int().min(1).max(50).optional(),
+});
 
-interface WebhookData {
-  propiedades: Array<{
-    external_id: string;
-    portal_origen: string;
-    titulo: string;
-    descripcion?: string;
-    precio: number;
-    ubicacion: string;
-    tipo_propiedad: string;
-    dormitorios?: number;
-    banos?: number;
-    metros?: number;
-    condition?: string;
-    ano_construccion?: number;
-    tiene_ascensor?: boolean;
-    tiene_parking?: boolean;
-    url: string;
-    imagenes?: string[];
-  }>;
-  metadata: {
-    portal: string;
-    ubicacion: string;
-    total_encontradas: number;
-  };
-}
+const WebhookDataSchema = z.object({
+  propiedades: z.array(z.any()),
+  metadata: z.object({
+    portal: z.string(),
+    ubicacion: z.string(),
+    total_encontradas: z.number(),
+  }),
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -45,26 +29,40 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('Unauthorized');
 
     const requestBody = await req.json();
     
     // Detectar si es webhook de Python o request de trigger
     if (requestBody.propiedades && Array.isArray(requestBody.propiedades)) {
-      // MODO WEBHOOK: Recibir datos del scraper Python
-      return await handleWebhookData(supabase, requestBody as WebhookData);
+      const webhookData = WebhookDataSchema.parse(requestBody);
+      return await handleWebhookData(supabase, webhookData);
     } else {
-      // MODO TRIGGER: Iniciar scraping desde el contenedor Docker
-      return await triggerDockerScraper(supabase, requestBody as ScrapingRequest);
+      const scrapingRequest = ScrapingRequestSchema.parse(requestBody);
+      return await triggerDockerScraper(supabase, scrapingRequest);
     }
-  } catch (error) {
-    console.error('[Scraping Service] Error:', error);
+  } catch (error: any) {
+    console.error('[Scraping Service] Error:', error.message);
+    
+    const status = error.message?.includes('Unauthorized') ? 403 : 
+                   error.issues ? 400 : 500;
+    
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ 
+        error: error.issues ? 'Invalid request data' : 'Failed to process scraping'
+      }),
       { 
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
@@ -72,7 +70,7 @@ serve(async (req) => {
 });
 
 // Función para recibir datos del scraper Python (webhook)
-async function handleWebhookData(supabase: any, data: WebhookData) {
+async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookDataSchema>) {
   console.log(`[Webhook] Recibiendo ${data.propiedades.length} propiedades de ${data.metadata.portal}`);
   const startTime = Date.now();
 
@@ -137,7 +135,7 @@ async function handleWebhookData(supabase: any, data: WebhookData) {
 }
 
 // Función para triggerar el scraper Docker
-async function triggerDockerScraper(supabase: any, request: ScrapingRequest) {
+async function triggerDockerScraper(supabase: any, request: z.infer<typeof ScrapingRequestSchema>) {
   const { portal, ubicacion, tipo_propiedad, max_pages = 5 } = request;
   console.log(`[Trigger] Solicitando scraping: ${portal} - ${ubicacion}`);
   const startTime = Date.now();

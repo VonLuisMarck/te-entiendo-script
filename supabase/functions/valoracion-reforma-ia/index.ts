@@ -1,22 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface ValoracionRequest {
-  clienteId: string;
-  propiedadId: string;
-  imagenesBase64: string[]; // Array de imágenes en base64
-  datosPropiedad: {
-    metros: number;
-    precio: number;
-    ubicacion: string;
-    tipo: string;
-  };
-}
+const ValoracionRequestSchema = z.object({
+  clienteId: z.string().uuid("Invalid cliente ID"),
+  propiedadId: z.string().uuid("Invalid property ID"),
+  imagenesBase64: z.array(z.string()).min(1).max(10),
+  datosPropiedad: z.object({
+    metros: z.number().min(10).max(10000),
+    precio: z.number().min(1000).max(100000000),
+    ubicacion: z.string().min(2).max(200),
+    tipo: z.string().min(2).max(50),
+  }),
+});
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -24,21 +25,38 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('No authorization header');
+    
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const openaiKey = Deno.env.get('OPENAI_API_KEY');
-    const supabase = createClient(supabaseUrl, supabaseKey);
 
     if (!openaiKey) {
-      throw new Error('OPENAI_API_KEY no configurada');
+      throw new Error('OpenAI not configured');
     }
 
-    const requestData: ValoracionRequest = await req.json();
-    console.log('[Valoración IA] Procesando solicitud:', {
-      clienteId: requestData.clienteId,
-      propiedadId: requestData.propiedadId,
-      numImagenes: requestData.imagenesBase64.length,
+    const supabase = createClient(supabaseUrl, supabaseKey, {
+      global: { headers: { Authorization: authHeader } }
     });
+    
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) throw new Error('Unauthorized');
+
+    const requestBody = await req.json();
+    const requestData = ValoracionRequestSchema.parse(requestBody);
+    
+    const { data: clienteAuth, error: clienteError } = await supabase
+      .from('clientes')
+      .select('user_id')
+      .eq('id', requestData.clienteId)
+      .single();
+    
+    if (clienteError || !clienteAuth || clienteAuth.user_id !== user.id) {
+      throw new Error('Unauthorized: cliente does not belong to user');
+    }
+    
+    console.log('[Valoración IA] Processing request for property:', requestData.propiedadId);
 
     // Obtener datos del cliente y propiedad
     const { data: cliente } = await supabase
@@ -304,15 +322,18 @@ DEVUELVE SOLO UN JSON CON ESTA ESTRUCTURA EXACTA (sin markdown, sin backticks):
       }
     );
 
-  } catch (error) {
-    console.error('[Valoración IA] Error:', error);
+  } catch (error: any) {
+    console.error('[Valoración IA] Error:', error.message);
+    
+    const status = error.message?.includes('Unauthorized') ? 403 : 
+                   error.issues ? 400 : 500;
+    
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : 'Error desconocido',
-        success: false,
+        error: error.issues ? 'Invalid request data' : 'Failed to process valuation'
       }),
       { 
-        status: 500,
+        status,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
