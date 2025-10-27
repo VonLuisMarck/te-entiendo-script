@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Building2, Users, Search, TrendingUp, LogOut, BarChart3 } from "lucide-react";
+import { Building2, Users, Search, TrendingUp, LogOut, BarChart3, Settings } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -63,17 +63,24 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b">
+    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-2">
             <Building2 className="h-6 w-6 text-primary" />
-            <h1 className="text-2xl font-bold">InmoFinder</h1>
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+              InmoFinder
+            </h1>
           </div>
-          <Button variant="ghost" onClick={handleLogout}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Cerrar Sesión
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}>
+              <Settings className="h-5 w-5" />
+            </Button>
+            <Button variant="ghost" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Cerrar Sesión
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -86,88 +93,116 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card>
+          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 border-t-4 border-t-primary">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Propiedades</CardTitle>
-              <Building2 className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Building2 className="h-5 w-5 text-primary" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.propiedades}</div>
-              <p className="text-xs text-muted-foreground">Total en base de datos</p>
+              <div className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+                {stats.propiedades}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Total en base de datos</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 border-t-4 border-t-success">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Clientes</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 rounded-lg bg-success/10">
+                <Users className="h-5 w-5 text-success" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.clientes}</div>
-              <p className="text-xs text-muted-foreground">Clientes activos</p>
+              <div className="text-3xl font-bold text-success">{stats.clientes}</div>
+              <p className="text-xs text-muted-foreground mt-1">Clientes activos</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 border-t-4 border-t-warning">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Matchings</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+              <div className="p-2 rounded-lg bg-warning/10">
+                <TrendingUp className="h-5 w-5 text-warning" />
+              </div>
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{stats.matchings}</div>
-              <p className="text-xs text-muted-foreground">Total de coincidencias</p>
+              <div className="text-3xl font-bold text-warning">{stats.matchings}</div>
+              <p className="text-xs text-muted-foreground mt-1">Total de coincidencias</p>
             </CardContent>
           </Card>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/propiedades")}>
+          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/propiedades")}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-3 text-lg">
+                <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                  <Building2 className="h-6 w-6 text-primary" />
+                </div>
                 Propiedades
               </CardTitle>
-              <CardDescription>Gestiona y visualiza todas las propiedades scrapeadas</CardDescription>
+              <CardDescription className="text-sm">
+                Gestiona y visualiza todas las propiedades scrapeadas
+              </CardDescription>
             </CardHeader>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/clientes")}>
+          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/clientes")}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-3 text-lg">
+                <div className="p-2 rounded-lg bg-success/10 group-hover:bg-success/20 transition-colors">
+                  <Users className="h-6 w-6 text-success" />
+                </div>
                 Clientes
               </CardTitle>
-              <CardDescription>Administra tus clientes y sus criterios de búsqueda</CardDescription>
+              <CardDescription className="text-sm">
+                Administra tus clientes y sus criterios de búsqueda
+              </CardDescription>
             </CardHeader>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/matchings")}>
+          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/matchings")}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-3 text-lg">
+                <div className="p-2 rounded-lg bg-warning/10 group-hover:bg-warning/20 transition-colors">
+                  <Search className="h-6 w-6 text-warning" />
+                </div>
                 Matchings
               </CardTitle>
-              <CardDescription>Revisa las coincidencias entre clientes y propiedades</CardDescription>
+              <CardDescription className="text-sm">
+                Revisa las coincidencias entre clientes y propiedades
+              </CardDescription>
             </CardHeader>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/scraper")}>
+          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/scraper")}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-3 text-lg">
+                <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                  <TrendingUp className="h-6 w-6 text-primary" />
+                </div>
                 Scraper
               </CardTitle>
-              <CardDescription>Configura y ejecuta scrapers de portales inmobiliarios</CardDescription>
+              <CardDescription className="text-sm">
+                Configura y ejecuta scrapers de portales inmobiliarios
+              </CardDescription>
             </CardHeader>
           </Card>
 
-          <Card className="cursor-pointer hover:shadow-lg transition-shadow" onClick={() => navigate("/metricas")}>
+          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/metricas")}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5" />
+              <CardTitle className="flex items-center gap-3 text-lg">
+                <div className="p-2 rounded-lg bg-accent/10 group-hover:bg-accent/20 transition-colors">
+                  <BarChart3 className="h-6 w-6 text-accent" />
+                </div>
                 Métricas de Mercado
               </CardTitle>
-              <CardDescription>Análisis de precios por ciudad y barrio - Detecta chollos</CardDescription>
+              <CardDescription className="text-sm">
+                Análisis de precios por ciudad y barrio - Detecta chollos
+              </CardDescription>
             </CardHeader>
           </Card>
         </div>
