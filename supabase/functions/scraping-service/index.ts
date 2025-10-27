@@ -52,16 +52,37 @@ serve(async (req) => {
       // ===== REQUEST normal desde Dashboard =====
       // Requiere JWT authentication
       const authHeader = req.headers.get('Authorization');
-      if (!authHeader) throw new Error('No authorization header');
+      if (!authHeader) {
+        console.error('[Auth] No authorization header');
+        throw new Error('No authorization header');
+      }
       
       // Crear cliente para validar usuario con anon key
-      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+      const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY');
+      if (!supabaseAnonKey) {
+        console.error('[Auth] SUPABASE_ANON_KEY not found in env');
+        throw new Error('Server configuration error');
+      }
+      
+      console.log('[Auth] Creating client with anon key...');
       const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
         global: { headers: { Authorization: authHeader } }
       });
       
+      console.log('[Auth] Validating user...');
       const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-      if (userError || !user) throw new Error('Unauthorized');
+      
+      if (userError) {
+        console.error('[Auth] User error:', userError);
+        throw new Error('Unauthorized');
+      }
+      
+      if (!user) {
+        console.error('[Auth] No user found');
+        throw new Error('Unauthorized');
+      }
+      
+      console.log('[Auth] User validated:', user.id);
       
       // Usar service role key para operaciones de base de datos
       const supabase = createClient(supabaseUrl, supabaseKey);
