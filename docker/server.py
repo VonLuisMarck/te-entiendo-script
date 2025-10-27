@@ -2,120 +2,103 @@
 Servidor Flask que expone API para triggear el scraper de Fotocasa
 y envía resultados al Edge Function via webhook
 
-Incluye rotación de User-Agents y anti-detección
+Ejecuta Scrapy como subprocess para evitar conflictos con Twisted reactor
 """
 import os
 import json
 import uuid
-from threading import Thread
+import subprocess
 from flask import Flask, request, jsonify
-from scrapy.crawler import CrawlerProcess
-from scrapy.utils.project import get_project_settings
+from threading import Thread
 import requests
-from config import get_random_user_agent, SCRAPY_SETTINGS
-
-# Habilitar pipelines
-SCRAPY_SETTINGS['ITEM_PIPELINES'] = {
-    'pipelines.DataValidationPipeline': 100,
-    'pipelines.DataCleaningPipeline': 200,
-    'pipelines.PropertyTransformPipeline': 300,
-    'pipelines.DuplicateFilterPipeline': 400,
-}
+from config import get_random_user_agent
 
 app = Flask(__name__)
 
 # Almacén de jobs en memoria (en producción usar Redis/DB)
 jobs = {}
 
-def run_spider(job_id, portal, max_pages, webhook_url, webhook_auth):
-    """Ejecuta el spider de Scrapy en background con User-Agent rotation"""
+def run_spider_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
+    """Ejecuta el spider como subprocess separado"""
     print("=" * 80)
-    print(f"🕷️  INICIANDO RUN_SPIDER - Job {job_id[:8]}")
+    print(f"🕷️  INICIANDO SPIDER SUBPROCESS - Job {job_id[:8]}")
     print("=" * 80)
     
     try:
         jobs[job_id]['status'] = 'running'
         print(f"🚀 [Job {job_id[:8]}] Portal: {portal}, Max pages: {max_pages}")
         
-        # Obtener User-Agent aleatorio para este job
-        user_agent = get_random_user_agent()
-        print(f"🎭 [Job {job_id[:8]}] User-Agent: {user_agent[:60]}...")
+        # Crear archivo temporal con la configuración del job
+        job_config = {
+            'job_id': job_id,
+            'portal': portal,
+            'max_pages': max_pages,
+            'webhook_url': webhook_url,
+            'webhook_auth': webhook_auth,
+        }
         
-        # Configurar el proceso de Scrapy con settings anti-detección
-        settings = SCRAPY_SETTINGS.copy()
-        settings['USER_AGENT'] = user_agent
-        settings['LOG_LEVEL'] = 'INFO'
-        settings['LOG_ENABLED'] = True
-        settings['LOG_STDOUT'] = True
+        config_file = f'/tmp/job_{job_id}.json'
+        with open(config_file, 'w') as f:
+            json.dump(job_config, f)
         
-        print(f"⚙️  [Job {job_id[:8]}] Settings configurados")
+        print(f"📄 [Job {job_id[:8]}] Config guardado en {config_file}")
         
-        # Datos que se enviarán al webhook
-        propiedades = []
+        # Ejecutar scrapy como subprocess
+        cmd = [
+            'scrapy', 'runspider', 
+            'fotocasa_spider.py',
+            '-a', f'max_pages={max_pages}',
+            '-o', f'/tmp/output_{job_id}.jsonl',
+            '--loglevel=INFO'
+        ]
         
-        # Importar spider actualizado
-        print(f"📦 [Job {job_id[:8]}] Importando FotocasaApiSpider...")
-        from fotocasa_spider import FotocasaApiSpider
-        print(f"✅ [Job {job_id[:8]}] Spider importado correctamente")
+        print(f"🚀 [Job {job_id[:8]}] Ejecutando comando: {' '.join(cmd)}")
         
-        # Recolectar resultados usando señales de Scrapy
-        from scrapy import signals
-        from scrapy.signalmanager import dispatcher
-        
-        # Recolectar resultados
-        def collect_items(item, response, spider):
-            # Los datos ya vienen procesados por los pipelines
-            propiedades.append(dict(item))
-            print(f"📦 [Job {job_id[:8]}] Propiedad #{len(propiedades)}: {item.get('external_id', 'N/A')} - {item.get('ubicacion', 'N/A')}")
-        
-        # Conectar señal
-        print(f"🔗 [Job {job_id[:8]}] Conectando señales...")
-        dispatcher.connect(collect_items, signal=signals.item_scraped)
-        
-        # Ejecutar spider
-        print(f"🕷️  [Job {job_id[:8]}] Creando CrawlerProcess...")
-        process = CrawlerProcess(settings)
-        
-        print(f"🕷️  [Job {job_id[:8]}] Añadiendo spider al proceso...")
-        process.crawl(
-            FotocasaApiSpider,
-            max_pages=max_pages
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            cwd='/app'
         )
         
-        print(f"🕷️  [Job {job_id[:8]}] INICIANDO SCRAPY REACTOR...")
-        process.start(stop_after_crawl=True)
+        print(f"📊 [Job {job_id[:8]}] Return code: {result.returncode}")
         
-        print(f"✅ [Job {job_id[:8]}] Spider finalizado. Total propiedades: {len(propiedades)}")
+        if result.stdout:
+            print(f"📝 [Job {job_id[:8]}] STDOUT:\n{result.stdout}")
         
-        # Enviar resultados al webhook
+        if result.stderr:
+            print(f"⚠️  [Job {job_id[:8]}] STDERR:\n{result.stderr}")
+        
+        # Leer resultados del archivo JSONL
+        output_file = f'/tmp/output_{job_id}.jsonl'
+        propiedades = []
+        
+        if os.path.exists(output_file):
+            print(f"📦 [Job {job_id[:8]}] Leyendo resultados de {output_file}")
+            with open(output_file, 'r') as f:
+                for line in f:
+                    if line.strip():
+                        item = json.loads(line)
+                        # Transformar item al formato del backend
+                        prop = transform_item(item)
+                        propiedades.append(prop)
+            
+            print(f"✅ [Job {job_id[:8]}] Total propiedades procesadas: {len(propiedades)}")
+            
+            # Limpiar archivo temporal
+            os.remove(output_file)
+        
+        # Enviar resultados al webhook si hay propiedades
         if propiedades:
-            webhook_data = {
-                'propiedades': propiedades,
-                'metadata': {
-                    'portal': portal,
-                    'ubicacion': None,  # Ya no filtramos por ubicación
-                    'total_encontradas': len(propiedades)
-                }
-            }
-            
-            response = requests.post(
-                webhook_url,
-                json=webhook_data,
-                headers={
-                    'Content-Type': 'application/json',
-                    'X-Scraper-Secret': webhook_auth
-                }
-            )
-            
-            if response.status_code == 200:
-                jobs[job_id]['status'] = 'completed'
-                jobs[job_id]['propiedades_encontradas'] = len(propiedades)
-            else:
-                jobs[job_id]['status'] = 'error'
-                jobs[job_id]['error'] = f'Error al enviar webhook: {response.status_code}'
+            send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth)
         else:
+            print(f"⚠️  [Job {job_id[:8]}] No se encontraron propiedades")
             jobs[job_id]['status'] = 'completed'
             jobs[job_id]['propiedades_encontradas'] = 0
+        
+        # Limpiar config temporal
+        if os.path.exists(config_file):
+            os.remove(config_file)
             
     except Exception as e:
         jobs[job_id]['status'] = 'error'
@@ -123,6 +106,78 @@ def run_spider(job_id, portal, max_pages, webhook_url, webhook_auth):
         print(f"❌❌❌ ERROR EN RUN_SPIDER: {e}")
         import traceback
         traceback.print_exc()
+
+
+def transform_item(item):
+    """Transforma item del spider al formato del backend"""
+    raw = item.get('raw', {})
+    price_obj = raw.get('price', {})
+    features = raw.get('features', {})
+    property_type = raw.get('propertyType', {})
+    
+    province = item.get('province') or 'Desconocida'
+    municipality = item.get('municipality') or ''
+    ubicacion = f"{municipality}, {province}" if municipality else province
+    
+    return {
+        'external_id': f"fotocasa-{item.get('ad_id')}",
+        'portal_origen': 'fotocasa',
+        'titulo': raw.get('title', 'Sin título'),
+        'descripcion': raw.get('description'),
+        'precio': price_obj.get('amount', 0) if isinstance(price_obj, dict) else (price_obj or 0),
+        'ubicacion': ubicacion,
+        'tipo_propiedad': property_type.get('id', 'piso') if isinstance(property_type, dict) else 'piso',
+        'dormitorios': features.get('bedrooms'),
+        'banos': features.get('bathrooms'),
+        'metros': item.get('surface'),
+        'condition': features.get('condition'),
+        'ano_construccion': features.get('builtYear'),
+        'tiene_ascensor': bool(features.get('hasLift', False)),
+        'tiene_parking': bool(features.get('parking', False)),
+        'url': raw.get('url') or f"https://www.fotocasa.es/vivienda/{item.get('ad_id')}",
+        'imagenes': raw.get('images', []),
+    }
+
+
+def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):
+    """Envía propiedades al webhook"""
+    try:
+        webhook_data = {
+            'propiedades': propiedades,
+            'metadata': {
+                'portal': portal,
+                'ubicacion': None,
+                'total_encontradas': len(propiedades)
+            }
+        }
+        
+        print(f"📤 [Job {job_id[:8]}] Enviando {len(propiedades)} propiedades al webhook...")
+        
+        response = requests.post(
+            webhook_url,
+            json=webhook_data,
+            headers={
+                'Content-Type': 'application/json',
+                'X-Scraper-Secret': webhook_auth
+            },
+            timeout=60
+        )
+        
+        print(f"📬 [Job {job_id[:8]}] Webhook response: {response.status_code}")
+        
+        if response.status_code == 200:
+            jobs[job_id]['status'] = 'completed'
+            jobs[job_id]['propiedades_encontradas'] = len(propiedades)
+            print(f"✅ [Job {job_id[:8]}] Webhook exitoso")
+        else:
+            jobs[job_id]['status'] = 'error'
+            jobs[job_id]['error'] = f'Error al enviar webhook: {response.status_code}'
+            print(f"❌ [Job {job_id[:8]}] Webhook falló: {response.text}")
+            
+    except Exception as e:
+        jobs[job_id]['status'] = 'error'
+        jobs[job_id]['error'] = f'Error en webhook: {str(e)}'
+        print(f"❌ [Job {job_id[:8]}] Error enviando webhook: {e}")
 
 @app.route('/health', methods=['GET'])
 def health():
@@ -177,7 +232,7 @@ def scrape():
         
         # Ejecutar spider en background thread
         thread = Thread(
-            target=run_spider,
+            target=run_spider_subprocess,
             args=(job_id, portal, max_pages, webhook_url, webhook_auth)
         )
         thread.daemon = True
