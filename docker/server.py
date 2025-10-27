@@ -22,68 +22,93 @@ def run_spider_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
     """Ejecuta el spider como subprocess separado"""
     print("=" * 80)
     print(f"🕷️  INICIANDO SPIDER SUBPROCESS - Job {job_id[:8]}")
+    print(f"   Portal: {portal}")
+    print(f"   Max pages: {max_pages}")
+    print(f"   Webhook: {webhook_url[:50]}...")
     print("=" * 80)
     
     try:
         jobs[job_id]['status'] = 'running'
-        print(f"🚀 [Job {job_id[:8]}] Portal: {portal}, Max pages: {max_pages}")
         
-        # Crear archivo temporal con la configuración del job
-        job_config = {
-            'job_id': job_id,
-            'portal': portal,
-            'max_pages': max_pages,
-            'webhook_url': webhook_url,
-            'webhook_auth': webhook_auth,
-        }
+        # Verificar que scrapy está disponible
+        print(f"🔍 [Job {job_id[:8]}] Verificando scrapy instalado...")
+        check_cmd = ['which', 'scrapy']
+        check_result = subprocess.run(check_cmd, capture_output=True, text=True)
+        print(f"   Scrapy path: {check_result.stdout.strip()}")
         
-        config_file = f'/tmp/job_{job_id}.json'
-        with open(config_file, 'w') as f:
-            json.dump(job_config, f)
+        # Verificar que fotocasa_spider.py existe
+        spider_path = '/app/fotocasa_spider.py'
+        if os.path.exists(spider_path):
+            print(f"✅ [Job {job_id[:8]}] Spider encontrado en {spider_path}")
+        else:
+            print(f"❌ [Job {job_id[:8]}] Spider NO encontrado en {spider_path}")
+            print(f"   Contenido de /app: {os.listdir('/app')}")
+            raise FileNotFoundError(f"Spider not found at {spider_path}")
         
-        print(f"📄 [Job {job_id[:8]}] Config guardado en {config_file}")
+        # Output file
+        output_file = f'/tmp/output_{job_id}.jsonl'
+        print(f"📄 [Job {job_id[:8]}] Output: {output_file}")
         
         # Ejecutar scrapy como subprocess
         cmd = [
-            'scrapy', 'runspider', 
-            'fotocasa_spider.py',
+            'python', '-m', 'scrapy', 'runspider', 
+            spider_path,
             '-a', f'max_pages={max_pages}',
-            '-o', f'/tmp/output_{job_id}.jsonl',
+            '-o', output_file,
             '--loglevel=INFO'
         ]
         
-        print(f"🚀 [Job {job_id[:8]}] Ejecutando comando: {' '.join(cmd)}")
+        print(f"🚀 [Job {job_id[:8]}] Ejecutando: {' '.join(cmd)}")
+        print(f"   CWD: /app")
         
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            cwd='/app'
+            cwd='/app',
+            timeout=300  # 5 minutos timeout
         )
         
-        print(f"📊 [Job {job_id[:8]}] Return code: {result.returncode}")
+        print(f"📊 [Job {job_id[:8]}] Subprocess terminó con código: {result.returncode}")
         
         if result.stdout:
-            print(f"📝 [Job {job_id[:8]}] STDOUT:\n{result.stdout}")
+            print(f"📝 [Job {job_id[:8]}] STDOUT ({len(result.stdout)} chars):")
+            print(result.stdout[:2000])  # Primeros 2000 caracteres
+        else:
+            print(f"⚠️  [Job {job_id[:8]}] No STDOUT")
         
         if result.stderr:
-            print(f"⚠️  [Job {job_id[:8]}] STDERR:\n{result.stderr}")
+            print(f"⚠️  [Job {job_id[:8]}] STDERR ({len(result.stderr)} chars):")
+            print(result.stderr[:2000])  # Primeros 2000 caracteres
+        else:
+            print(f"✅ [Job {job_id[:8]}] No STDERR")
+        
+        if result.returncode != 0:
+            raise Exception(f"Scrapy falló con código {result.returncode}")
+        
+        # Verificar que el output file existe
+        if not os.path.exists(output_file):
+            print(f"❌ [Job {job_id[:8]}] Output file NO existe: {output_file}")
+            print(f"   Contenido de /tmp: {[f for f in os.listdir('/tmp') if 'output' in f]}")
+            jobs[job_id]['status'] = 'completed'
+            jobs[job_id]['propiedades_encontradas'] = 0
+            return
         
         # Leer resultados del archivo JSONL
-        output_file = f'/tmp/output_{job_id}.jsonl'
         propiedades = []
+        print(f"📦 [Job {job_id[:8]}] Leyendo resultados de {output_file}")
         
-        if os.path.exists(output_file):
-            print(f"📦 [Job {job_id[:8]}] Leyendo resultados de {output_file}")
-            with open(output_file, 'r') as f:
-                for line in f:
-                    if line.strip():
+        with open(output_file, 'r') as f:
+            for line_num, line in enumerate(f, 1):
+                if line.strip():
+                    try:
                         item = json.loads(line)
-                        # Transformar item al formato del backend
                         prop = transform_item(item)
                         propiedades.append(prop)
-            
-            print(f"✅ [Job {job_id[:8]}] Total propiedades procesadas: {len(propiedades)}")
+                    except Exception as e:
+                        print(f"⚠️  [Job {job_id[:8]}] Error en línea {line_num}: {e}")
+        
+        print(f"✅ [Job {job_id[:8]}] Total propiedades procesadas: {len(propiedades)}")
             
             # Limpiar archivo temporal
             os.remove(output_file)
