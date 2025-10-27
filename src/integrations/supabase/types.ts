@@ -391,6 +391,66 @@ export type Database = {
         }
         Relationships: []
       }
+      valoraciones_reforma: {
+        Row: {
+          cliente_id: string | null
+          coste_max: number
+          coste_min: number
+          created_at: string | null
+          estado: string | null
+          id: string
+          margen_estudio: number | null
+          ofertar: boolean | null
+          propiedad_id: string | null
+          roi_cliente: number | null
+          updated_at: string | null
+          valoracion_ia: Json
+        }
+        Insert: {
+          cliente_id?: string | null
+          coste_max: number
+          coste_min: number
+          created_at?: string | null
+          estado?: string | null
+          id?: string
+          margen_estudio?: number | null
+          ofertar?: boolean | null
+          propiedad_id?: string | null
+          roi_cliente?: number | null
+          updated_at?: string | null
+          valoracion_ia: Json
+        }
+        Update: {
+          cliente_id?: string | null
+          coste_max?: number
+          coste_min?: number
+          created_at?: string | null
+          estado?: string | null
+          id?: string
+          margen_estudio?: number | null
+          ofertar?: boolean | null
+          propiedad_id?: string | null
+          roi_cliente?: number | null
+          updated_at?: string | null
+          valoracion_ia?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "valoraciones_reforma_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "valoraciones_reforma_propiedad_id_fkey"
+            columns: ["propiedad_id"]
+            isOneToOne: false
+            referencedRelation: "propiedades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
