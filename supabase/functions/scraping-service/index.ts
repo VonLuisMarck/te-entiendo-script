@@ -86,6 +86,7 @@ async function handleWebhookData(supabase: any, data: WebhookData) {
         .from('propiedades')
         .select('id')
         .eq('external_id', propiedad.external_id)
+        .eq('portal_origen', propiedad.portal_origen)
         .maybeSingle();
 
       if (existing) {
