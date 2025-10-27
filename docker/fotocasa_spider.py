@@ -1,19 +1,44 @@
 """
 Spider de Fotocasa (2025)
-Versión adaptada para scrapear toda España usando el nuevo endpoint GET /v2/propertysearch/searchurl
-y dejar el filtrado para postprocesado.
+Version adaptada para scrapear toda Espana usando el nuevo endpoint
 """
 import scrapy
 import time
 import urllib.parse
-from config import get_random_headers, get_random_delay, SCRAPY_SETTINGS
+import random
 
 
 API_SEARCH = "https://web.gw.fotocasa.es/v2/propertysearch/searchurl"
 
+# User-Agents para rotar
+USER_AGENTS = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
+    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
+]
+
+def get_random_delay(min_delay=0.8, max_delay=2.5):
+    """Retorna un delay aleatorio"""
+    return random.uniform(min_delay, max_delay)
+
+
 class FotocasaApiSpider(scrapy.Spider):
     name = "fotocasa_api"
-    custom_settings = SCRAPY_SETTINGS
+    
+    custom_settings = {
+        'ROBOTSTXT_OBEY': False,
+        'CONCURRENT_REQUESTS': 2,
+        'DOWNLOAD_DELAY': 1.5,
+        'RANDOMIZE_DOWNLOAD_DELAY': True,
+        'COOKIES_ENABLED': True,
+        'RETRY_ENABLED': True,
+        'RETRY_TIMES': 3,
+        'RETRY_HTTP_CODES': [429, 500, 502, 503, 504],
+        'AUTOTHROTTLE_ENABLED': True,
+        'AUTOTHROTTLE_START_DELAY': 1,
+        'AUTOTHROTTLE_MAX_DELAY': 10,
+        'USER_AGENT': random.choice(USER_AGENTS),
+    }
 
     def __init__(self, max_pages=50, **kwargs):
         """
@@ -31,10 +56,14 @@ class FotocasaApiSpider(scrapy.Spider):
     # Inicio del scraping
     # ---------------------------- #
     def start_requests(self):
-        """Inicia el proceso con la página 1"""
-        headers = get_random_headers()
+        """Inicia el proceso con la pagina 1"""
+        headers = {
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'es-ES,es;q=0.9',
+            'User-Agent': random.choice(USER_AGENTS),
+        }
         url = self._build_url(page=1)
-        self.logger.info(f"🌍 Scrapeando Fotocasa España — página 1")
+        self.logger.info(f"Scrapeando Fotocasa Espana - pagina 1")
         yield scrapy.Request(
             url,
             method="GET",
@@ -75,14 +104,18 @@ class FotocasaApiSpider(scrapy.Spider):
                 "raw": rec,  # Todo el JSON del anuncio
             }
 
-        # ---------------- PAGINACIÓN ---------------- #
+        # ---------------- PAGINACION ---------------- #
         if results and page < self.max_pages:
             next_page = page + 1
             delay = get_random_delay(0.8, 2.5)
-            self.logger.info(f"⏱️  Esperando {delay:.2f}s antes de página {next_page}...")
+            self.logger.info(f"Esperando {delay:.2f}s antes de pagina {next_page}...")
 
             url = self._build_url(page=next_page)
-            headers = get_random_headers()
+            headers = {
+                'Accept': 'application/json, text/plain, */*',
+                'Accept-Language': 'es-ES,es;q=0.9',
+                'User-Agent': random.choice(USER_AGENTS),
+            }
 
             yield scrapy.Request(
                 url,
@@ -98,7 +131,7 @@ class FotocasaApiSpider(scrapy.Spider):
     # Helper para construir URLs
     # ---------------------------- #
     def _build_url(self, page: int) -> str:
-        """Crea la URL con parámetros de búsqueda global (España)"""
+        """Crea la URL con parametros de busqueda global (Espana)"""
         params = {
             "combinedLocationIds": self.combined_location_ids,
             "culture": "es-ES",
