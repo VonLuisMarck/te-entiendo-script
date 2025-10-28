@@ -92,8 +92,12 @@ const Matchings = () => {
 
       if (error) throw error;
       
-      toast.success(`Matchings recalculados: ${data.matchings_creados} nuevos`);
-      loadMatchings();
+      toast.success("Cálculo de matchings iniciado. Se procesarán en segundo plano.");
+      
+      // Recargar después de un breve delay para ver los resultados
+      setTimeout(() => {
+        loadMatchings();
+      }, 2000);
     } catch (error: any) {
       toast.error(error.message || "Error al recalcular matchings");
     } finally {
