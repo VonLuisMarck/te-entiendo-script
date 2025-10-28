@@ -17,14 +17,21 @@ class FotocasaSpainSpider(scrapy.Spider):
         "RETRY_TIMES": 3,
     }
 
-    def __init__(self, max_pages=5, *args, **kwargs):
+    def __init__(self, max_pages=5, location_id="804,0,0,0,0,0,0,0,0", *args, **kwargs):
+        """
+        max_pages: número máximo de páginas a recorrer.
+        location_id: ID combinado de localización. Ejemplo:
+            - Murcia capital: "804,0,0,0,0,0,0,0,0"
+            - Toda España: "724,0,0,0,0,0,0,0,0"
+        """
         super().__init__(*args, **kwargs)
         self.max_pages = int(max_pages)
-        # Murcia capital (ID obtenido del HAR)
-        self.location_id = "804,0,0,0,0,0,0,0,0"
+        self.location_id = location_id
 
+    # -------------------------------------------------------------------------
+    # 1️⃣ Solicitud inicial: obtener token y cookie CSRF
+    # -------------------------------------------------------------------------
     def start_requests(self):
-        """Primera petición: obtener el token CSRF y la cookie."""
         url = (
             "https://web.gw.fotocasa.es/v2/propertysearch/searchurl?"
             f"combinedLocationIds={self.location_id}&culture=es-ES"
@@ -41,11 +48,10 @@ class FotocasaSpainSpider(scrapy.Spider):
             "Referer": "https://www.fotocasa.es/",
             "Origin": "https://www.fotocasa.es",
             "Connection": "keep-alive",
-            # 🔑 Headers reales desde el HAR
             "X-Api-Key": "fc_web",
             "X-Application-Id": "1",
             "X-Client-Device": "web",
-            "X-Device-Id": str(uuid.uuid4()),  # valor único por ejecución
+            "X-Device-Id": str(uuid.uuid4()),
             "Sec-Fetch-Mode": "cors",
             "Sec-Fetch-Dest": "empty",
             "Sec-Fetch-Site": "same-origin",
@@ -60,56 +66,79 @@ class FotocasaSpainSpider(scrapy.Spider):
             dont_filter=True,
         )
 
+    # -------------------------------------------------------------------------
+    # 2️⃣ Parsear token y cookie CSRF
+    # -------------------------------------------------------------------------
     def parse_csrf(self, response):
-        """Extrae el token y cookie CSRF del primer request."""
         if response.status == 403:
-            self.logger.error("❌ Respuesta 403 Forbidden al solicitar /searchurl. Revisa headers o IP bloqueada.")
+            self.logger.error("❌ 403 Forbidden al solicitar /searchurl.")
             return
-        elif response.status != 200:
-            self.logger.error("⚠️ Respuesta inesperada (%s) en /searchurl", response.status)
+        if response.status != 200:
+            self.logger.error("⚠️ Respuesta inesperada: %s", response.status)
             return
 
         token = response.headers.get("X-Adevinta-Csrf-Token", b"").decode()
-        cookie = response.headers.getlist("Set-Cookie")
         cookie_value = ""
-        for c in cookie:
-            if b"_csrf=" in c:
-                cookie_value = c.decode().split("_csrf=")[1].split(";")[0]
+        for c in response.headers.getlist("Set-Cookie"):
+            c = c.decode()
+            if "_csrf=" in c:
+                cookie_value = c.split("_csrf=")[1].split(";")[0]
                 break
 
         if not token or not cookie_value:
             self.logger.error("❌ No se obtuvo token o cookie CSRF.")
-            self.logger.debug("Headers recibidos: %s", response.headers)
             return
 
         self.logger.info("✅ Token CSRF: %s...", token[:12])
-        self.logger.info("✅ Cookie CSRF: %s...", cookie_value[:12])
+        self.logger.info("✅ Cookie CSRF: %s...", cookie_value[:10])
 
-        headers = response.meta["headers"].copy()
-        headers["X-Adevinta-Csrf-Token"] = token
-        headers["Cookie"] = f"_csrf={cookie_value}"
+        headers = response.meta["headers"]
+        headers.update({
+            "X-Adevinta-Csrf-Token": token,
+            "Cookie": f"_csrf={cookie_value}",
+            "Content-Type": "application/json",
+        })
 
-        # Repite el resto de headers que mantiene el front
-        headers["Referer"] = "https://www.fotocasa.es/es/"
-        headers["Origin"] = "https://www.fotocasa.es"
+        yield from self.fetch_page(headers, page=1)
 
-        # Empieza a recorrer páginas
-        for page in range(1, self.max_pages + 1):
-            url = (
-                "https://web.gw.fotocasa.es/v2/propertysearch/search?"
-                f"combinedLocationIds={self.location_id}&culture=es-ES&pageNumber={page}"
-            )
-            yield scrapy.Request(
-                url,
-                headers=headers,
-                callback=self.parse_list,
-                meta={"page": page},
-                dont_filter=True,
-            )
+    # -------------------------------------------------------------------------
+    # 3️⃣ Enviar POST /search con JSON body
+    # -------------------------------------------------------------------------
+    def fetch_page(self, headers, page):
+        if page > self.max_pages:
+            return
 
+        url = "https://web.gw.fotocasa.es/v2/propertysearch/search"
+
+        body = {
+            "searchParameters": {
+                "location": {"combinedLocationIds": self.location_id},
+                "culture": "es-ES",
+                "sortOrder": "desc",
+                "sortType": "relevance",
+                "pageNumber": page,
+                "platformId": 1,
+            }
+        }
+
+        self.logger.info("📦 Descargando página %s (POST)", page)
+
+        yield scrapy.Request(
+            url,
+            method="POST",
+            headers=headers,
+            body=json.dumps(body),
+            callback=self.parse_list,
+            meta={"headers": headers, "page": page},
+            dont_filter=True,
+        )
+
+    # -------------------------------------------------------------------------
+    # 4️⃣ Procesar propiedades de cada página
+    # -------------------------------------------------------------------------
     def parse_list(self, response):
-        """Procesa el listado JSON de propiedades."""
         page = response.meta["page"]
+
         if response.status != 200:
             self.logger.warning("⚠️ Página %s devolvió %s", page, response.status)
             return
@@ -117,21 +146,23 @@ class FotocasaSpainSpider(scrapy.Spider):
         try:
             data = json.loads(response.text)
         except json.JSONDecodeError:
-            self.logger.error("❌ Error parseando JSON en página %s", page)
-            self.logger.debug("Contenido: %s", response.text[:500])
+            self.logger.error("❌ No se pudo decodificar JSON de página %s", page)
             return
 
-        listings = data.get("realEstates", [])
-        self.logger.info("📄 Página %s: %d propiedades", page, len(listings))
+        results = data.get("listResult", [])
+        self.logger.info("🏠 Página %s -> %d propiedades", page, len(results))
 
-        for item in listings:
+        for prop in results:
             yield {
-                "id": item.get("id"),
-                "title": item.get("title"),
-                "price": item.get("price", {}).get("amount"),
-                "propertyType": item.get("propertyType"),
-                "province": item.get("province"),
-                "municipality": item.get("municipality"),
-                "neighborhood": item.get("district"),
-                "url": f"https://www.fotocasa.es{item.get('detailUrl', '')}",
+                "id": prop.get("id"),
+                "title": prop.get("title"),
+                "price": prop.get("price"),
+                "propertyType": prop.get("propertyType"),
+                "url": prop.get("detail", {}).get("url"),
+                "agency": prop.get("agency", {}).get("name"),
+                "city": prop.get("location", {}).get("city"),
+                "province": prop.get("location", {}).get("province"),
             }
+
+        if len(results) > 0 and page < self.max_pages:
+            yield from self.fetch_page(response.meta["headers"], page + 1)
