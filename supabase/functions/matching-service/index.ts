@@ -197,9 +197,9 @@ function calcularScore(cliente: any, criterios: any, propiedad: any): number {
 
   if (!criterios) return (score / maxScore) * 100;
 
-  // Ubicación (peso: 20 puntos)
+  // Ubicación (peso: 20 puntos) - Matching inteligente
   maxScore += 20;
-  if (criterios.ubicaciones?.includes(propiedad.ubicacion)) {
+  if (criterios.ubicaciones && matchUbicacion(criterios.ubicaciones, propiedad.ubicacion)) {
     score += 20;
   }
 
@@ -238,11 +238,53 @@ function calcularScore(cliente: any, criterios: any, propiedad: any): number {
   return Math.round((score / maxScore) * 100);
 }
 
+function matchUbicacion(ubicacionesCriterios: string[], ubicacionPropiedad: string): boolean {
+  if (!ubicacionPropiedad) return false;
+  
+  // Normalizar función auxiliar
+  const normalizar = (texto: string) => texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  
+  const ubicacionPropNorm = normalizar(ubicacionPropiedad);
+  
+  return ubicacionesCriterios.some(ubicCriterio => {
+    const criterioNorm = normalizar(ubicCriterio);
+    
+    // Match exacto
+    if (ubicacionPropNorm === criterioNorm) return true;
+    
+    // Si la ubicación de la propiedad contiene el criterio
+    // Ej: "Centro, Murcia" contiene "Murcia"
+    if (ubicacionPropNorm.includes(criterioNorm)) return true;
+    
+    // Si el criterio contiene la ubicación de la propiedad
+    // Ej: criterio "Murcia capital" y propiedad "Murcia"
+    if (criterioNorm.includes(ubicacionPropNorm)) return true;
+    
+    // Comparar por partes (ciudad, barrio)
+    const partesProp = ubicacionPropNorm.split(',').map(p => p.trim());
+    const partesCriterio = criterioNorm.split(',').map(p => p.trim());
+    
+    // Si alguna parte coincide
+    for (const parteProp of partesProp) {
+      for (const parteCrit of partesCriterio) {
+        if (parteProp === parteCrit) return true;
+        if (parteProp.includes(parteCrit) || parteCrit.includes(parteProp)) return true;
+      }
+    }
+    
+    return false;
+  });
+}
+
 function evaluarCriterios(cliente: any, criterios: any, propiedad: any): any {
   return {
     presupuesto: propiedad.precio >= (cliente.presupuesto_min || 0) && 
                  propiedad.precio <= (cliente.presupuesto_max || Infinity),
-    ubicacion: criterios?.ubicaciones?.includes(propiedad.ubicacion),
+    ubicacion: criterios?.ubicaciones ? matchUbicacion(criterios.ubicaciones, propiedad.ubicacion) : false,
     tipo_propiedad: criterios?.tipo_propiedad?.includes(propiedad.tipo_propiedad),
     dormitorios: !criterios?.dormitorios_min || propiedad.dormitorios >= criterios.dormitorios_min,
     metros: (!criterios?.metros_min || propiedad.metros >= criterios.metros_min) &&

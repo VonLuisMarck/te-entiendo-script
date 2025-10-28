@@ -45,12 +45,15 @@ interface Cliente {
   activo: boolean;
   perfil: 'alquilar' | 'vender' | 'vivir';
   criterios_busqueda?: Array<{
+    id: string;
     ubicaciones: string[];
     tipo_propiedad: string[];
     dormitorios_min: number;
     metros_min: number;
     metros_max: number;
     condition: string[];
+    tiene_ascensor: boolean;
+    tiene_parking: boolean;
   }>;
 }
 
@@ -58,6 +61,8 @@ const Clientes = () => {
   const [clientes, setClientes] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingClienteId, setEditingClienteId] = useState<string | null>(null);
+  const [editingCriterioId, setEditingCriterioId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     nombre: "",
     email: "",
@@ -95,12 +100,15 @@ const Clientes = () => {
         .select(`
           *,
           criterios_busqueda (
+            id,
             ubicaciones,
             tipo_propiedad,
             dormitorios_min,
             metros_min,
             metros_max,
-            condition
+            condition,
+            tiene_ascensor,
+            tiene_parking
           )
         `)
         .order("created_at", { ascending: false });
@@ -117,15 +125,13 @@ const Clientes = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) throw new Error("No hay sesión activa");
-
-      // Validate form data
+      // Validar datos
       const validated = clienteSchema.parse({
         nombre: formData.nombre,
         email: formData.email,
-        telefono: formData.telefono || undefined,
+        telefono: formData.telefono || "",
         tipo_suscripcion: formData.tipo_suscripcion,
         presupuesto_min: parseFloat(formData.presupuesto_min),
         presupuesto_max: parseFloat(formData.presupuesto_max),
@@ -137,49 +143,103 @@ const Clientes = () => {
         condition: formData.condition,
       });
 
-      // Crear cliente
-      const { data: newCliente, error: clienteError } = await supabase.from("clientes").insert({
-        user_id: session.session.user.id,
-        nombre: validated.nombre,
-        email: validated.email,
-        telefono: validated.telefono || null,
-        tipo_suscripcion: validated.tipo_suscripcion,
-        presupuesto_min: validated.presupuesto_min,
-        presupuesto_max: validated.presupuesto_max,
-        perfil: formData.perfil,
-      }).select().single();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Debe iniciar sesión");
+        return;
+      }
 
-      if (clienteError) throw clienteError;
+      if (editingClienteId) {
+        // Actualizar cliente existente
+        const { error: clienteError } = await supabase
+          .from("clientes")
+          .update({
+            nombre: validated.nombre,
+            email: validated.email,
+            telefono: validated.telefono || null,
+            tipo_suscripcion: validated.tipo_suscripcion,
+            presupuesto_min: validated.presupuesto_min,
+            presupuesto_max: validated.presupuesto_max,
+            perfil: formData.perfil,
+          })
+          .eq('id', editingClienteId);
 
-      // Crear criterios de búsqueda
-      const { error: criteriosError } = await supabase.from("criterios_busqueda").insert({
-        cliente_id: newCliente.id,
-        ubicaciones: validated.ubicaciones,
-        tipo_propiedad: validated.tipo_propiedad,
-        dormitorios_min: validated.dormitorios_min || null,
-        metros_min: validated.metros_min || null,
-        metros_max: validated.metros_max || null,
-        condition: validated.condition,
-        tiene_ascensor: formData.tiene_ascensor ? true : null,
-        tiene_parking: formData.tiene_parking ? true : null,
-      });
+        if (clienteError) throw clienteError;
 
-      if (criteriosError) throw criteriosError;
+        // Actualizar criterios
+        if (editingCriterioId) {
+          const { error: criterioError } = await supabase
+            .from("criterios_busqueda")
+            .update({
+              ubicaciones: formData.ubicaciones,
+              tipo_propiedad: formData.tipo_propiedad,
+              dormitorios_min: validated.dormitorios_min || null,
+              metros_min: validated.metros_min || null,
+              metros_max: validated.metros_max || null,
+              condition: formData.condition,
+              tiene_ascensor: formData.tiene_ascensor,
+              tiene_parking: formData.tiene_parking,
+            })
+            .eq('id', editingCriterioId);
 
-      toast.success("Cliente y preferencias creados exitosamente");
+          if (criterioError) throw criterioError;
+        }
+
+        toast.success("Cliente actualizado exitosamente");
+      } else {
+        // Crear nuevo cliente
+        const { data: nuevoCliente, error: clienteError } = await supabase
+          .from("clientes")
+          .insert({
+            nombre: validated.nombre,
+            email: validated.email,
+            telefono: validated.telefono || null,
+            tipo_suscripcion: validated.tipo_suscripcion,
+            presupuesto_min: validated.presupuesto_min,
+            presupuesto_max: validated.presupuesto_max,
+            perfil: formData.perfil,
+            user_id: session.user.id,
+          })
+          .select()
+          .single();
+
+        if (clienteError) throw clienteError;
+
+        // Crear criterios de búsqueda
+        const { error: criteriosError } = await supabase
+          .from("criterios_busqueda")
+          .insert({
+            cliente_id: nuevoCliente.id,
+            ubicaciones: formData.ubicaciones,
+            tipo_propiedad: formData.tipo_propiedad,
+            dormitorios_min: validated.dormitorios_min || null,
+            metros_min: validated.metros_min || null,
+            metros_max: validated.metros_max || null,
+            condition: formData.condition,
+            tiene_ascensor: formData.tiene_ascensor,
+            tiene_parking: formData.tiene_parking,
+          });
+
+        if (criteriosError) throw criteriosError;
+
+        toast.success("Cliente y preferencias creados exitosamente");
+      }
+      
       setDialogOpen(false);
+      setEditingClienteId(null);
+      setEditingCriterioId(null);
       setFormData({ 
         nombre: "", email: "", telefono: "", tipo_suscripcion: "free", presupuesto_min: "", presupuesto_max: "",
         perfil: "vivir", ubicaciones: [], tipo_propiedad: [], dormitorios_min: "",
         metros_min: "", metros_max: "", condition: [], tiene_ascensor: false, tiene_parking: false
       });
-      setUbicacionInput("");
       loadClientes();
     } catch (error: any) {
-      if (error instanceof z.ZodError) {
-        toast.error(error.errors[0].message);
+      console.error("Error:", error);
+      if (error.issues) {
+        toast.error(error.issues[0]?.message || "Error de validación");
       } else {
-        toast.error("Error al crear cliente. Por favor verifica los datos.");
+        toast.error("Error al procesar el cliente");
       }
     }
   };
@@ -234,15 +294,25 @@ const Clientes = () => {
           <div className="flex items-center gap-2">
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button onClick={() => {
+                  setEditingClienteId(null);
+                  setEditingCriterioId(null);
+                  setFormData({ 
+                    nombre: "", email: "", telefono: "", tipo_suscripcion: "free", presupuesto_min: "", presupuesto_max: "",
+                    perfil: "vivir", ubicaciones: [], tipo_propiedad: [], dormitorios_min: "",
+                    metros_min: "", metros_max: "", condition: [], tiene_ascensor: false, tiene_parking: false
+                  });
+                }}>
                   <Plus className="h-4 w-4 mr-2" />
                   Nuevo Cliente
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Crear Nuevo Cliente</DialogTitle>
-                  <DialogDescription>Añade un nuevo cliente y sus preferencias</DialogDescription>
+                  <DialogTitle>{editingClienteId ? "Editar Cliente" : "Crear Nuevo Cliente"}</DialogTitle>
+                  <DialogDescription>
+                    {editingClienteId ? "Modifica los datos del cliente y sus preferencias" : "Añade un nuevo cliente y sus preferencias"}
+                  </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6">
                   {/* Datos Básicos */}
@@ -454,7 +524,9 @@ const Clientes = () => {
                     </div>
                   </div>
 
-                  <Button type="submit" className="w-full">Crear Cliente</Button>
+                  <Button type="submit" className="w-full">
+                    {editingClienteId ? "Actualizar Cliente" : "Crear Cliente"}
+                  </Button>
                 </form>
               </DialogContent>
             </Dialog>
@@ -556,6 +628,39 @@ const Clientes = () => {
                       )}
                     </div>
                   )}
+                  
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full mt-3"
+                    onClick={() => {
+                      // Cargar datos del cliente en el formulario
+                      const criterios = cliente.criterios_busqueda?.[0];
+                      setFormData({
+                        nombre: cliente.nombre,
+                        email: cliente.email,
+                        telefono: cliente.telefono || "",
+                        tipo_suscripcion: cliente.tipo_suscripcion,
+                        presupuesto_min: cliente.presupuesto_min?.toString() || "",
+                        presupuesto_max: cliente.presupuesto_max?.toString() || "",
+                        perfil: cliente.perfil,
+                        ubicaciones: criterios?.ubicaciones || [],
+                        tipo_propiedad: criterios?.tipo_propiedad || [],
+                        dormitorios_min: criterios?.dormitorios_min?.toString() || "",
+                        metros_min: criterios?.metros_min?.toString() || "",
+                        metros_max: criterios?.metros_max?.toString() || "",
+                        condition: criterios?.condition || [],
+                        tiene_ascensor: criterios?.tiene_ascensor || false,
+                        tiene_parking: criterios?.tiene_parking || false,
+                      });
+                      setEditingClienteId(cliente.id);
+                      setEditingCriterioId(criterios?.id || null);
+                      setDialogOpen(true);
+                    }}
+                  >
+                    <Edit className="h-4 w-4 mr-2" />
+                    Editar
+                  </Button>
                 </CardContent>
               </Card>
             ))}
