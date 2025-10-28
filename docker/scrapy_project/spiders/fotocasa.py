@@ -5,16 +5,15 @@ Spider de Fotocasa
 import scrapy
 import time
 import urllib.parse
-import random
+import sys
+import os
+
+# Importar configuración de headers desde config.py
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+from config import get_random_headers, get_random_delay
 
 
 API_SEARCH = "https://web.gw.fotocasa.es/v2/propertysearch/searchurl"
-
-USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-]
 
 
 class FotocasaSpider(scrapy.Spider):
@@ -27,13 +26,11 @@ class FotocasaSpider(scrapy.Spider):
         self.combined_location_ids = "724,0,0,0,0,0,0,0,0"  # Toda Espana
 
     def start_requests(self):
-        headers = {
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'es-ES,es;q=0.9',
-            'User-Agent': random.choice(USER_AGENTS),
-        }
+        headers = get_random_headers()
         url = self._build_url(page=1)
         self.logger.info(f"Scrapeando Fotocasa Espana - pagina 1")
+        self.logger.info(f"URL: {url}")
+        self.logger.info(f"Headers: {headers}")
         
         yield scrapy.Request(
             url,
@@ -77,15 +74,11 @@ class FotocasaSpider(scrapy.Spider):
         # Paginacion
         if results and page < self.max_pages:
             next_page = page + 1
-            delay = random.uniform(0.8, 2.5)
+            delay = get_random_delay(0.8, 2.5)
             self.logger.info(f"Esperando {delay:.2f}s antes de pagina {next_page}")
 
             url = self._build_url(page=next_page)
-            headers = {
-                'Accept': 'application/json, text/plain, */*',
-                'Accept-Language': 'es-ES,es;q=0.9',
-                'User-Agent': random.choice(USER_AGENTS),
-            }
+            headers = get_random_headers()
 
             yield scrapy.Request(
                 url,
@@ -101,8 +94,8 @@ class FotocasaSpider(scrapy.Spider):
         params = {
             "combinedLocationIds": self.combined_location_ids,
             "culture": "es-ES",
-            "latitude": 0,
-            "longitude": 0,
+            "latitude": 40,  # Centro de España (coords reales del HAR)
+            "longitude": -4,  # Centro de España (coords reales del HAR)
             "text": "",
             "pageNumber": page,
         }
