@@ -58,25 +58,34 @@ def transform_item(item):
     tiene_parking = '2' in feature_ids
     tiene_ascensor = '17' in feature_ids
     
+    # Calcular precio_m2
+    metros = item.get('surface')
+    precio_m2 = round(precio / metros, 2) if metros and metros > 0 else None
+    
+    # Fecha actual para fecha_scraping
+    from datetime import datetime, timezone
+    fecha_scraping = datetime.now(timezone.utc).isoformat()
+    
     return {
         'external_id': f"fotocasa-{item.get('propertyId')}",
         'portal_origen': 'fotocasa',
         'titulo': f"{item.get('propertyType', 'Vivienda')} en {zone or 'Murcia'}",
         'descripcion': item.get('description'),
         'precio': precio,
+        'precio_m2': precio_m2,
         'ubicacion': zone or f"{location.get('level5Name', 'Murcia')}",
         'tipo_propiedad': item.get('propertyType', 'flat'),
         'dormitorios': item.get('rooms'),
         'banos': item.get('baths'),
-        'metros': item.get('surface'),
+        'metros': metros,
         'condition': item.get('conservationStatus'),
         'ano_construccion': item.get('antiquity'),
         'tiene_ascensor': tiene_ascensor,
         'tiene_parking': tiene_parking,
         'url': url,
         'imagenes': imagenes[:10] if imagenes else [],  # Limitar a 10 imágenes
-        'latitud': float(location.get('latitude')) if location.get('latitude') else None,
-        'longitud': float(location.get('longitude')) if location.get('longitude') else None,
+        'fecha_scraping': fecha_scraping,
+        'fecha_publicacion': None,  # Fotocasa no proporciona este dato
     }
 
 def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):

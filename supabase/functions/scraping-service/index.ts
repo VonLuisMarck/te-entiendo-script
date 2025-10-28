@@ -14,8 +14,30 @@ const ScrapingRequestSchema = z.object({
   max_pages: z.number().int().min(1).max(50).optional(),
 });
 
+const PropiedadSchema = z.object({
+  external_id: z.string(),
+  portal_origen: z.string(),
+  titulo: z.string(),
+  descripcion: z.string().nullable().optional(),
+  precio: z.number(),
+  precio_m2: z.number().nullable().optional(),
+  ubicacion: z.string(),
+  tipo_propiedad: z.string(),
+  dormitorios: z.number().nullable().optional(),
+  banos: z.number().nullable().optional(),
+  metros: z.number().nullable().optional(),
+  condition: z.string().nullable().optional(),
+  ano_construccion: z.number().nullable().optional(),
+  tiene_ascensor: z.boolean().nullable().optional(),
+  tiene_parking: z.boolean().nullable().optional(),
+  url: z.string(),
+  imagenes: z.array(z.string()).nullable().optional(),
+  fecha_scraping: z.string().nullable().optional(),
+  fecha_publicacion: z.string().nullable().optional(),
+});
+
 const WebhookDataSchema = z.object({
-  propiedades: z.array(z.any()),
+  propiedades: z.array(PropiedadSchema),
   metadata: z.object({
     portal: z.string(),
     ubicacion: z.string().nullable().optional(),
