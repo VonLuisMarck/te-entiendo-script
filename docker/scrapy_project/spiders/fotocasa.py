@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Spider de Fotocasa (2025, endpoint definitivo)
----------------------------------------------
-✅ Usa /v2/propertysearch/search (GET)
-✅ Scrapea toda España
-✅ Maneja compresión gzip y logs detallados
+Spider de Fotocasa (2025, versión final)
+----------------------------------------
+✅ Flujo correcto en dos pasos:
+   1. /v2/propertysearch/searchurl  → obtiene token y cookie CSRF
+   2. /v2/propertysearch/search     → obtiene resultados reales
+✅ Soporta paginación y gzip
+✅ Funciona en Fly.io o local
 """
 
 import scrapy
@@ -20,7 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 from config import get_random_headers, get_random_delay, SCRAPY_SETTINGS
 
 
-API_SEARCH = "https://web.gw.fotocasa.es/v2/propertysearch/search"
+API_BASE = "https://web.gw.fotocasa.es/v2/propertysearch"
 
 
 class FotocasaSpider(scrapy.Spider):
@@ -33,42 +35,104 @@ class FotocasaSpider(scrapy.Spider):
         self.max_pages = int(max_pages)
         self.combined_location_ids = "724,0,0,0,0,0,0,0,0"  # Toda España
 
+    # ---------------------------- #
+    # Paso 1: resolver CSRF tokens
+    # ---------------------------- #
     def start_requests(self):
+        """Primera petición: obtener token CSRF"""
         headers = get_random_headers()
         headers["Accept-Encoding"] = "identity"
+        url = f"{API_BASE}/searchurl?{urllib.parse.urlencode({'combinedLocationIds': self.combined_location_ids, 'culture': 'es-ES'})}"
 
-        url = self._build_url(page=1)
-        self.logger.info(f"🌍 Scrapeando Fotocasa España - página 1")
+        self.logger.info("🌍 Solicitando token CSRF desde /searchurl")
         self.logger.info(f"URL: {url}")
+
         yield scrapy.Request(
             url,
             method="GET",
             headers=headers,
-            callback=self.parse_search,
-            cb_kwargs={"page": 1},
+            callback=self.parse_csrf,
             dont_filter=True,
         )
 
-    def parse_search(self, response, page):
+    def parse_csrf(self, response):
+        """Extrae cookie y token CSRF, luego lanza la búsqueda real"""
+        csrf_cookie = None
+        csrf_token = None
+
+        # --- Cabeceras ---
+        set_cookie = response.headers.getlist(b"Set-Cookie")
+        for ck in set_cookie:
+            if b"_csrf=" in ck:
+                csrf_cookie = ck.decode("utf-8").split("_csrf=")[1].split(";")[0]
+                break
+
+        csrf_token = response.headers.get(b"X-Adevinta-Csrf-Token")
+        if csrf_token:
+            csrf_token = csrf_token.decode("utf-8")
+
+        if not csrf_cookie or not csrf_token:
+            self.logger.error("❌ No se pudo obtener token/cookie CSRF")
+            self.logger.error(f"Response headers: {response.headers}")
+            return
+
+        self.logger.info(f"✅ Token CSRF obtenido: {csrf_token[:10]}...")
+        self.logger.info(f"✅ Cookie CSRF: {csrf_cookie[:10]}...")
+
+        # --- Lanza la búsqueda real ---
+        yield from self.fetch_results(page=1, csrf_cookie=csrf_cookie, csrf_token=csrf_token)
+
+    # ---------------------------- #
+    # Paso 2: obtener resultados reales
+    # ---------------------------- #
+    def fetch_results(self, page, csrf_cookie, csrf_token):
+        """Lanza petición real a /search con headers CSRF"""
+        headers = get_random_headers()
+        headers["Accept-Encoding"] = "identity"
+        headers["X-Adevinta-Csrf-Token"] = csrf_token
+        headers["Cookie"] = f"_csrf={csrf_cookie}"
+        headers["Referer"] = "https://www.fotocasa.es/"
+
+        url = self._build_search_url(page)
+        self.logger.info(f"🏠 Descargando página {page} -> {url}")
+
+        yield scrapy.Request(
+            url,
+            method="GET",
+            headers=headers,
+            callback=self.parse_results,
+            cb_kwargs={
+                "page": page,
+                "csrf_cookie": csrf_cookie,
+                "csrf_token": csrf_token,
+            },
+            dont_filter=True,
+        )
+
+    # ---------------------------- #
+    # Parseo del JSON
+    # ---------------------------- #
+    def parse_results(self, response, page, csrf_cookie, csrf_token):
+        """Procesa la respuesta JSON real"""
         body = response.body
         if body[:2] == b"\x1f\x8b" or body[:1] == b"\x8b":
             try:
                 body = gzip.decompress(body)
             except Exception:
-                self.logger.warning("⚠️ No se pudo descomprimir con gzip")
+                self.logger.warning("⚠️ No se pudo descomprimir gzip")
 
         try:
             data = json.loads(body.decode("utf-8"))
         except Exception as e:
             self.logger.error(f"❌ Error parseando JSON (página {page}): {e}")
-            self.logger.error(f"Response status: {response.status}")
-            self.logger.error(f"Response headers: {response.headers}")
-            self.logger.error(f"Response body (primeros 200 bytes): {body[:200]!r}")
+            self.logger.error(f"Status: {response.status}")
+            self.logger.error(f"Headers: {response.headers}")
+            self.logger.error(f"Body (primeros 200 bytes): {body[:200]!r}")
             return
 
         results = data.get("list") or data.get("realEstates") or []
         total = data.get("totalCount") or len(results)
-        self.logger.info(f"✅ Página {page}: {len(results)} resultados (de {total} totales)")
+        self.logger.info(f"✅ Página {page}: {len(results)} resultados (total aprox: {total})")
 
         for rec in results:
             ad_id = str(rec.get("id") or rec.get("propertyId") or "")
@@ -90,26 +154,21 @@ class FotocasaSpider(scrapy.Spider):
                 "raw": rec,
             }
 
+        # --- Paginar si hay más ---
         if results and page < self.max_pages:
             next_page = page + 1
-            delay = get_random_delay(0.8, 2.5)
+            delay = get_random_delay(1.0, 2.5)
             self.logger.info(f"⏱️ Esperando {delay:.2f}s antes de página {next_page}...")
 
-            url = self._build_url(page=next_page)
-            headers = get_random_headers()
-            headers["Accept-Encoding"] = "identity"
-
-            yield scrapy.Request(
-                url,
-                method="GET",
-                headers=headers,
-                callback=self.parse_search,
-                cb_kwargs={"page": next_page},
-                dont_filter=True,
-                meta={"download_delay": delay},
+            yield from self.fetch_results(
+                page=next_page, csrf_cookie=csrf_cookie, csrf_token=csrf_token
             )
 
-    def _build_url(self, page: int) -> str:
+    # ---------------------------- #
+    # Helpers
+    # ---------------------------- #
+    def _build_search_url(self, page: int) -> str:
+        """Construye la URL de /search"""
         params = {
             "combinedLocationIds": self.combined_location_ids,
             "culture": "es-ES",
@@ -118,4 +177,4 @@ class FotocasaSpider(scrapy.Spider):
             "text": "",
             "pageNumber": page,
         }
-        return f"{API_SEARCH}?{urllib.parse.urlencode(params)}"
+        return f"{API_BASE}/search?{urllib.parse.urlencode(params)}"
