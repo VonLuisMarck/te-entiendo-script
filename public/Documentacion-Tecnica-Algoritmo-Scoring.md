@@ -1,8 +1,9 @@
 # Documentación Técnica: Algoritmo de Scoring InmoFinder
 
 **Documento confidencial para registro de patente**  
-**Versión:** 1.0  
-**Fecha:** Octubre 2025
+**Versión:** 2.0  
+**Fecha:** Octubre 2025  
+**Última actualización:** v2.0 - Bonus por ahorro + Mayor peso análisis mercado
 
 ---
 
@@ -37,27 +38,25 @@ Cliente (Criterios + Perfil) → Propiedad → Métricas Mercado
 
 ---
 
-## 3. Algoritmo de Score Base (0-90 puntos)
+## 3. Algoritmo de Scoring Completo
 
-### 3.1 Fórmula General
-```
-score_base = (suma_puntos_obtenidos / suma_puntos_máximos) × 100
-```
+### 3.1 Score Base (0-100 puntos) **[ACTUALIZADO v2.0]**
 
-### 3.2 Distribución de Pesos
+#### Distribución de Pesos
 
 | Criterio | Peso (puntos) | Condición de Cumplimiento |
 |----------|---------------|---------------------------|
-| **Presupuesto** | 25 | precio ∈ [presupuesto_min, presupuesto_max] |
+| **Presupuesto Base** | 20 | precio ∈ [presupuesto_min, presupuesto_max] |
+| **🆕 Bonus Ahorro** | **10** | **% ahorro respecto a presupuesto_max** |
 | **Ubicación** | 20 | ubicacion ∈ criterios.ubicaciones[] |
 | **Tipo Propiedad** | 15 | tipo_propiedad ∈ criterios.tipo_propiedad[] |
 | **Dormitorios** | 10 | dormitorios ≥ criterios.dormitorios_min |
 | **Metros** | 10 | metros ∈ [metros_min, metros_max] |
 | **Estado** | 5 | condition ∈ criterios.condition[] |
 | **Extras** | 5 | ascensor (2.5) + parking (2.5) |
-| **Total** | **90** | - |
+| **Total** | **100** | *(antes: 90)* |
 
-### 3.3 Penalización de Presupuesto (Gradiente Suave)
+#### Presupuesto Base (20 puntos)
 
 Si el precio está fuera del rango presupuestario:
 
@@ -67,16 +66,36 @@ desviacion = min(
   |precio - presupuesto_max|
 )
 
-penalizacion = min(25, (desviacion / 10000) × 5)
-puntos_presupuesto = max(0, 25 - penalizacion)
+penalizacion = min(20, (desviacion / 10000) × 5)
+puntos_presupuesto = max(0, 20 - penalizacion)
 ```
 
-**Ejemplo práctico:**
-- Cliente busca 200K-250K
-- Propiedad cuesta 265K
-- Desviación: 15K
-- Penalización: (15000/10000) × 5 = 7.5 puntos
-- Puntos obtenidos: 25 - 7.5 = **17.5 puntos**
+#### 🆕 Bonus por Ahorro dentro del Presupuesto (10 puntos)
+
+**Innovación v2.0:** Priorizar propiedades que dejan más margen financiero al cliente.
+
+```typescript
+if (precio <= presupuesto_max) {
+  porcentaje_ahorro = ((presupuesto_max - precio) / presupuesto_max) × 100
+  
+  if (ahorro >= 30%) → +10 puntos
+  if (ahorro >= 20%) → +8 puntos
+  if (ahorro >= 10%) → +6 puntos
+  if (ahorro >= 5%)  → +4 puntos
+  if (ahorro > 0%)   → +2 puntos
+}
+```
+
+**Ejemplos prácticos:**
+
+Cliente con presupuesto máximo **200K**:
+- Propiedad de **140K** (30% ahorro) → +10 puntos 🎯
+- Propiedad de **160K** (20% ahorro) → +8 puntos
+- Propiedad de **180K** (10% ahorro) → +6 puntos
+- Propiedad de **190K** (5% ahorro) → +4 puntos
+- Propiedad de **195K** (2.5% ahorro) → +2 puntos
+
+**Justificación:** Una propiedad de 140K deja 60K de margen financiero vs. solo 10K con una de 190K. Aunque ambas están "dentro del presupuesto", la primera es objetivamente mejor para el cliente.
 
 ---
 
@@ -119,56 +138,66 @@ desviacion_% = ((precio_m2_propiedad - precio_m2_mercado) / precio_m2_mercado) �
 
 ---
 
-## 5. Bonus por Perfil de Cliente (0-15 puntos)
+## 5. Bonus por Perfil de Cliente (0-20 puntos) **[ACTUALIZADO v2.0]**
+
+**Cambio importante:** Incrementado de 15 a **20 puntos máximo** para dar más relevancia al análisis de mercado y detectar mejor los chollos auténticos.
 
 ### 5.1 Perfil "reformar" (Flippers / Inversores)
 **Objetivo:** Máximo ROI, solo interesan chollos significativos.
 
 ```typescript
-if (desviacion ≤ -20%) → +15 puntos  // Chollazo
-if (desviacion ≤ -15%) → +10 puntos
-if (desviacion ≤ -10%) → +5 puntos
+if (desviacion ≤ -30%) → +20 puntos  // 🆕 Super chollazo
+if (desviacion ≤ -20%) → +17 puntos  // Chollazo (antes +15)
+if (desviacion ≤ -15%) → +13 puntos  // (antes +10)
+if (desviacion ≤ -10%) → +8 puntos   // (antes +5)
+if (desviacion ≤ -5%)  → +3 puntos   // 🆕 Moderado
 else → 0 puntos
 ```
 
-**Filosofía:** No diluir esfuerzos en propiedades mediocres. Solo alertar de verdaderas gangas.
+**Filosofía:** Escala más granular para diferenciar super chollos de oportunidades moderadas.
 
 ### 5.2 Perfil "alquilar" (Landlords)
 **Objetivo:** Rentabilidad a largo plazo, aceptan precio justo.
 
 ```typescript
-if (desviacion ≤ -15%) → +10 puntos  // Buen chollo
-if (desviacion ≤ -10%) → +7 puntos
-if (desviacion ≤ -5%) → +3 puntos
-if (|desviacion| ≤ 5%) → +2 puntos  // Precio justo OK
+if (desviacion ≤ -25%) → +17 puntos  // 🆕 Super chollo
+if (desviacion ≤ -15%) → +13 puntos  // Buen chollo (antes +10)
+if (desviacion ≤ -10%) → +10 puntos  // (antes +7)
+if (desviacion ≤ -5%)  → +5 puntos   // (antes +3)
+if (|desviacion| ≤ 5%) → +3 puntos   // Precio justo (antes +2)
 else → 0 puntos
 ```
 
-**Filosofía:** Valoran estabilidad y ubicación; precio justo también es válido.
+**Filosofía:** Mayor recompensa por chollos significativos, pero mantienen valoración de precio justo.
 
 ### 5.3 Perfil "vivir" (End Users)
 **Objetivo:** Mejor relación calidad-precio, flexible.
 
 ```typescript
-if (desviacion ≤ -15%) → +8 puntos
-if (desviacion ≤ -10%) → +5 puntos
-if (desviacion ≤ -5%) → +3 puntos
-if (desviacion ≤ 0%) → +1 punto  // Cualquier descuento vale
+if (desviacion ≤ -25%) → +15 puntos  // 🆕 Super oportunidad
+if (desviacion ≤ -15%) → +11 puntos  // (antes +8)
+if (desviacion ≤ -10%) → +8 puntos   // (antes +5)
+if (desviacion ≤ -5%)  → +5 puntos   // (antes +3)
+if (desviacion ≤ 0%)   → +2 puntos   // Cualquier descuento (antes +1)
 else → 0 puntos
 ```
 
-**Filosofía:** Cualquier ahorro es bienvenido, priorizan "vivienda ideal" sobre inversión.
+**Filosofía:** Valoran más los super chollos, pero cualquier ahorro sigue siendo bienvenido.
 
 ---
 
-## 6. Score Final y Filtrado
+## 6. Score Final y Filtrado **[ACTUALIZADO v2.0]**
 
 ### 6.1 Fórmula de Score Final
 ```typescript
 score_final = min(100, score_base + bonus_perfil)
+// Máximo posible antes del cap: 100 (base) + 20 (bonus) = 120
+// Se normaliza a 100 para evitar distorsiones
 ```
 
-**Límite superior:** 100 puntos para evitar distorsiones.
+**Implicaciones:**
+- Propiedades con **doble ventaja** (bajo precio + chollo de mercado) alcanzan scores cercanos a 100
+- Score base mejorado permite mejor diferenciación entre propiedades similares
 
 ### 6.2 Umbral de Match Válido
 ```typescript
@@ -182,77 +211,83 @@ if (score_final >= 50) {
 
 ---
 
-## 7. Casos de Uso Reales
+## 7. Casos de Uso Reales **[ACTUALIZADOS v2.0]**
 
-### Caso 1: Cliente "vivir" busca piso en Chamberí
+### Caso 1: Flipper encuentra super chollazo **[NUEVO EJEMPLO]**
 **Criterios:**
-- Presupuesto: 250K-300K
-- Ubicación: Madrid, Chamberí
-- Tipo: Piso
-- Dormitorios: ≥2
-- Metros: 60-80m²
+- Perfil: **reformar**
+- Presupuesto: 100K-200K
+- Ubicación: Murcia Centro
+- Estado: Para reformar
 
-**Propiedad A:**
-- Precio: 270K, 70m² (3.857 €/m²)
-- Ubicación: Chamberí
-- Tipo: Piso, 2 dorm.
-- Mercado: 3.000 €/m² → Desviación: **+28.6%** (sobrevalorado)
+**Propiedad:**
+- Precio: **140K**, 80m², centro, para reformar
+- Precio/m²: 1.750 €/m²
+- Mercado zona: 2.500 €/m² → Desviación: **-30%** (super chollazo)
 
-**Cálculo:**
+**Cálculo v2.0:**
 ```
 Score Base:
-- Presupuesto: 25 (dentro de rango)
-- Ubicación: 20 (match)
-- Tipo: 15 (match)
-- Dormitorios: 10 (cumple)
-- Metros: 10 (cumple)
-- Total: 80/90 × 100 = 88.9 puntos
+- Presupuesto base: +20 (dentro de rango 100-200K)
+- 🆕 Bonus ahorro: +10 (30% ahorro vs 200K máximo) ← NUEVO
+- Ubicación: +20 (match centro)
+- Tipo: +15 (piso)
+- Superficie: +10 (cumple)
+- Estado: +5 (para reformar, match)
+- Extras: +3
+- Total Score Base: 83/100 (antes era 78/90)
 
-Bonus Perfil "vivir":
-- Desviación +28.6% → 0 puntos
+Bonus Perfil "reformar":
+- Desviación -30% → +20 puntos (antes +15)
 
-Score Final: 88.9 puntos → ✅ Match válido
+Score Final: min(100, 83 + 20) = 100 puntos ✅ 🎯
 ```
+
+**Resultado:** Matching perfecto. La propiedad combina:
+1. Bajo desembolso (30% menos del presupuesto máximo)
+2. Super chollo de mercado (-30% vs precio/m² zona)
+3. Cumple todos los criterios del cliente
+
+**Comparación con v1.0:**
+- v1.0: 93 puntos (78 base + 15 bonus)
+- v2.0: **100 puntos** (83 base + 20 bonus)
+- Mejora: +7 puntos por valorar correctamente el doble beneficio
+
+### Caso 2: Comparación por ahorro dentro del presupuesto **[NUEVO CASO]**
+
+**Cliente "alquilar":**
+- Presupuesto: 150K-250K
+- Zona: Universitaria
+- Perfil: Inversión para alquiler
+
+**Propiedad A:**
+- Precio: **220K**, 90m², buen estado
+- Todas las características iguales
 
 **Propiedad B:**
-- Precio: 250K, 75m² (3.333 €/m²)
-- Mercado: 3.000 €/m² → Desviación: **+11.1%** (caro)
+- Precio: **180K**, 90m², buen estado
+- Todas las características iguales
 
-**Cálculo:**
-```
-Score Base: 88.9 puntos (igual criterios)
-Bonus Perfil: 0 puntos
-Score Final: 88.9 puntos
-```
+**Sin v2.0 (algoritmo antiguo):**
+- Ambas: +25 presupuesto (dentro de rango)
+- Ambas puntuarían igual en presupuesto ❌
 
-**Propiedad C:**
-- Precio: 240K, 80m² (3.000 €/m²)
-- Mercado: 3.000 €/m² → Desviación: **0%** (precio justo)
+**Con v2.0:**
 
-**Cálculo:**
-```
-Score Base: 88.9 puntos
-Bonus Perfil: +1 punto (desviación ≤ 0%)
-Score Final: 89.9 puntos → ⭐ Mejor opción
-```
+**Propiedad A (220K):**
+- Presupuesto base: +20
+- Bonus ahorro: +6 (12% ahorro vs 250K)
+- **Total presupuesto: 26 puntos**
 
-### Caso 2: Cliente "reformar" busca chollo en Malasaña
-**Criterios:**
-- Presupuesto: 150K-200K
-- Ubicación: Madrid, Malasaña
-- Estado: A reformar
+**Propiedad B (180K):**
+- Presupuesto base: +20
+- 🆕 Bonus ahorro: +10 (28% ahorro vs 250K)
+- **Total presupuesto: 30 puntos** (+4 ventaja)
 
-**Propiedad D:**
-- Precio: 180K, 60m² (3.000 €/m²)
-- Estado: A reformar
-- Mercado: 4.000 €/m² → Desviación: **-25%** (chollazo)
-
-**Cálculo:**
-```
-Score Base: 75 puntos
-Bonus Perfil "reformar": +15 puntos (desviación ≤ -20%)
-Score Final: 90 puntos → 🎯 Alerta prioritaria
-```
+**Resultado:** Propiedad B correctamente priorizada:
+- Ahorro real: 70K de margen vs. 30K
+- Mejor ROI potencial
+- Menor riesgo financiero
 
 ---
 
@@ -337,9 +372,10 @@ EdgeRuntime.waitUntil(processMatchings());
 ## 11. Parámetros Ajustables (Configuración)
 
 ```typescript
-// Pesos de criterios (suma 90)
+// Pesos de criterios (suma 100) **[ACTUALIZADO v2.0]**
 const WEIGHTS = {
-  presupuesto: 25,
+  presupuesto_base: 20,      // Antes: 25
+  bonus_ahorro: 10,          // 🆕 NUEVO
   ubicacion: 20,
   tipo_propiedad: 15,
   dormitorios: 10,
@@ -348,7 +384,16 @@ const WEIGHTS = {
   extras: 5
 };
 
-// Umbrales de oportunidad
+// Escalas bonus por ahorro **[NUEVO v2.0]**
+const AHORRO_THRESHOLDS = {
+  excelente: 30,  // +10 puntos
+  muy_bueno: 20,  // +8 puntos
+  bueno: 10,      // +6 puntos
+  moderado: 5,    // +4 puntos
+  minimo: 0       // +2 puntos
+};
+
+// Umbrales de oportunidad (sin cambios)
 const THRESHOLDS = {
   chollazo: -20,
   buena_oportunidad: -10,
@@ -357,11 +402,29 @@ const THRESHOLDS = {
   sobrevalorado: 20
 };
 
-// Bonus por perfil
+// Bonus por perfil **[ACTUALIZADO v2.0]**
 const BONUS = {
-  reformar: { chollazo: 15, bueno: 10, moderado: 5 },
-  alquilar: { chollazo: 10, bueno: 7, moderado: 3, justo: 2 },
-  vivir: { chollazo: 8, bueno: 5, moderado: 3, minimo: 1 }
+  reformar: { 
+    super_chollazo: 20,  // 🆕 -30%
+    chollazo: 17,        // Antes: 15
+    bueno: 13,           // Antes: 10
+    moderado: 8,         // Antes: 5
+    leve: 3              // 🆕 NUEVO
+  },
+  alquilar: { 
+    super_chollazo: 17,  // 🆕 -25%
+    chollazo: 13,        // Antes: 10
+    bueno: 10,           // Antes: 7
+    moderado: 5,         // Antes: 3
+    justo: 3             // Antes: 2
+  },
+  vivir: { 
+    super_oportunidad: 15, // 🆕 -25%
+    bueno: 11,             // Antes: 8
+    moderado: 8,           // Antes: 5
+    leve: 5,               // Antes: 3
+    minimo: 2              // Antes: 1
+  }
 };
 
 // Filtrado
@@ -403,19 +466,56 @@ const MIN_SCORE = 50;
 
 ---
 
-## 14. Conclusiones
+## 14. Historial de Versiones
 
-El **Algoritmo de Scoring InmoFinder** representa una innovación significativa en el sector inmobiliario al:
+### **v2.0 - Octubre 2025** ✨ **[VERSIÓN ACTUAL]**
+
+**Mejoras implementadas:**
+
+1. **🆕 Nuevo criterio: Bonus por ahorro dentro del presupuesto (10 puntos)**
+   - Sistema escalonado desde +2 (5% ahorro) hasta +10 (>30% ahorro)
+   - **Justificación:** Prioriza propiedades que dejan más margen financiero
+   - **Impacto:** Diferencia correctamente entre una propiedad de 140K vs 190K dentro de presupuesto de 200K
+
+2. **📈 Incremento del peso del análisis de mercado**
+   - Bonus por perfil: 15 → **20 puntos** máximo (+33%)
+   - Escalas más granulares para super chollos (≤-30%)
+   - **Justificación:** El análisis €/m² vs mercado es crucial para identificar oportunidades reales
+
+3. **⚖️ Redistribución de pesos**
+   - Score base: 90 → **100 puntos** (presupuesto base 20 + bonus ahorro 10)
+   - Score total máximo: 105 → **120 puntos** (con cap en 100)
+   - Mejor diferenciación entre propiedades similares
+
+**Impacto esperado:**
+- ✅ Mayor precisión en rankings para perfiles de inversión
+- ✅ Mejor identificación de chollos auténticos vs propiedades sobrevaloradas
+- ✅ Scores más altos para propiedades con doble ventaja (bajo precio + oportunidad de mercado)
+- ✅ Priorización correcta de propiedades dentro del mismo rango presupuestario
+
+### v1.0 - Octubre 2025
+- Versión inicial del algoritmo
+- Score base: 90 puntos
+- Bonus perfil: 15 puntos máximo
+- Presupuesto: criterio binario (25 puntos fijos)
+
+---
+
+## 15. Conclusiones
+
+El **Algoritmo de Scoring InmoFinder v2.0** representa una innovación significativa en el sector inmobiliario al:
 
 1. **Democratizar** el análisis de mercado profesional para usuarios finales
 2. **Personalizar** las recomendaciones según objetivos de inversión
 3. **Automatizar** la detección de oportunidades infravaloradas
 4. **Integrar** datos de mercado en tiempo real con criterios subjetivos
+5. **🆕 Priorizar** correctamente el ahorro real dentro del presupuesto del cliente
 
 La **patentabilidad** se fundamenta en:
 - Combinación única de scoring ponderado + análisis comparativo + personalización por perfil
 - Sistema de cache geográfico jerárquico con fallback ciudad
 - Algoritmo de bonus dinámico basado en desviación de mercado
+- **🆕 Sistema de bonus escalonado por ahorro presupuestario**
 
 **Siguiente paso:** Proteger mediante patente el método y sistema completo antes de lanzamiento público (Q1 2026).
 

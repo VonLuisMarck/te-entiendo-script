@@ -181,18 +181,44 @@ function calcularScore(cliente: any, criterios: any, propiedad: any): number {
   let score = 0;
   let maxScore = 0;
 
-  // Presupuesto (peso: 25 puntos, reducido para dar espacio al análisis de mercado)
-  maxScore += 25;
+  // Presupuesto (peso: 20 puntos base)
+  maxScore += 20;
   if (propiedad.precio >= (cliente.presupuesto_min || 0) && 
       propiedad.precio <= (cliente.presupuesto_max || Infinity)) {
-    score += 25;
+    score += 20;
   } else {
     const desviacion = Math.min(
       Math.abs(propiedad.precio - (cliente.presupuesto_min || 0)),
       Math.abs(propiedad.precio - (cliente.presupuesto_max || Infinity))
     );
-    const penalizacion = Math.min(25, (desviacion / 10000) * 5);
-    score += Math.max(0, 25 - penalizacion);
+    const penalizacion = Math.min(20, (desviacion / 10000) * 5);
+    score += Math.max(0, 20 - penalizacion);
+  }
+
+  // NUEVO: Bonus por ahorro dentro del presupuesto (peso: 10 puntos)
+  // Cuanto más barato dentro del rango, mejor
+  maxScore += 10;
+  if (propiedad.precio <= (cliente.presupuesto_max || Infinity)) {
+    const presupuestoMax = cliente.presupuesto_max || propiedad.precio;
+    const porcentajeAhorro = ((presupuestoMax - propiedad.precio) / presupuestoMax) * 100;
+    
+    // Bonus escalonado:
+    // 0-5% ahorro: 2 puntos
+    // 5-10% ahorro: 4 puntos
+    // 10-20% ahorro: 6 puntos
+    // 20-30% ahorro: 8 puntos
+    // >30% ahorro: 10 puntos
+    if (porcentajeAhorro >= 30) {
+      score += 10;
+    } else if (porcentajeAhorro >= 20) {
+      score += 8;
+    } else if (porcentajeAhorro >= 10) {
+      score += 6;
+    } else if (porcentajeAhorro >= 5) {
+      score += 4;
+    } else if (porcentajeAhorro > 0) {
+      score += 2;
+    }
   }
 
   if (!criterios) return (score / maxScore) * 100;
@@ -356,29 +382,34 @@ function calcularBonusPerfil(perfil: string, analisisMercado: any): number {
 
   const desviacion = analisisMercado.desviacion_porcentaje;
 
+  // ACTUALIZADO: Incrementado peso del análisis de mercado (max 20 puntos vs 15 previos)
   switch (perfil) {
     case 'reformar':
       // Flippers: Solo interesa si es chollo significativo
-      if (desviacion <= -20) return 15; // Chollazo: bonus grande
-      if (desviacion <= -15) return 10;
-      if (desviacion <= -10) return 5;
+      if (desviacion <= -30) return 20; // Super chollazo: bonus máximo
+      if (desviacion <= -20) return 17; // Chollazo: bonus grande
+      if (desviacion <= -15) return 13;
+      if (desviacion <= -10) return 8;
+      if (desviacion <= -5) return 3;
       return 0;
 
     case 'alquilar':
       // Landlords: Precio medio está bien, pero valoran chollos moderados
-      if (desviacion <= -15) return 10; // Buen chollo
-      if (desviacion <= -10) return 7;
-      if (desviacion <= -5) return 3;
-      if (Math.abs(desviacion) <= 5) return 2; // Precio justo también vale
+      if (desviacion <= -25) return 17; // Super chollo
+      if (desviacion <= -15) return 13; // Buen chollo
+      if (desviacion <= -10) return 10;
+      if (desviacion <= -5) return 5;
+      if (Math.abs(desviacion) <= 5) return 3; // Precio justo también vale
       return 0;
 
     case 'vivir':
     default:
       // End users: Valoran chollos pero también aceptan precio justo
-      if (desviacion <= -15) return 8;
-      if (desviacion <= -10) return 5;
-      if (desviacion <= -5) return 3;
-      if (desviacion <= 0) return 1; // Cualquier descuento mínimo vale
+      if (desviacion <= -25) return 15;
+      if (desviacion <= -15) return 11;
+      if (desviacion <= -10) return 8;
+      if (desviacion <= -5) return 5;
+      if (desviacion <= 0) return 2; // Cualquier descuento mínimo vale
       return 0;
   }
 }
