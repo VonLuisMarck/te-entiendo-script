@@ -23,13 +23,19 @@ serve(async (req) => {
     if (!authHeader) throw new Error('No authorization header');
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey, {
+    
+    // Cliente con anon key para verificar autenticación
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } }
     });
     
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
     if (userError || !user) throw new Error('Unauthorized');
+    
+    // Cliente con service role para operaciones de base de datos
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const requestBody = await req.json();
     const { cliente_id, propiedad_id, recalcular_todos } = MatchingRequestSchema.parse(requestBody);
