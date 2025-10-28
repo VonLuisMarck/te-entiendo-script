@@ -73,9 +73,9 @@ export const generarPDFAnalisis = async ({
     ['Superficie', `${propiedad.metros} m2`],
     ['Dormitorios', propiedad.dormitorios || 'N/A'],
     ['Banos', propiedad.banos || 'N/A'],
-    ['Estado', propiedad.condition || 'N/A'],
-    ['Ascensor', propiedad.tiene_ascensor ? 'Si' : 'No'],
-    ['Parking', propiedad.tiene_parking ? 'Si' : 'No'],
+    ['Estado', propiedad.condition || 'No aparece'],
+    ['Ascensor', propiedad.tiene_ascensor === true ? 'Si' : propiedad.tiene_ascensor === false ? 'No' : 'No aparece'],
+    ['Parking', propiedad.tiene_parking === true ? 'Si' : propiedad.tiene_parking === false ? 'No' : 'No aparece'],
   ];
 
   autoTable(doc, {
@@ -96,6 +96,33 @@ export const generarPDFAnalisis = async ({
   });
 
   yPosition = (doc as any).lastAutoTable.finalY + 12;
+
+  // === DESCRIPCION DEL ANUNCIO ===
+  if (propiedad.descripcion) {
+    checkNewPage(50);
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(59, 130, 246);
+    doc.text('Descripcion del Anuncio', margin, yPosition);
+    yPosition += 8;
+
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+
+    const descripcionText = doc.splitTextToSize(propiedad.descripcion, pageWidth - 2 * margin - 10);
+    const descripcionHeight = descripcionText.length * 4 + 10;
+    
+    checkNewPage(descripcionHeight + 10);
+    
+    doc.setFillColor(249, 250, 251);
+    doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, descripcionHeight, 2, 2, 'F');
+    
+    yPosition += 6;
+    doc.text(descripcionText, margin + 5, yPosition);
+    yPosition += descripcionHeight + 6;
+  }
 
   // === ANALISIS DE MERCADO ===
   if (matching?.analisis_mercado?.disponible) {

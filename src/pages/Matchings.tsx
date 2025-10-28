@@ -22,8 +22,10 @@ interface Matching {
     nombre: string;
     email: string;
     telefono: string;
+    tipo_suscripcion?: string;
   };
   propiedades: {
+    id?: string;
     titulo: string;
     precio: number;
     ubicacion: string;
@@ -33,7 +35,12 @@ interface Matching {
     banos: number;
     precio_m2: number;
     url: string;
+    descripcion?: string;
+    condition?: string;
+    tiene_ascensor?: boolean;
+    tiene_parking?: boolean;
   };
+  propiedad_id?: string;
 }
 
 interface ClienteConMatchings {
@@ -68,8 +75,8 @@ const Matchings = () => {
         .from("matchings")
         .select(`
           *,
-          clientes (nombre, email, telefono),
-          propiedades (titulo, precio, ubicacion, tipo_propiedad, metros, dormitorios, banos, precio_m2, url)
+          clientes (nombre, email, telefono, tipo_suscripcion),
+          propiedades (id, titulo, precio, ubicacion, tipo_propiedad, metros, dormitorios, banos, precio_m2, url, descripcion, condition, tiene_ascensor, tiene_parking)
         `)
         .order("score", { ascending: false });
 
@@ -167,13 +174,14 @@ const Matchings = () => {
         metrica = data;
       }
 
-      // Generar PDF con propiedad completa
-      const propiedadCompleta = {
-        ...matching.propiedades,
-        condition: matching.criterios_cumplidos?.condition ? 'bueno' : 'a reformar',
-        tiene_ascensor: matching.criterios_cumplidos?.ascensor || false,
-        tiene_parking: matching.criterios_cumplidos?.parking || false,
-      };
+      // Obtener propiedad completa con descripción
+      const { data: propiedadCompleta, error: propError } = await supabase
+        .from("propiedades")
+        .select("*")
+        .eq("id", matching.propiedades.id || matching.propiedad_id)
+        .single();
+
+      if (propError) throw propError;
 
       await generarPDFAnalisis({
         propiedad: propiedadCompleta,

@@ -25,6 +25,9 @@ export type Database = {
           presupuesto_max: number | null
           presupuesto_min: number | null
           telefono: string | null
+          tipo_suscripcion:
+            | Database["public"]["Enums"]["subscription_tier"]
+            | null
           updated_at: string | null
           user_id: string
         }
@@ -38,6 +41,9 @@ export type Database = {
           presupuesto_max?: number | null
           presupuesto_min?: number | null
           telefono?: string | null
+          tipo_suscripcion?:
+            | Database["public"]["Enums"]["subscription_tier"]
+            | null
           updated_at?: string | null
           user_id: string
         }
@@ -51,6 +57,9 @@ export type Database = {
           presupuesto_max?: number | null
           presupuesto_min?: number | null
           telefono?: string | null
+          tipo_suscripcion?:
+            | Database["public"]["Enums"]["subscription_tier"]
+            | null
           updated_at?: string | null
           user_id?: string
         }
@@ -519,6 +528,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      subscription_tier: "free" | "basic" | "premium"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -647,6 +657,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      subscription_tier: ["free", "basic", "premium"],
     },
   },
 } as const

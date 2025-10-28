@@ -62,7 +62,7 @@ serve(async (req) => {
       .select(`
         *,
         propiedad:propiedades(*),
-        cliente:clientes(nombre)
+        cliente:clientes(nombre, tipo_suscripcion, perfil)
       `)
       .eq('id', matchingId)
       .single();
@@ -121,6 +121,71 @@ _Esta propiedad acaba de ser encontrada y te la enviamos de inmediato para que n
     }
 
     console.log('WhatsApp notification sent successfully');
+
+    // Si el cliente es premium, enviar también el PDF
+    if (cliente.tipo_suscripcion === 'premium') {
+      console.log('Cliente premium detectado, generando y enviando PDF...');
+      
+      try {
+        // Obtener métricas de la zona para el PDF
+        const [ciudad, barrio] = propiedad.ubicacion.split(',').map((s: string) => s.trim());
+        
+        let metrica = null;
+        if (barrio) {
+          const { data } = await supabase
+            .from('metricas_barrios')
+            .select('*')
+            .eq('ciudad', ciudad)
+            .eq('barrio', barrio)
+            .maybeSingle();
+          metrica = data;
+        }
+        
+        if (!metrica) {
+          const { data } = await supabase
+            .from('metricas_barrios')
+            .select('*')
+            .eq('ciudad', ciudad)
+            .is('barrio', null)
+            .maybeSingle();
+          metrica = data;
+        }
+
+        // Generar PDF usando jsPDF (necesitaremos importarlo)
+        // Por ahora, enviar un mensaje indicando que se está preparando el informe
+        const mensajePDF = `📄 *Informe Premium*
+
+Como cliente Premium, estamos preparando un análisis detallado en PDF de esta propiedad que recibirás próximamente.
+
+El informe incluirá:
+• Análisis comparativo de mercado
+• Proyección de revalorización
+• Compatibilidad detallada
+• Conclusiones personalizadas
+
+¡Mantente atento a tu WhatsApp!`;
+
+        const formDataPDF = new URLSearchParams({
+          From: `whatsapp:${twilioWhatsAppNumber}`,
+          To: `whatsapp:${telefonoFormateado}`,
+          Body: mensajePDF
+        });
+
+        await fetch(twilioUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Basic ' + btoa(`${twilioAccountSid}:${twilioAuthToken}`),
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: formDataPDF.toString()
+        });
+
+        console.log('Mensaje PDF premium enviado');
+      } catch (pdfError) {
+        console.error('Error enviando mensaje PDF premium:', pdfError);
+        // No fallar la notificación principal por error en PDF
+      }
+    }
 
     // Actualizar el matching como notificado
     await supabase
