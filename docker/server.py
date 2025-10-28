@@ -39,20 +39,40 @@ def transform_item(item):
     
     # Mapear propertyType (viene como código numérico)
     property_type_map = {
-        '1': 'Chalet',
-        '2': 'Piso',
-        '3': 'Ático',
-        '4': 'Dúplex',
-        '5': 'Estudio',
-        '6': 'Local',
-        '7': 'Oficina',
-        '8': 'Garaje',
-        '9': 'Terreno',
-        '10': 'Trastero',
+        '1': 'chalet',
+        '2': 'piso',
+        '3': 'ático',
+        '4': 'dúplex',
+        '5': 'estudio',
+        '6': 'local',
+        '7': 'oficina',
+        '8': 'garaje',
+        '9': 'terreno',
+        '10': 'trastero',
     }
-    property_type_code = str(item.get('propertyType', '2'))
-    tipo_texto = property_type_map.get(property_type_code, 'Vivienda')
-    tipo_propiedad_bd = tipo_texto.lower()
+    
+    property_type_code = str(item.get('propertyType', ''))
+    tipo_propiedad_bd = property_type_map.get(property_type_code, None)
+    
+    # Si no viene propertyType o no está mapeado, intentar inferir de descripción/título
+    if not tipo_propiedad_bd:
+        descripcion = (item.get('description') or '').lower()
+        titulo_web = (item.get('title') or '').lower()
+        texto_completo = f"{titulo_web} {descripcion}"
+        
+        if 'chalet' in texto_completo or 'villa' in texto_completo or 'casa' in texto_completo:
+            tipo_propiedad_bd = 'chalet'
+        elif 'ático' in texto_completo or 'atico' in texto_completo:
+            tipo_propiedad_bd = 'ático'
+        elif 'dúplex' in texto_completo or 'duplex' in texto_completo:
+            tipo_propiedad_bd = 'dúplex'
+        elif 'estudio' in texto_completo:
+            tipo_propiedad_bd = 'estudio'
+        else:
+            tipo_propiedad_bd = 'piso'  # Por defecto solo si no se puede determinar
+    
+    # Capitalizar para el título
+    tipo_texto = tipo_propiedad_bd.capitalize()
     
     # Extraer precio
     transaction = item.get('transaction', {})
@@ -72,8 +92,21 @@ def transform_item(item):
     
     # Mapeo de features comunes (IDs de Fotocasa)
     # 1: aire acondicionado, 2: parking, 5: jardín, 7: terraza, 10: piscina, 17: ascensor
-    tiene_parking = '2' in feature_ids
-    tiene_ascensor = '17' in feature_ids
+    
+    # Parking/Garaje: buscar en features Y en descripción
+    tiene_parking = None
+    if '2' in feature_ids:
+        tiene_parking = True
+    else:
+        # Buscar en descripción
+        descripcion = (item.get('description') or '').lower()
+        palabras_parking = ['parking', 'garaje', 'plaza de garaje', 'aparcamiento', 'cochera']
+        if any(palabra in descripcion for palabra in palabras_parking):
+            tiene_parking = True
+        # Si no aparece explícitamente, dejarlo como None (no aparece)
+    
+    # Ascensor: solo si está en features, sino None
+    tiene_ascensor = True if '17' in feature_ids else None
     
     # Calcular precio_m2
     metros = item.get('surface')
