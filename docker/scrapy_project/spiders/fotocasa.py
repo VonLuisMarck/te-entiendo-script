@@ -42,15 +42,19 @@ class FotocasaSpider(scrapy.Spider):
         )
 
     def parse(self, response, page):
+        # La respuesta viene comprimida (brotli/gzip)
+        # Scrapy debería descomprimir automáticamente, pero lo forzamos con .text
         try:
-            data = response.json()
+            import json
+            data = json.loads(response.text)
         except Exception as e:
-            self.logger.warning(f"No se pudo parsear JSON (pagina {page}): {e}")
+            self.logger.error(f"Error parseando JSON (pagina {page}): {e}")
+            self.logger.error(f"Response status: {response.status}")
+            self.logger.error(f"Response headers: {response.headers}")
+            self.logger.error(f"Response body (primeros 200 bytes): {response.body[:200]}")
             return
 
-        # Log the full response for debugging
         self.logger.info(f"API Response keys: {list(data.keys())}")
-        self.logger.info(f"Full API Response: {data}")
         
         results = data.get("list") or data.get("realEstates") or []
         self.logger.info(f"OK {len(results)} resultados en pagina {page}")
