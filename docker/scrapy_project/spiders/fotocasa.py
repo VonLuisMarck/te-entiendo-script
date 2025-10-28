@@ -51,6 +51,10 @@ class FotocasaSpider(scrapy.Spider):
             self.logger.warning(f"No se pudo parsear JSON (pagina {page}): {e}")
             return
 
+        # Log the full response for debugging
+        self.logger.info(f"API Response keys: {list(data.keys())}")
+        self.logger.info(f"Full API Response: {data}")
+        
         results = data.get("list") or data.get("realEstates") or []
         self.logger.info(f"OK {len(results)} resultados en pagina {page}")
 
