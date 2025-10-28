@@ -68,23 +68,19 @@ def get_random_viewport():
     return random.choice(VIEWPORTS)
 
 def get_random_headers():
-    """Genera headers completos con valores aleatorios"""
+    """Genera headers completos idénticos al navegador Firefox"""
     return {
-        'User-Agent': get_random_user_agent(),
+        'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:143.0) Gecko/20100101 Firefox/143.0',
         'Accept': 'application/json, text/plain, */*',
-        'Accept-Language': get_random_accept_language(),
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Content-Type': 'application/json',
-        'Origin': 'https://www.fotocasa.es',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
         'Referer': 'https://www.fotocasa.es/',
-        'Sec-Ch-Ua': '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-        'Sec-Ch-Ua-Mobile': '?0',
-        'Sec-Ch-Ua-Platform': '"Windows"',
+        'Origin': 'https://www.fotocasa.es',
+        'Connection': 'keep-alive',
         'Sec-Fetch-Dest': 'empty',
         'Sec-Fetch-Mode': 'cors',
         'Sec-Fetch-Site': 'same-site',
-        'Cache-Control': 'no-cache',
-        'Pragma': 'no-cache',
+        'TE': 'trailers',
     }
 
 # Delays aleatorios entre requests (en segundos)

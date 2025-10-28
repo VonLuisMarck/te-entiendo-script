@@ -5,21 +5,10 @@ Version adaptada para scrapear toda Espana usando el nuevo endpoint
 import scrapy
 import time
 import urllib.parse
-import random
+from config import get_random_headers, get_random_delay
 
 
 API_SEARCH = "https://web.gw.fotocasa.es/v2/propertysearch/searchurl"
-
-# User-Agents para rotar
-USER_AGENTS = [
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-    'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36',
-]
-
-def get_random_delay(min_delay=0.8, max_delay=2.5):
-    """Retorna un delay aleatorio"""
-    return random.uniform(min_delay, max_delay)
 
 
 class FotocasaApiSpider(scrapy.Spider):
@@ -37,7 +26,6 @@ class FotocasaApiSpider(scrapy.Spider):
         'AUTOTHROTTLE_ENABLED': True,
         'AUTOTHROTTLE_START_DELAY': 1,
         'AUTOTHROTTLE_MAX_DELAY': 10,
-        'USER_AGENT': random.choice(USER_AGENTS),
     }
 
     def __init__(self, max_pages=50, **kwargs):
@@ -57,11 +45,7 @@ class FotocasaApiSpider(scrapy.Spider):
     # ---------------------------- #
     def start_requests(self):
         """Inicia el proceso con la pagina 1"""
-        headers = {
-            'Accept': 'application/json, text/plain, */*',
-            'Accept-Language': 'es-ES,es;q=0.9',
-            'User-Agent': random.choice(USER_AGENTS),
-        }
+        headers = get_random_headers()
         url = self._build_url(page=1)
         self.logger.info(f"Scrapeando Fotocasa Espana - pagina 1")
         yield scrapy.Request(
@@ -111,11 +95,7 @@ class FotocasaApiSpider(scrapy.Spider):
             self.logger.info(f"Esperando {delay:.2f}s antes de pagina {next_page}...")
 
             url = self._build_url(page=next_page)
-            headers = {
-                'Accept': 'application/json, text/plain, */*',
-                'Accept-Language': 'es-ES,es;q=0.9',
-                'User-Agent': random.choice(USER_AGENTS),
-            }
+            headers = get_random_headers()
 
             yield scrapy.Request(
                 url,
@@ -135,8 +115,8 @@ class FotocasaApiSpider(scrapy.Spider):
         params = {
             "combinedLocationIds": self.combined_location_ids,
             "culture": "es-ES",
-            "latitude": 0,
-            "longitude": 0,
+            "latitude": 40,
+            "longitude": -4,
             "text": "",
             "pageNumber": page,
         }
