@@ -1,12 +1,11 @@
-# -*- coding: utf-8 -*-
 """
 Spider de Fotocasa (2025, versión final)
 ----------------------------------------
-✅ Flujo correcto en dos pasos:
-   1. /v2/propertysearch/searchurl  → obtiene token y cookie CSRF
-   2. /v2/propertysearch/search     → obtiene resultados reales
-✅ Soporta paginación y gzip
-✅ Funciona en Fly.io o local
+✅ Flujo real:
+   1. GET /v2/propertysearch/searchurl → obtiene token y cookie CSRF
+   2. POST /v2/propertysearch/search   → obtiene resultados reales
+✅ Maneja gzip y tokenización automática
+✅ Soporta paginación y filtros globales (toda España)
 """
 
 import scrapy
@@ -14,34 +13,31 @@ import time
 import urllib.parse
 import gzip
 import json
-import sys
-import os
-
-# Importar configuración de headers desde config.py
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from config import get_random_headers, get_random_delay, SCRAPY_SETTINGS
 
 
 API_BASE = "https://web.gw.fotocasa.es/v2/propertysearch"
 
 
-class FotocasaSpider(scrapy.Spider):
-    name = "fotocasa"
+class FotocasaApiSpider(scrapy.Spider):
+    name = "fotocasa_api"
     custom_settings = SCRAPY_SETTINGS
 
-    def __init__(self, max_pages='50', *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, max_pages=50, **kwargs):
+        super().__init__(**kwargs)
         self.now = int(time.time())
         self.max_pages = int(max_pages)
-        self.combined_location_ids = "724,0,0,0,0,0,0,0,0"  # Toda España
+        # 724 = España
+        self.combined_location_ids = "724,0,0,0,0,0,0,0,0"
 
     # ---------------------------- #
-    # Paso 1: resolver CSRF tokens
+    # Paso 1 — Obtener token y cookie CSRF
     # ---------------------------- #
     def start_requests(self):
-        """Primera petición: obtener token CSRF"""
+        """Primera petición: resolver token y cookie"""
         headers = get_random_headers()
         headers["Accept-Encoding"] = "identity"
+
         url = f"{API_BASE}/searchurl?{urllib.parse.urlencode({'combinedLocationIds': self.combined_location_ids, 'culture': 'es-ES'})}"
 
         self.logger.info("🌍 Solicitando token CSRF desde /searchurl")
@@ -56,17 +52,18 @@ class FotocasaSpider(scrapy.Spider):
         )
 
     def parse_csrf(self, response):
-        """Extrae cookie y token CSRF, luego lanza la búsqueda real"""
+        """Extrae token y cookie CSRF de los headers"""
         csrf_cookie = None
         csrf_token = None
 
-        # --- Cabeceras ---
+        # Buscar cookie _csrf
         set_cookie = response.headers.getlist(b"Set-Cookie")
         for ck in set_cookie:
             if b"_csrf=" in ck:
                 csrf_cookie = ck.decode("utf-8").split("_csrf=")[1].split(";")[0]
                 break
 
+        # Buscar header X-Adevinta-Csrf-Token
         csrf_token = response.headers.get(b"X-Adevinta-Csrf-Token")
         if csrf_token:
             csrf_token = csrf_token.decode("utf-8")
@@ -79,27 +76,41 @@ class FotocasaSpider(scrapy.Spider):
         self.logger.info(f"✅ Token CSRF obtenido: {csrf_token[:10]}...")
         self.logger.info(f"✅ Cookie CSRF: {csrf_cookie[:10]}...")
 
-        # --- Lanza la búsqueda real ---
+        # Lanzar búsqueda real
         yield from self.fetch_results(page=1, csrf_cookie=csrf_cookie, csrf_token=csrf_token)
 
     # ---------------------------- #
-    # Paso 2: obtener resultados reales
+    # Paso 2 — Obtener resultados reales
     # ---------------------------- #
     def fetch_results(self, page, csrf_cookie, csrf_token):
-        """Lanza petición real a /search con headers CSRF"""
+        """Lanza petición real a /search (POST con JSON)"""
         headers = get_random_headers()
         headers["Accept-Encoding"] = "identity"
         headers["X-Adevinta-Csrf-Token"] = csrf_token
         headers["Cookie"] = f"_csrf={csrf_cookie}"
         headers["Referer"] = "https://www.fotocasa.es/"
+        headers["Origin"] = "https://www.fotocasa.es"
+        headers["Content-Type"] = "application/json"
 
-        url = self._build_search_url(page)
-        self.logger.info(f"🏠 Descargando página {page} -> {url}")
+        body = {
+            "combinedLocationIds": self.combined_location_ids,
+            "culture": "es-ES",
+            "latitude": 40,
+            "longitude": -4,
+            "text": "",
+            "pageNumber": page,
+            "sortOrder": "desc",
+            "sortType": "publicationDate",
+        }
+
+        url = f"{API_BASE}/search"
+        self.logger.info(f"🏠 Descargando página {page} (POST) -> {url}")
 
         yield scrapy.Request(
             url,
-            method="GET",
+            method="POST",
             headers=headers,
+            body=json.dumps(body),
             callback=self.parse_results,
             cb_kwargs={
                 "page": page,
@@ -113,8 +124,9 @@ class FotocasaSpider(scrapy.Spider):
     # Parseo del JSON
     # ---------------------------- #
     def parse_results(self, response, page, csrf_cookie, csrf_token):
-        """Procesa la respuesta JSON real"""
+        """Procesa la respuesta JSON del buscador real"""
         body = response.body
+
         if body[:2] == b"\x1f\x8b" or body[:1] == b"\x8b":
             try:
                 body = gzip.decompress(body)
@@ -154,7 +166,7 @@ class FotocasaSpider(scrapy.Spider):
                 "raw": rec,
             }
 
-        # --- Paginar si hay más ---
+        # --- Paginación ---
         if results and page < self.max_pages:
             next_page = page + 1
             delay = get_random_delay(1.0, 2.5)
@@ -163,18 +175,3 @@ class FotocasaSpider(scrapy.Spider):
             yield from self.fetch_results(
                 page=next_page, csrf_cookie=csrf_cookie, csrf_token=csrf_token
             )
-
-    # ---------------------------- #
-    # Helpers
-    # ---------------------------- #
-    def _build_search_url(self, page: int) -> str:
-        """Construye la URL de /search"""
-        params = {
-            "combinedLocationIds": self.combined_location_ids,
-            "culture": "es-ES",
-            "latitude": 40,
-            "longitude": -4,
-            "text": "",
-            "pageNumber": page,
-        }
-        return f"{API_BASE}/search?{urllib.parse.urlencode(params)}"
