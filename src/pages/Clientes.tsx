@@ -17,6 +17,7 @@ const clienteSchema = z.object({
   nombre: z.string().trim().min(1, "El nombre es requerido").max(100, "Nombre demasiado largo"),
   email: z.string().email("Email inválido").max(255, "Email demasiado largo"),
   telefono: z.string().regex(/^[+]?[0-9]{9,15}$/, "Teléfono inválido (9-15 dígitos)").optional().or(z.literal("")),
+  tipo_suscripcion: z.enum(['free', 'basic', 'premium']),
   presupuesto_min: z.number().positive("El presupuesto mínimo debe ser positivo").max(10000000, "Presupuesto demasiado alto"),
   presupuesto_max: z.number().positive("El presupuesto máximo debe ser positivo").max(10000000, "Presupuesto demasiado alto"),
   ubicaciones: z.array(z.string().trim().min(1).max(100)).min(1, "Debe seleccionar al menos una ubicación").max(10, "Máximo 10 ubicaciones"),
@@ -60,6 +61,7 @@ const Clientes = () => {
     nombre: "",
     email: "",
     telefono: "",
+    tipo_suscripcion: "free" as 'free' | 'basic' | 'premium',
     presupuesto_min: "",
     presupuesto_max: "",
     perfil: "vivir" as 'alquilar' | 'vender' | 'vivir',
@@ -123,6 +125,7 @@ const Clientes = () => {
         nombre: formData.nombre,
         email: formData.email,
         telefono: formData.telefono || undefined,
+        tipo_suscripcion: formData.tipo_suscripcion,
         presupuesto_min: parseFloat(formData.presupuesto_min),
         presupuesto_max: parseFloat(formData.presupuesto_max),
         ubicaciones: formData.ubicaciones,
@@ -139,6 +142,7 @@ const Clientes = () => {
         nombre: validated.nombre,
         email: validated.email,
         telefono: validated.telefono || null,
+        tipo_suscripcion: validated.tipo_suscripcion,
         presupuesto_min: validated.presupuesto_min,
         presupuesto_max: validated.presupuesto_max,
         perfil: formData.perfil,
@@ -164,7 +168,7 @@ const Clientes = () => {
       toast.success("Cliente y preferencias creados exitosamente");
       setDialogOpen(false);
       setFormData({ 
-        nombre: "", email: "", telefono: "", presupuesto_min: "", presupuesto_max: "",
+        nombre: "", email: "", telefono: "", tipo_suscripcion: "free", presupuesto_min: "", presupuesto_max: "",
         perfil: "vivir", ubicaciones: [], tipo_propiedad: [], dormitorios_min: "",
         metros_min: "", metros_max: "", condition: [], tiene_ascensor: false, tiene_parking: false
       });
@@ -272,6 +276,21 @@ const Clientes = () => {
                         />
                       </div>
                     </div>
+                  </div>
+
+                  {/* Tipo de Suscripción */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-sm">Tipo de Suscripción *</h3>
+                    <Select value={formData.tipo_suscripcion} onValueChange={(value: any) => setFormData({ ...formData, tipo_suscripcion: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="free">🆓 Free - Notificaciones básicas</SelectItem>
+                        <SelectItem value="basic">📱 Basic - Notificaciones mejoradas</SelectItem>
+                        <SelectItem value="premium">⭐ Premium - Notificaciones + PDF por WhatsApp</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   {/* Perfil */}
