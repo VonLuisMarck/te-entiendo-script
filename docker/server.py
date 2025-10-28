@@ -32,33 +32,51 @@ app = Flask(__name__)
 jobs = {}
 
 def transform_item(item):
-    """Transforma item del spider al formato del backend"""
-    raw = item.get('raw', {})
-    price_obj = raw.get('price', {})
-    features = raw.get('features', {})
-    property_type = raw.get('propertyType', {})
+    """Transforma item del nuevo formato de Fotocasa al formato del backend"""
+    # Extraer ubicación
+    location = item.get('location', {})
+    zone = item.get('zone', '')
     
-    province = item.get('province') or 'Desconocida'
-    municipality = item.get('municipality') or ''
-    ubicacion = f"{municipality}, {province}" if municipality else province
+    # Extraer precio
+    transaction = item.get('transaction', {})
+    precio = transaction.get('price', 0)
+    
+    # Extraer imágenes
+    multimedia = item.get('multimedia', [])
+    imagenes = [m.get('url') for m in multimedia if m.get('type') == '2' and m.get('url')]
+    
+    # Construir URL de la propiedad
+    uris = item.get('uris', [])
+    url = f"https://www.fotocasa.es{uris[0].get('value')}" if uris else f"https://www.fotocasa.es/propiedad/{item.get('propertyId')}"
+    
+    # Extraer features
+    features = item.get('features', [])
+    feature_ids = [f.get('id') for f in features if f.get('id')]
+    
+    # Mapeo de features comunes (IDs de Fotocasa)
+    # 1: aire acondicionado, 2: parking, 5: jardín, 7: terraza, 10: piscina, 17: ascensor
+    tiene_parking = '2' in feature_ids
+    tiene_ascensor = '17' in feature_ids
     
     return {
-        'external_id': f"fotocasa-{item.get('ad_id')}",
+        'external_id': f"fotocasa-{item.get('propertyId')}",
         'portal_origen': 'fotocasa',
-        'titulo': raw.get('title', 'Sin titulo'),
-        'descripcion': raw.get('description'),
-        'precio': price_obj.get('amount', 0) if isinstance(price_obj, dict) else (price_obj or 0),
-        'ubicacion': ubicacion,
-        'tipo_propiedad': property_type.get('id', 'piso') if isinstance(property_type, dict) else 'piso',
-        'dormitorios': features.get('bedrooms'),
-        'banos': features.get('bathrooms'),
+        'titulo': f"{item.get('propertyType', 'Vivienda')} en {zone or 'Murcia'}",
+        'descripcion': item.get('description'),
+        'precio': precio,
+        'ubicacion': zone or f"{location.get('level5Name', 'Murcia')}",
+        'tipo_propiedad': item.get('propertyType', 'flat'),
+        'dormitorios': item.get('rooms'),
+        'banos': item.get('baths'),
         'metros': item.get('surface'),
-        'condition': features.get('condition'),
-        'ano_construccion': features.get('builtYear'),
-        'tiene_ascensor': bool(features.get('hasLift', False)),
-        'tiene_parking': bool(features.get('parking', False)),
-        'url': raw.get('url') or f"https://www.fotocasa.es/vivienda/{item.get('ad_id')}",
-        'imagenes': raw.get('images', []),
+        'condition': item.get('conservationStatus'),
+        'ano_construccion': item.get('antiquity'),
+        'tiene_ascensor': tiene_ascensor,
+        'tiene_parking': tiene_parking,
+        'url': url,
+        'imagenes': imagenes[:10] if imagenes else [],  # Limitar a 10 imágenes
+        'latitud': float(location.get('latitude')) if location.get('latitude') else None,
+        'longitud': float(location.get('longitude')) if location.get('longitude') else None,
     }
 
 def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):
@@ -101,10 +119,10 @@ def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):
         jobs[job_id]['error'] = f'Webhook error: {str(e)}'
         print(f"[ERROR] Job {job_id[:8]} Webhook exception: {e}")
 
-def run_spider_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
-    """Ejecuta el spider como subprocess"""
+def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
+    """Ejecuta el scraper de Python como subprocess"""
     print("=" * 80)
-    print(f"[SPIDER] Starting subprocess - Job {job_id[:8]}")
+    print(f"[SCRAPER] Starting subprocess - Job {job_id[:8]}")
     print(f"Portal: {portal}, Max pages: {max_pages}")
     print("=" * 80)
     
@@ -116,10 +134,11 @@ def run_spider_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
         print(f"[OK] Output file: {output_file}")
         
         cmd = [
-            'scrapy', 'crawl', 'fotocasa',
-            '-a', f'max_pages={max_pages}',
-            '-o', output_file,
-            '--loglevel=INFO'
+            'python', 'fotocasa_scraper.py',
+            '--city', 'murcia-capital',
+            '--output', output_file,
+            '--max-pages', str(max_pages),
+            '--transaction', '1'
         ]
         
         print(f"[RUN] {' '.join(cmd)}")
@@ -143,7 +162,7 @@ def run_spider_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
             print(result.stderr)
         
         if result.returncode != 0:
-            error_msg = f"Scrapy failed with code {result.returncode}"
+            error_msg = f"Scraper failed with code {result.returncode}"
             print(f"[ERROR] {error_msg}")
             jobs[job_id]['status'] = 'error'
             jobs[job_id]['error'] = error_msg
@@ -160,7 +179,7 @@ def run_spider_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
         propiedades = []
         print(f"[READ] Reading results from {output_file}")
         
-        with open(output_file, 'r') as f:
+        with open(output_file, 'r', encoding='utf-8') as f:
             for line_num, line in enumerate(f, 1):
                 if line.strip():
                     try:
@@ -229,7 +248,7 @@ def scrape():
         print(f"[JOB] Created: {job_id}")
         
         thread = Thread(
-            target=run_spider_subprocess,
+            target=run_scraper_subprocess,
             args=(job_id, portal, max_pages, webhook_url, webhook_auth)
         )
         thread.daemon = True

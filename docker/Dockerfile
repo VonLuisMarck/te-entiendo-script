@@ -12,7 +12,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código del scraper
-COPY . .
+COPY fotocasa_scraper.py .
+COPY server.py .
+COPY config.py .
+COPY __init__.py .
 
 # Exponer puerto
 EXPOSE 8000
@@ -21,5 +24,5 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV PORT=8000
 
-# Comando para ejecutar el servidor directamente
+# Comando para ejecutar el servidor
 CMD ["python", "-u", "server.py"]
