@@ -23,17 +23,19 @@ serve(async (req) => {
     if (!authHeader) throw new Error('No authorization header');
     
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    // Verificar autenticación con service role key y el header del usuario
-    const supabaseAuth = createClient(supabaseUrl, supabaseServiceKey, {
-      global: { headers: { Authorization: authHeader } }
+    // Cliente con anon key para verificar autenticación del usuario
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseAuth = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false }
     });
     
     const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
     if (userError || !user) throw new Error('Unauthorized');
     
-    // Cliente con service role sin header para operaciones de base de datos
+    // Cliente con service role para operaciones de base de datos (bypasea RLS)
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const requestBody = await req.json();
