@@ -18,7 +18,7 @@ const WebhookDataSchema = z.object({
   propiedades: z.array(z.any()),
   metadata: z.object({
     portal: z.string(),
-    ubicacion: z.string().optional(),
+    ubicacion: z.string().nullable().optional(),
     total_encontradas: z.number(),
   }),
 });
