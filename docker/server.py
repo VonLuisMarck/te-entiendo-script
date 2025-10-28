@@ -91,8 +91,16 @@ def transform_item(item):
     from datetime import datetime, timezone
     fecha_scraping = datetime.now(timezone.utc).isoformat()
     
-    # Construir título descriptivo
-    ubicacion_completa = zone or location.get('level8Name') or location.get('level5Name', 'Murcia')
+    # Construir ubicación completa con provincia
+    barrio = zone or location.get('level8Name') or ''
+    ciudad = location.get('level5Name', 'Murcia')
+    
+    # Construir ubicación: Si hay barrio, "Barrio, Ciudad", sino solo "Ciudad"
+    if barrio and barrio.lower() != ciudad.lower():
+        ubicacion_completa = f"{barrio}, {ciudad}"
+    else:
+        ubicacion_completa = ciudad
+    
     titulo = f"{tipo_texto} en {ubicacion_completa}"
     
     return {

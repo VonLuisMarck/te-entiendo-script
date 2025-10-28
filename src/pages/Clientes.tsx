@@ -39,6 +39,7 @@ interface Cliente {
   nombre: string;
   email: string;
   telefono: string;
+  tipo_suscripcion: 'free' | 'basic' | 'investor' | 'investor_platino';
   presupuesto_min: number;
   presupuesto_max: number;
   activo: boolean;
@@ -476,11 +477,33 @@ const Clientes = () => {
               <Card key={cliente.id}>
                 <CardHeader>
                   <div className="flex justify-between items-start">
-                    <div>
+                    <div className="flex-1">
                       <CardTitle className="text-lg">{cliente.nombre}</CardTitle>
-                      <Badge variant="outline" className="mt-1">
-                        {cliente.perfil === 'vivir' ? '🏡 Vivir' : cliente.perfil === 'alquilar' ? '💰 Alquilar' : '📈 Vender'}
-                      </Badge>
+                      <div className="flex gap-2 mt-2">
+                        <Badge variant="outline">
+                          {cliente.perfil === 'vivir' ? '🏡 Vivir' : cliente.perfil === 'alquilar' ? '💰 Alquilar' : '📈 Vender'}
+                        </Badge>
+                        {cliente.tipo_suscripcion === 'free' && (
+                          <Badge variant="secondary" className="bg-gray-100">
+                            🆓 Free
+                          </Badge>
+                        )}
+                        {cliente.tipo_suscripcion === 'basic' && (
+                          <Badge variant="secondary" className="bg-blue-100">
+                            📱 Basic
+                          </Badge>
+                        )}
+                        {cliente.tipo_suscripcion === 'investor' && (
+                          <Badge variant="default" className="bg-purple-600">
+                            💼 Investor
+                          </Badge>
+                        )}
+                        {cliente.tipo_suscripcion === 'investor_platino' && (
+                          <Badge variant="default" className="bg-gradient-to-r from-amber-400 to-yellow-600 text-white border-amber-500">
+                            💎 Platino
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <Badge variant={cliente.activo ? "default" : "secondary"}>
                       {cliente.activo ? "Activo" : "Inactivo"}
