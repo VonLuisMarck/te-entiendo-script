@@ -20,7 +20,7 @@ API_BASE = "https://web.gw.fotocasa.es/v2/propertysearch"
 
 
 class FotocasaApiSpider(scrapy.Spider):
-    name = "fotocasa_api"
+    name = "fotocasa"
     custom_settings = SCRAPY_SETTINGS
 
     def __init__(self, max_pages=50, **kwargs):
