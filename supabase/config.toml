@@ -7,7 +7,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.matching-service]
-verify_jwt = true
+verify_jwt = false
 
 [functions.scraping-service]
 verify_jwt = false
