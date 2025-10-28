@@ -37,6 +37,23 @@ def transform_item(item):
     location = item.get('location', {})
     zone = item.get('zone', '')
     
+    # Mapear propertyType (viene como código numérico)
+    property_type_map = {
+        '1': 'Chalet',
+        '2': 'Piso',
+        '3': 'Ático',
+        '4': 'Dúplex',
+        '5': 'Estudio',
+        '6': 'Local',
+        '7': 'Oficina',
+        '8': 'Garaje',
+        '9': 'Terreno',
+        '10': 'Trastero',
+    }
+    property_type_code = str(item.get('propertyType', '2'))
+    tipo_texto = property_type_map.get(property_type_code, 'Vivienda')
+    tipo_propiedad_bd = tipo_texto.lower()
+    
     # Extraer precio
     transaction = item.get('transaction', {})
     precio = transaction.get('price', 0)
@@ -51,7 +68,7 @@ def transform_item(item):
     
     # Extraer features
     features = item.get('features', [])
-    feature_ids = [f.get('id') for f in features if f.get('id')]
+    feature_ids = [str(f.get('id')) for f in features if f.get('id')]
     
     # Mapeo de features comunes (IDs de Fotocasa)
     # 1: aire acondicionado, 2: parking, 5: jardín, 7: terraza, 10: piscina, 17: ascensor
@@ -74,15 +91,19 @@ def transform_item(item):
     from datetime import datetime, timezone
     fecha_scraping = datetime.now(timezone.utc).isoformat()
     
+    # Construir título descriptivo
+    ubicacion_completa = zone or location.get('level8Name') or location.get('level5Name', 'Murcia')
+    titulo = f"{tipo_texto} en {ubicacion_completa}"
+    
     return {
         'external_id': f"fotocasa-{item.get('propertyId')}",
         'portal_origen': 'fotocasa',
-        'titulo': f"{item.get('propertyType', 'Vivienda')} en {zone or 'Murcia'}",
+        'titulo': titulo,
         'descripcion': item.get('description'),
         'precio': precio,
         'precio_m2': precio_m2,
-        'ubicacion': zone or f"{location.get('level5Name', 'Murcia')}",
-        'tipo_propiedad': item.get('propertyType', 'flat'),
+        'ubicacion': ubicacion_completa,
+        'tipo_propiedad': tipo_propiedad_bd,
         'dormitorios': item.get('rooms'),
         'banos': item.get('baths'),
         'metros': metros,

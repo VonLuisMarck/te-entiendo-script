@@ -400,7 +400,7 @@ function generarConclusiones({ propiedad, matching, metrica, clientePerfil }: an
   }
 
   // Proyección de revalorización
-  if (metrica?.proyeccion_revalorizacion_anual !== null && metrica.meses_datos_historicos >= 3) {
+  if (metrica?.proyeccion_revalorizacion_anual !== null && metrica?.proyeccion_revalorizacion_anual !== undefined && (metrica?.meses_datos_historicos ?? 0) >= 3) {
     const proy = metrica.proyeccion_revalorizacion_anual;
       if (proy >= 5) {
         conclusiones.push(`La zona muestra una tendencia de crecimiento fuerte (+${proy.toFixed(1)}% anual), ideal para inversion a medio-largo plazo.`);
