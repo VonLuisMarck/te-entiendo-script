@@ -122,12 +122,12 @@ _Esta propiedad acaba de ser encontrada y te la enviamos de inmediato para que n
 
     console.log('WhatsApp notification sent successfully');
 
-    // Si el cliente es premium, enviar también el PDF
-    if (cliente.tipo_suscripcion === 'premium') {
-      console.log('Cliente premium detectado, generando y enviando PDF...');
+    // Mensajes adicionales según el tier de suscripción
+    if (cliente.tipo_suscripcion === 'investor' || cliente.tipo_suscripcion === 'investor_platino') {
+      console.log(`Cliente ${cliente.tipo_suscripcion} detectado, enviando información adicional...`);
       
       try {
-        // Obtener métricas de la zona para el PDF
+        // Obtener métricas de la zona para análisis
         const [ciudad, barrio] = propiedad.ubicacion.split(',').map((s: string) => s.trim());
         
         let metrica = null;
@@ -151,39 +151,76 @@ _Esta propiedad acaba de ser encontrada y te la enviamos de inmediato para que n
           metrica = data;
         }
 
-        // Generar PDF usando jsPDF (necesitaremos importarlo)
-        // Por ahora, enviar un mensaje indicando que se está preparando el informe
-        const mensajePDF = `📄 *Informe Premium*
+        let mensajeAdicional = '';
 
-Como cliente Premium, estamos preparando un análisis detallado en PDF de esta propiedad que recibirás próximamente.
+        if (cliente.tipo_suscripcion === 'investor') {
+          // Mensaje para investor: análisis de inteligencia
+          mensajeAdicional = `💼 *Análisis Investor - Real Time*
 
-El informe incluirá:
-• Análisis comparativo de mercado
-• Proyección de revalorización
-• Compatibilidad detallada
-• Conclusiones personalizadas
+📊 *Análisis de Mercado IA*
+• Score de compatibilidad: ${Math.round(matching.score)}%
+${metrica ? `• Precio medio zona: ${new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(metrica.precio_m2_medio)}/m²
+• Esta propiedad: ${propiedad.precio_m2 < metrica.precio_m2_medio ? '✅ Por debajo del mercado' : '⚠️ Por encima del mercado'}
+• Tendencia: ${metrica.tendencia || 'Estable'}` : ''}
 
-¡Mantente atento a tu WhatsApp!`;
+🎯 *Recomendación IA*
+Propiedad con alta compatibilidad para tu perfil de inversión. ${propiedad.precio_m2 < (metrica?.precio_m2_medio || propiedad.precio_m2) ? 'Oportunidad detectada por estar por debajo del precio medio.' : ''}`;
 
-        const formDataPDF = new URLSearchParams({
-          From: `whatsapp:${twilioWhatsAppNumber}`,
-          To: `whatsapp:${telefonoFormateado}`,
-          Body: mensajePDF
-        });
+        } else if (cliente.tipo_suscripcion === 'investor_platino') {
+          // Mensaje para investor platino: estimación de reforma
+          const perfilMap: Record<string, string> = {
+            'vivir': 'vivir en la propiedad',
+            'alquilar': 'alquilar tras reforma',
+            'vender': 'revender tras reforma'
+          };
+          const perfilTexto = perfilMap[cliente.perfil] || 'tu perfil';
 
-        await fetch(twilioUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': 'Basic ' + btoa(`${twilioAccountSid}:${twilioAuthToken}`),
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: formDataPDF.toString()
-        });
+          mensajeAdicional = `💎 *Servicio Investor Platino*
 
-        console.log('Mensaje PDF premium enviado');
-      } catch (pdfError) {
-        console.error('Error enviando mensaje PDF premium:', pdfError);
-        // No fallar la notificación principal por error en PDF
+📊 *Análisis Completo IA*
+• Score de compatibilidad: ${Math.round(matching.score)}%
+${metrica ? `• Precio medio zona: ${new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(metrica.precio_m2_medio)}/m²
+• Tendencia: ${metrica.tendencia || 'Estable'}` : ''}
+
+🏗️ *Estimación de Reforma*
+Perfil detectado: *${perfilTexto}*
+
+📸 Estamos analizando las fotos de la propiedad con IA para:
+• Estimar costes de reforma según tu objetivo (${cliente.perfil})
+• Identificar potencial de mejora
+• Calcular ROI esperado
+• Recomendar actuaciones prioritarias
+
+📄 Recibirás un informe detallado en PDF con:
+✓ Análisis visual de cada estancia
+✓ Presupuesto estimado de reforma
+✓ Proyección de revalorización
+✓ Plan de actuación personalizado
+
+⏱️ El informe estará listo en 15-30 minutos.`;
+        }
+
+        if (mensajeAdicional) {
+          const formDataAdicional = new URLSearchParams({
+            From: `whatsapp:${twilioWhatsAppNumber}`,
+            To: `whatsapp:${telefonoFormateado}`,
+            Body: mensajeAdicional
+          });
+
+          await fetch(twilioUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Basic ' + btoa(`${twilioAccountSid}:${twilioAuthToken}`),
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: formDataAdicional.toString()
+          });
+
+          console.log(`Mensaje adicional ${cliente.tipo_suscripcion} enviado`);
+        }
+      } catch (additionalError) {
+        console.error('Error enviando mensaje adicional:', additionalError);
+        // No fallar la notificación principal por error en mensaje adicional
       }
     }
 
