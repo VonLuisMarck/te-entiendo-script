@@ -111,14 +111,8 @@ def run_spider_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
     try:
         jobs[job_id]['status'] = 'running'
         
-        spider_path = '/app/fotocasa_spider.py'
         output_file = f'/tmp/output_{job_id}.jsonl'
         
-        if not os.path.exists(spider_path):
-            print(f"[ERROR] Spider not found: {spider_path}")
-            raise FileNotFoundError(f"Spider not found")
-        
-        print(f"[OK] Spider found: {spider_path}")
         print(f"[OK] Output file: {output_file}")
         
         cmd = [
