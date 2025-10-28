@@ -27,7 +27,12 @@ const PropiedadSchema = z.object({
   banos: z.number().nullable().optional(),
   metros: z.number().nullable().optional(),
   condition: z.string().nullable().optional(),
-  ano_construccion: z.number().nullable().optional(),
+  ano_construccion: z.union([z.number(), z.string()]).nullable().optional().transform(val => {
+    if (val === null || val === undefined) return null;
+    if (typeof val === 'number') return val;
+    const parsed = parseInt(val);
+    return isNaN(parsed) ? null : parsed;
+  }),
   tiene_ascensor: z.boolean().nullable().optional(),
   tiene_parking: z.boolean().nullable().optional(),
   url: z.string(),

@@ -62,6 +62,14 @@ def transform_item(item):
     metros = item.get('surface')
     precio_m2 = round(precio / metros, 2) if metros and metros > 0 else None
     
+    # Convertir ano_construccion a int (puede venir como string)
+    ano_construccion = item.get('antiquity')
+    if ano_construccion:
+        try:
+            ano_construccion = int(ano_construccion)
+        except (ValueError, TypeError):
+            ano_construccion = None
+    
     # Fecha actual para fecha_scraping
     from datetime import datetime, timezone
     fecha_scraping = datetime.now(timezone.utc).isoformat()
@@ -79,7 +87,7 @@ def transform_item(item):
         'banos': item.get('baths'),
         'metros': metros,
         'condition': item.get('conservationStatus'),
-        'ano_construccion': item.get('antiquity'),
+        'ano_construccion': ano_construccion,
         'tiene_ascensor': tiene_ascensor,
         'tiene_parking': tiene_parking,
         'url': url,
