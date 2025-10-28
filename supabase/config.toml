@@ -1,10 +1,10 @@
 project_id = "mtjomlpwpiuhflwmgctk"
 
 [functions.calculate-metrics]
-verify_jwt = true
+verify_jwt = false
 
 [functions.generate-fake-data]
-verify_jwt = true
+verify_jwt = false
 
 [functions.matching-service]
 verify_jwt = true
