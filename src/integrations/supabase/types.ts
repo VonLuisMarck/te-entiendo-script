@@ -19,7 +19,10 @@ export type Database = {
           activo: boolean | null
           created_at: string | null
           email: string
+          fecha_reset_matchings: string | null
           id: string
+          limite_matchings_mes: number | null
+          matchings_usados_mes: number | null
           nombre: string
           perfil: string
           presupuesto_max: number | null
@@ -35,7 +38,10 @@ export type Database = {
           activo?: boolean | null
           created_at?: string | null
           email: string
+          fecha_reset_matchings?: string | null
           id?: string
+          limite_matchings_mes?: number | null
+          matchings_usados_mes?: number | null
           nombre: string
           perfil?: string
           presupuesto_max?: number | null
@@ -51,7 +57,10 @@ export type Database = {
           activo?: boolean | null
           created_at?: string | null
           email?: string
+          fecha_reset_matchings?: string | null
           id?: string
+          limite_matchings_mes?: number | null
+          matchings_usados_mes?: number | null
           nombre?: string
           perfil?: string
           presupuesto_max?: number | null
@@ -432,6 +441,39 @@ export type Database = {
         }
         Relationships: []
       }
+      stripe_customers: {
+        Row: {
+          created_at: string
+          current_period_end: string | null
+          id: string
+          stripe_customer_id: string
+          stripe_subscription_id: string | null
+          subscription_status: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          stripe_customer_id: string
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_period_end?: string | null
+          id?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string | null
+          subscription_status?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -518,6 +560,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_matchings_limit: {
+        Args: { tier: Database["public"]["Enums"]["subscription_tier"] }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
