@@ -52,37 +52,69 @@ serve(async (req) => {
 
     const { clientes: cliente, propiedades: propiedad } = llamada;
 
-    // Crear el prompt para el agente
-    const agentPrompt = `Eres un agente inmobiliario profesional de InmoFinder. 
+    // Obtener análisis de mercado y criterios del cliente
+    const { data: matching } = await supabase
+      .from('matchings')
+      .select('analisis_mercado, score')
+      .eq('cliente_id', llamada.cliente_id)
+      .eq('propiedad_id', llamada.propiedad_id)
+      .single();
 
-Tu objetivo es llamar a ${cliente.nombre} para presentarle una propiedad excepcional que coincide con sus preferencias.
+    const { data: criterios } = await supabase
+      .from('criterios_busqueda')
+      .select('*')
+      .eq('cliente_id', llamada.cliente_id)
+      .single();
+
+    // Crear el prompt para el agente
+    const agentPrompt = `Eres un agente inmobiliario profesional y amable de InmoFinder. Tu objetivo es presentar una propiedad que coincide con los criterios del cliente.
 
 INFORMACIÓN DE LA PROPIEDAD:
 - Título: ${propiedad.titulo}
 - Ubicación: ${propiedad.ubicacion}
-- Precio: ${propiedad.precio.toLocaleString()}€
-- Metros: ${propiedad.metros}m²
-- Dormitorios: ${propiedad.dormitorios}
-- Baños: ${propiedad.banos}
+- Precio: ${propiedad.precio.toLocaleString()}€ (${propiedad.metros ? `${(propiedad.precio/propiedad.metros).toFixed(0)}€/m²` : ''})
 - Tipo: ${propiedad.tipo_propiedad}
+- Dormitorios: ${propiedad.dormitorios || 'N/A'}
+- Baños: ${propiedad.banos || 'N/A'}
+- Superficie: ${propiedad.metros || 'N/A'}m²
 - Descripción: ${propiedad.descripcion}
 
-INSTRUCCIONES:
-1. Saluda cordialmente y preséntate como agente de InmoFinder
-2. Explica que has encontrado una propiedad que coincide perfectamente con sus criterios
-3. Presenta las características principales de manera atractiva
-4. Destaca las VENTAJAS específicas de esta propiedad
-5. Pregunta si está interesado en visitarla
-6. Si dice que SÍ, pregunta su DISPONIBILIDAD (días y horarios que le vengan bien)
-7. Confirma los detalles y explica que recibirá la confirmación por email
+${matching ? `
+ANÁLISIS DE MERCADO:
+- Score de coincidencia: ${matching.score}/100
+- Análisis: ${JSON.stringify(matching.analisis_mercado)}
+` : ''}
+
+PERFIL DEL CLIENTE:
+- Nombre: ${cliente.nombre}
+${criterios ? `
+- Ubicaciones de interés: ${criterios.ubicaciones?.join(', ') || 'N/A'}
+- Tipos de propiedad buscados: ${criterios.tipo_propiedad?.join(', ') || 'N/A'}
+- Dormitorios mínimos: ${criterios.dormitorios_min || 'N/A'}
+` : ''}
+
+INSTRUCCIONES - ORDEN PRIORITARIO:
+1. Saluda cordialmente y preséntate brevemente como agente de InmoFinder
+2. Explica que tienes una propiedad que coincide muy bien con su búsqueda
+3. Presenta los detalles más relevantes de la propiedad de forma atractiva
+4. Destaca por qué esta propiedad encaja con sus criterios específicos
+5. Menciona brevemente el análisis de mercado favorable si lo hay
+6. **PRIORIDAD MÁXIMA**: Pregunta si está interesado en visitarla
+7. **SI HAY INTERÉS**: Captura AL MENOS 2-3 opciones de disponibilidad con DÍAS Y HORARIOS ESPECÍFICOS
+   - Ejemplo: "¿Te vendría bien el lunes 15 por la tarde, sobre las 18:00?" 
+   - "¿Y qué tal el miércoles 17 por la mañana, tipo 11:00?"
+   - Captura: DÍA + FECHA + HORA/FRANJA HORARIA específica
+8. **SECUNDARIO** (solo si la conversación fluye bien y tienes tiempo): 
+   - Menciona brevemente que también ofrecen servicio de reforma integral con arquitectos
+   - Pregunta si sería algo de su interés para la propiedad
+   - NO insistas en este punto, es opcional
 
 IMPORTANTE:
-- Sé amable, profesional y entusiasta
-- No seas demasiado insistente
-- Si no está interesado, respeta su decisión
-- Captura SIEMPRE el nivel de interés (alto/medio/bajo/ninguno)
-- Si está interesado, captura días y horarios disponibles
-- Mantén la conversación natural y fluida
+- Prioriza SIEMPRE captar los slots de disponibilidad para la visita
+- Sé conversacional, natural y profesional
+- No hagas la llamada demasiado larga (máximo 3-4 minutos)
+- Si no está interesado, respeta su decisión y despídete amablemente
+- La reforma es OPCIONAL y SECUNDARIA, solo si hay buen ambiente
 
 URL de la propiedad: ${propiedad.url}`;
 

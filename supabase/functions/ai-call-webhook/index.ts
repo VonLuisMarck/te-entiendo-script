@@ -44,10 +44,12 @@ serve(async (req) => {
     let nivelInteres = 'ninguno';
     let diasDisponibles: string[] = [];
     let horariosDisponibles: string[] = [];
+    let interesReforma = false;
+    let notasReforma = '';
     
     const textLower = transcriptText.toLowerCase();
     
-    // Detectar nivel de interés
+    // Detectar nivel de interés en la visita
     if (textLower.includes('sí') || textLower.includes('si,') || textLower.includes('interesa') || textLower.includes('me gusta') || textLower.includes('visitar')) {
       nivelInteres = 'alto';
       
@@ -56,18 +58,32 @@ serve(async (req) => {
       diasDisponibles = dias.filter(dia => textLower.includes(dia));
       
       // Buscar horarios mencionados
-      const horarios = ['mañana', 'tarde', 'noche'];
+      const horarios = ['mañana', 'tarde', 'noche', 'mediodía'];
       horariosDisponibles = horarios.filter(h => textLower.includes(h));
       
-      // También buscar horas específicas
+      // También buscar horas específicas (10:00, 11h, 5 pm, etc.)
       const horasMatch = textLower.match(/\d{1,2}:\d{2}|\d{1,2}\s*(am|pm|h)/gi);
       if (horasMatch) {
         horariosDisponibles.push(...horasMatch);
+      }
+
+      // Buscar fechas específicas (15 de enero, día 20, etc.)
+      const fechasMatch = textLower.match(/\d{1,2}\s+de\s+\w+|\d{1,2}\/\d{1,2}/gi);
+      if (fechasMatch) {
+        diasDisponibles.push(...fechasMatch);
       }
     } else if (textLower.includes('quizá') || textLower.includes('tal vez') || textLower.includes('más tarde')) {
       nivelInteres = 'medio';
     } else if (textLower.includes('ahora no') || textLower.includes('otro momento')) {
       nivelInteres = 'bajo';
+    }
+
+    // Detectar interés en reforma
+    if (textLower.includes('reforma') || textLower.includes('reformar')) {
+      if (textLower.includes('sí') || textLower.includes('interesa') || textLower.includes('me gustaría')) {
+        interesReforma = true;
+        notasReforma = 'Cliente mostró interés en reforma durante la llamada';
+      }
     }
 
     // Actualizar la llamada en la BD
@@ -82,8 +98,10 @@ serve(async (req) => {
           nivel_interes: nivelInteres,
           dias_disponibles: diasDisponibles,
           horarios_disponibles: horariosDisponibles,
+          interes_reforma: interesReforma,
           transcript_completo: transcript,
-        }
+        },
+        notas: `Interés: ${nivelInteres}. Disponibilidad: ${diasDisponibles.join(', ')} ${horariosDisponibles.join(', ')}${interesReforma ? '. Interesado en reforma' : ''}`
       })
       .eq('id', metadata.llamada_id);
 
@@ -92,31 +110,70 @@ serve(async (req) => {
       throw updateError;
     }
 
-    // Si hay interés alto, crear una visita agendada
-    if (nivelInteres === 'alto' && (diasDisponibles.length > 0 || horariosDisponibles.length > 0)) {
-      // Obtener datos de la propiedad para el contacto del portal
-      const { data: llamada } = await supabase
-        .from('llamadas_ia')
-        .select('cliente_id, propiedad_id, propiedades(portal_origen, url)')
-        .eq('id', metadata.llamada_id)
-        .single();
+    // Obtener datos de la llamada
+    const { data: llamada } = await supabase
+      .from('llamadas_ia')
+      .select('cliente_id, propiedad_id, propiedades(portal_origen, url)')
+      .eq('id', metadata.llamada_id)
+      .single();
 
-      if (llamada) {
-        // Crear visita pendiente (el admin deberá confirmar fecha/hora específica)
-        await supabase
-          .from('visitas_agendadas')
-          .insert({
-            llamada_id: metadata.llamada_id,
-            cliente_id: llamada.cliente_id,
-            propiedad_id: llamada.propiedad_id,
-            // Por ahora ponemos fecha tentativa (mañana)
-            fecha_visita: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-            hora_visita: '10:00',
-            estado: 'pendiente',
-            contacto_portal: llamada.propiedades?.url || '',
-            notas: `Disponibilidad mencionada: ${diasDisponibles.join(', ')} - ${horariosDisponibles.join(', ')}`,
-          });
+    if (!llamada) {
+      console.error('No se encontró la llamada');
+      return new Response(JSON.stringify({ error: 'Llamada no encontrada' }), {
+        status: 404,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Si hay interés alto, crear visitas para cada slot mencionado
+    if (nivelInteres === 'alto' && (diasDisponibles.length > 0 || horariosDisponibles.length > 0)) {
+      // Crear múltiples visitas, una por cada combinación de día/horario mencionada
+      const visitasCreadas = [];
+      
+      for (const dia of diasDisponibles.length > 0 ? diasDisponibles : ['pendiente']) {
+        for (const horario of horariosDisponibles.length > 0 ? horariosDisponibles : ['pendiente']) {
+          const visitaInsert = await supabase
+            .from('visitas_agendadas')
+            .insert({
+              llamada_id: metadata.llamada_id,
+              cliente_id: llamada.cliente_id,
+              propiedad_id: llamada.propiedad_id,
+              // Fecha tentativa - el admin confirmará
+              fecha_visita: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+              hora_visita: '10:00',
+              estado: 'pendiente_confirmacion',
+              contacto_portal: llamada.propiedades?.url || '',
+              notas: `Slot capturado por IA: ${dia} - ${horario}`,
+            });
+          
+          if (!visitaInsert.error) {
+            visitasCreadas.push({ dia, horario });
+          }
+        }
       }
+
+      console.log(`Visitas creadas: ${visitasCreadas.length}`);
+    }
+
+    // Si hay interés en reforma, crear registro
+    if (interesReforma) {
+      await supabase
+        .from('valoraciones_reforma')
+        .insert({
+          cliente_id: llamada.cliente_id,
+          propiedad_id: llamada.propiedad_id,
+          estado: 'interes_captado',
+          coste_min: 0,
+          coste_max: 0,
+          valoracion_ia: {
+            origen: 'llamada_ia',
+            llamada_id: metadata.llamada_id,
+            notas: notasReforma,
+            fecha: new Date().toISOString()
+          }
+        });
+      
+      console.log('Interés en reforma registrado');
     }
 
     console.log('Webhook procesado correctamente');
