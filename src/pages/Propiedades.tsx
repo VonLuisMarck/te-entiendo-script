@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, MapPin, Bed, Bath, Maximize, Euro, Calendar, LogOut, Home, FileText, Hammer } from "lucide-react";
+import { Building2, MapPin, Bed, Bath, Maximize, Euro, Calendar, LogOut, Home, FileText, Hammer, Send } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -32,6 +32,8 @@ const Propiedades = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
   const [generatingPresupuesto, setGeneratingPresupuesto] = useState<string | null>(null);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState<string | null>(null);
+  const [clienteData, setClienteData] = useState<any>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -40,9 +42,25 @@ const Propiedades = () => {
         navigate("/auth");
       } else {
         loadPropiedades();
+        loadClienteData(session.user.id);
       }
     });
   }, [navigate]);
+
+  const loadClienteData = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("clientes")
+        .select("id, telefono, tipo_suscripcion")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      setClienteData(data);
+    } catch (error) {
+      console.error("Error loading cliente data:", error);
+    }
+  };
 
   const loadPropiedades = async () => {
     try {
@@ -169,6 +187,47 @@ const Propiedades = () => {
     }
   };
 
+  const handleEnviarPorWhatsApp = async (propiedad: Propiedad, tipoReporte: 'analisis' | 'presupuesto') => {
+    if (!clienteData) {
+      toast.error("No se pudo cargar la información del cliente");
+      return;
+    }
+
+    const isPremium = clienteData.tipo_suscripcion === 'investor' || 
+                      clienteData.tipo_suscripcion === 'investor_platino';
+
+    if (!isPremium) {
+      toast.error("Esta funcionalidad solo está disponible para clientes Investor o Investor Platino");
+      return;
+    }
+
+    if (!clienteData.telefono) {
+      toast.error("Necesitas configurar tu número de teléfono en tu perfil");
+      return;
+    }
+
+    setSendingWhatsApp(`${propiedad.id}-${tipoReporte}`);
+    try {
+      const { error } = await supabase.functions.invoke('send-property-report', {
+        body: {
+          propiedadId: propiedad.id,
+          clienteId: clienteData.id,
+          telefono: clienteData.telefono,
+          tipoReporte
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success(`${tipoReporte === 'analisis' ? 'Análisis' : 'Presupuesto'} enviado por WhatsApp`);
+    } catch (error: any) {
+      console.error("Error sending via WhatsApp:", error);
+      toast.error(error.message || "Error al enviar por WhatsApp");
+    } finally {
+      setSendingWhatsApp(null);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -258,28 +317,52 @@ const Propiedades = () => {
                   </div>
 
                   <div className="flex flex-col gap-2">
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button
                         variant="default"
                         size="sm"
-                        className="flex-1"
                         onClick={() => handleDescargarAnalisis(propiedad)}
                         disabled={generatingPDF === propiedad.id}
                       >
-                        <FileText className="h-4 w-4 mr-2" />
-                        {generatingPDF === propiedad.id ? "Generando..." : "Análisis"}
+                        <FileText className="h-4 w-4 mr-1" />
+                        {generatingPDF === propiedad.id ? "..." : "Análisis"}
                       </Button>
                       <Button
                         variant="secondary"
                         size="sm"
-                        className="flex-1"
                         onClick={() => handleDescargarPresupuesto(propiedad)}
                         disabled={generatingPresupuesto === propiedad.id}
                       >
-                        <Hammer className="h-4 w-4 mr-2" />
-                        {generatingPresupuesto === propiedad.id ? "Generando..." : "Presupuesto"}
+                        <Hammer className="h-4 w-4 mr-1" />
+                        {generatingPresupuesto === propiedad.id ? "..." : "Presup."}
                       </Button>
                     </div>
+                    
+                    {clienteData?.tipo_suscripcion && (clienteData.tipo_suscripcion === 'investor' || clienteData.tipo_suscripcion === 'investor_platino') && (
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEnviarPorWhatsApp(propiedad, 'analisis')}
+                          disabled={sendingWhatsApp === `${propiedad.id}-analisis`}
+                          className="text-green-600 border-green-600 hover:bg-green-50"
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          {sendingWhatsApp === `${propiedad.id}-analisis` ? "..." : "WhatsApp"}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEnviarPorWhatsApp(propiedad, 'presupuesto')}
+                          disabled={sendingWhatsApp === `${propiedad.id}-presupuesto`}
+                          className="text-green-600 border-green-600 hover:bg-green-50"
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          {sendingWhatsApp === `${propiedad.id}-presupuesto` ? "..." : "WhatsApp"}
+                        </Button>
+                      </div>
+                    )}
+                    
                     <Button
                       variant="outline"
                       size="sm"
