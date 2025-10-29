@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useSubscription, SUBSCRIPTION_PRODUCTS } from '@/contexts/SubscriptionContext';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, LogOut, CreditCard } from 'lucide-react';
+import { Loader2, Check, LogOut, CreditCard, Settings, BarChart3 } from 'lucide-react';
 
 const ClienteDashboard = () => {
   const navigate = useNavigate();
@@ -157,10 +157,22 @@ const ClienteDashboard = () => {
               Bienvenido, {user?.email}
             </p>
           </div>
-          <Button onClick={handleLogout} variant="outline">
-            <LogOut className="mr-2 h-4 w-4" />
-            Cerrar Sesión
-          </Button>
+          <div className="flex gap-2">
+            {(tier === 'investor' || tier === 'investor_platino') && (
+              <Button onClick={() => navigate('/cliente/metricas')} variant="outline">
+                <BarChart3 className="mr-2 h-4 w-4" />
+                Métricas
+              </Button>
+            )}
+            <Button onClick={() => navigate('/cliente/settings')} variant="outline">
+              <Settings className="mr-2 h-4 w-4" />
+              Configuración
+            </Button>
+            <Button onClick={handleLogout} variant="outline">
+              <LogOut className="mr-2 h-4 w-4" />
+              Cerrar Sesión
+            </Button>
+          </div>
         </div>
 
         {/* Current Subscription Status */}
