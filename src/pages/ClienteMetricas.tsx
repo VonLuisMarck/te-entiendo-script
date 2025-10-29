@@ -129,7 +129,7 @@ const ClienteMetricas = () => {
     .sort((a, b) => b.precio_m2_medio - a.precio_m2_medio)
     .slice(0, 10)
     .map(m => ({
-      nombre: m.barrio ? `${m.barrio}` : m.ciudad,
+      nombre: m.barrio ? `${m.barrio}, ${m.ciudad}` : m.ciudad,
       precio_m2: Math.round(m.precio_m2_medio),
       propiedades: m.total_propiedades
     }));
@@ -139,7 +139,7 @@ const ClienteMetricas = () => {
     .sort((a, b) => b.indice_dinamismo - a.indice_dinamismo)
     .slice(0, 10)
     .map(m => ({
-      nombre: m.barrio ? `${m.barrio}` : m.ciudad,
+      nombre: m.barrio ? `${m.barrio}, ${m.ciudad}` : m.ciudad,
       dinamismo: m.indice_dinamismo,
       variacion: m.variacion_mensual || 0
     }));
