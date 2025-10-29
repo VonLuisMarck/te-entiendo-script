@@ -1,14 +1,14 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Home, LogOut, TrendingUp, RefreshCw, ChevronDown, ExternalLink, MessageCircle, FileText } from "lucide-react";
+import { Search, Home, LogOut, TrendingUp, RefreshCw, ExternalLink, MessageCircle, FileText, Hammer, Send } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
-import { generarPDFAnalisis } from "@/lib/pdf-generator";
+import { generarPDFAnalisis, generarPDFPresupuesto } from "@/lib/pdf-generator";
 
 interface Matching {
   id: string;
@@ -57,6 +57,8 @@ const Matchings = () => {
   const [calculating, setCalculating] = useState(false);
   const [sendingNotification, setSendingNotification] = useState<string | null>(null);
   const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
+  const [generatingPresupuesto, setGeneratingPresupuesto] = useState<string | null>(null);
+  const [sendingWhatsApp, setSendingWhatsApp] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -187,7 +189,8 @@ const Matchings = () => {
         propiedad: propiedadCompleta,
         matching,
         metrica: metrica || undefined,
-        clientePerfil: cliente?.perfil || 'vivir'
+        clientePerfil: cliente?.perfil || 'vivir',
+        clienteNombre: matching.clientes.nombre
       });
 
       toast.success("Análisis descargado correctamente");
@@ -196,6 +199,77 @@ const Matchings = () => {
       toast.error("Error al generar el análisis PDF");
     } finally {
       setGeneratingPDF(null);
+    }
+  };
+
+  const handleDescargarPresupuesto = async (matching: Matching) => {
+    setGeneratingPresupuesto(matching.id);
+    try {
+      // Obtener cliente completo para perfil
+      const { data: cliente } = await supabase
+        .from("clientes")
+        .select("perfil")
+        .eq("id", matching.cliente_id)
+        .maybeSingle();
+
+      // Obtener propiedad completa
+      const { data: propiedadCompleta, error: propError } = await supabase
+        .from("propiedades")
+        .select("*")
+        .eq("id", matching.propiedades.id || matching.propiedad_id)
+        .single();
+
+      if (propError) throw propError;
+
+      await generarPDFPresupuesto({
+        propiedad: propiedadCompleta,
+        clientePerfil: cliente?.perfil || 'vivir',
+        clienteNombre: matching.clientes.nombre
+      });
+
+      toast.success("Presupuesto descargado correctamente");
+    } catch (error) {
+      console.error("Error generating presupuesto PDF:", error);
+      toast.error("Error al generar el presupuesto PDF");
+    } finally {
+      setGeneratingPresupuesto(null);
+    }
+  };
+
+  const handleEnviarPorWhatsApp = async (matching: Matching, tipoReporte: 'analisis' | 'presupuesto') => {
+    const isPremium = matching.clientes.tipo_suscripcion === 'investor' || 
+                      matching.clientes.tipo_suscripcion === 'investor_platino';
+
+    if (!isPremium) {
+      toast.error(`${matching.clientes.nombre} no tiene suscripción Premium (Investor o Investor Platino)`);
+      return;
+    }
+
+    if (!matching.clientes.telefono) {
+      toast.error(`${matching.clientes.nombre} no tiene número de teléfono configurado`);
+      return;
+    }
+
+    setSendingWhatsApp(`${matching.id}-${tipoReporte}`);
+    
+    try {
+      const { error } = await supabase.functions.invoke('send-property-report', {
+        body: {
+          propiedadId: matching.propiedades.id || matching.propiedad_id,
+          clienteId: matching.cliente_id,
+          telefono: matching.clientes.telefono,
+          tipoReporte
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success(`${tipoReporte === 'analisis' ? 'Análisis' : 'Presupuesto'} enviado a ${matching.clientes.nombre} por WhatsApp`);
+    } catch (error: any) {
+      console.error("Error sending via WhatsApp:", error);
+      toast.error(error.message || "Error al enviar por WhatsApp");
+    } finally {
+      setSendingWhatsApp(null);
     }
   };
 
@@ -405,22 +479,36 @@ const Matchings = () => {
                                   disabled={generatingPDF === matching.id}
                                 >
                                   <FileText className="h-3 w-3 mr-2" />
-                                  {generatingPDF === matching.id ? "Generando..." : "Análisis"}
+                                  {generatingPDF === matching.id ? "..." : "Análisis"}
                                 </Button>
                                 <Button
-                                  variant={matching.notificado ? "secondary" : "default"}
+                                  variant="secondary"
                                   size="sm"
-                                  onClick={() => enviarNotificacionWhatsApp(matching)}
-                                  disabled={sendingNotification === matching.id}
+                                  onClick={() => handleDescargarPresupuesto(matching)}
+                                  disabled={generatingPresupuesto === matching.id}
                                 >
-                                  {sendingNotification === matching.id ? (
-                                    <>Enviando...</>
-                                  ) : (
-                                    <>
-                                      <MessageCircle className="h-3 w-3 mr-2" />
-                                      {matching.notificado ? 'Reenviar' : 'Notificar'}
-                                    </>
-                                  )}
+                                  <Hammer className="h-3 w-3 mr-2" />
+                                  {generatingPresupuesto === matching.id ? "..." : "Presup."}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEnviarPorWhatsApp(matching, 'analisis')}
+                                  disabled={sendingWhatsApp === `${matching.id}-analisis`}
+                                  className="text-green-600 border-green-600 hover:bg-green-50"
+                                >
+                                  <Send className="h-3 w-3 mr-2" />
+                                  {sendingWhatsApp === `${matching.id}-analisis` ? "..." : "WhatsApp Análisis"}
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleEnviarPorWhatsApp(matching, 'presupuesto')}
+                                  disabled={sendingWhatsApp === `${matching.id}-presupuesto`}
+                                  className="text-green-600 border-green-600 hover:bg-green-50"
+                                >
+                                  <Send className="h-3 w-3 mr-2" />
+                                  {sendingWhatsApp === `${matching.id}-presupuesto` ? "..." : "WhatsApp Presup."}
                                 </Button>
                                 <Button
                                   variant="outline"

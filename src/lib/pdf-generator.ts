@@ -6,18 +6,21 @@ interface PropiedadAnalisis {
   matching?: any;
   metrica?: any;
   clientePerfil?: string;
+  clienteNombre?: string;
 }
 
 interface PresupuestoReforma {
   propiedad: any;
   clientePerfil?: string;
+  clienteNombre?: string;
 }
 
 export const generarPDFAnalisis = async ({
   propiedad,
   matching,
   metrica,
-  clientePerfil = 'vivir'
+  clientePerfil = 'vivir',
+  clienteNombre = 'Cliente'
 }: PropiedadAnalisis) => {
   const doc = new jsPDF({
     format: 'a4',
@@ -50,7 +53,12 @@ export const generarPDFAnalisis = async ({
   
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text('Analisis Inteligente de Propiedad', margin, 28);
+  doc.text(`Analisis para: ${clienteNombre}`, margin, 26);
+  doc.setFontSize(9);
+  const perfilText = clientePerfil === 'reformar' ? 'Inversor - Reformar y Vender' :
+                     clientePerfil === 'alquilar' ? 'Inversor - Alquilar' :
+                     'Vivienda Habitual';
+  doc.text(`Perfil: ${perfilText}`, margin, 31);
 
   doc.setFontSize(9);
   const fecha = new Date().toLocaleDateString('es-ES');
@@ -419,61 +427,123 @@ export const generarPDFAnalisis = async ({
 function generarConclusiones({ propiedad, matching, metrica, clientePerfil }: any): string[] {
   const conclusiones: string[] = [];
 
-  // Análisis de precio vs mercado
+  // Análisis de precio vs mercado - adaptado al perfil
   if (matching?.analisis_mercado?.disponible) {
     const desv = matching.analisis_mercado.desviacion_porcentaje;
     if (desv <= -15) {
-      conclusiones.push('Esta propiedad presenta un precio significativamente inferior al mercado local, representando una excelente oportunidad de compra.');
+      if (clientePerfil === 'reformar') {
+        conclusiones.push(`OPORTUNIDAD PARA REFORMAR: Precio ${Math.abs(desv).toFixed(1)}% inferior al mercado. Margen significativo para reforma y reventa con beneficio.`);
+      } else if (clientePerfil === 'alquilar') {
+        conclusiones.push(`EXCELENTE PARA INVERSION: Precio ${Math.abs(desv).toFixed(1)}% bajo mercado mejora significativamente el ROI por alquiler.`);
+      } else {
+        conclusiones.push(`GRAN OPORTUNIDAD: Precio ${Math.abs(desv).toFixed(1)}% inferior al mercado local. Excelente relacion calidad-precio para su hogar.`);
+      }
     } else if (desv <= -5) {
-      conclusiones.push('El precio está ligeramente por debajo del mercado, ofreciendo un buen valor por el dinero.');
+      if (clientePerfil === 'reformar' || clientePerfil === 'alquilar') {
+        conclusiones.push(`Precio ${Math.abs(desv).toFixed(1)}% por debajo del mercado. Margen razonable para rentabilizar su inversion.`);
+      } else {
+        conclusiones.push('El precio esta ligeramente por debajo del mercado, ofreciendo un buen valor por el dinero.');
+      }
     } else if (desv >= 15) {
-      conclusiones.push('El precio está considerablemente por encima del promedio del mercado. Se recomienda negociar o buscar alternativas.');
+      if (clientePerfil === 'reformar' || clientePerfil === 'alquilar') {
+        conclusiones.push(`ATENCION: Precio ${desv.toFixed(1)}% sobre mercado reduce margen de beneficio. Negociar agresivamente o buscar alternativas.`);
+      } else {
+        conclusiones.push('El precio esta considerablemente por encima del promedio del mercado. Se recomienda negociar o buscar alternativas.');
+      }
     }
   }
 
-  // Proyección de revalorización
+  // Proyección de revalorización - interpretada según perfil
   if (metrica?.proyeccion_revalorizacion_anual !== null && metrica?.proyeccion_revalorizacion_anual !== undefined && (metrica?.meses_datos_historicos ?? 0) >= 3) {
     const proy = metrica.proyeccion_revalorizacion_anual;
-      if (proy >= 5) {
-        conclusiones.push(`La zona muestra una tendencia de crecimiento fuerte (+${proy.toFixed(1)}% anual), ideal para inversion a medio-largo plazo.`);
-      } else if (proy >= 2) {
-        conclusiones.push(`La revalorizacion esperada es positiva (+${proy.toFixed(1)}% anual), ofreciendo seguridad de inversion.`);
-      } else if (proy < 0) {
-        conclusiones.push(`La zona presenta descenso de precios (${proy.toFixed(1)}% anual). Considerar si es estrategico para su perfil.`);
+    if (proy >= 5) {
+      if (clientePerfil === 'reformar') {
+        conclusiones.push(`Zona en fuerte crecimiento (+${proy.toFixed(1)}% anual): maximiza beneficio en reventa tras reforma.`);
+      } else if (clientePerfil === 'alquilar') {
+        conclusiones.push(`Zona en crecimiento (+${proy.toFixed(1)}% anual): revalorizacion del activo + ingresos por alquiler = doble rentabilidad.`);
+      } else {
+        conclusiones.push(`La zona muestra crecimiento fuerte (+${proy.toFixed(1)}% anual): su vivienda se revalorizara con el tiempo.`);
       }
+    } else if (proy >= 2) {
+      conclusiones.push(`Revalorizacion positiva esperada (+${proy.toFixed(1)}% anual), ofreciendo seguridad de inversion a medio plazo.`);
+    } else if (proy < 0) {
+      if (clientePerfil === 'reformar' || clientePerfil === 'alquilar') {
+        conclusiones.push(`ATENCION: Zona en descenso (${proy.toFixed(1)}% anual). Solo recomendable si cashflow por alquiler compensa depreciacion.`);
+      } else {
+        conclusiones.push(`Zona con descenso de precios (${proy.toFixed(1)}% anual). Evaluar si el entorno y calidad de vida compensan.`);
+      }
+    }
   }
 
-  // Análisis según perfil
+  // Análisis específico por perfil - más detallado
   switch (clientePerfil) {
     case 'reformar':
       if (matching?.analisis_mercado?.es_chollo) {
-        conclusiones.push('Propiedad apta para reforma y reventa: margen potencial identificado por algoritmo InmoFinder.');
+        conclusiones.push('PERFIL INVERSOR REFORMAR: Oportunidad identificada por nuestro algoritmo. Precio bajo + reforma = margen atractivo.');
       }
-      if (propiedad.condition === 'a reformar') {
-        conclusiones.push('Estado a reformar permite personalizacion total y maximizar ROI post-renovacion.');
+      if (propiedad.condition === 'a reformar' || propiedad.condition === 'para reformar') {
+        conclusiones.push('Estado actual perfecto para su perfil: permite reforma completa optimizando costes y maximizando ROI en reventa.');
+      } else if (propiedad.condition === 'buen estado') {
+        conclusiones.push('Estado bueno reduce necesidad de inversion en reforma, aunque limita margen de mejora en reventa.');
+      }
+      if (propiedad.metros >= 80) {
+        conclusiones.push(`${propiedad.metros}m2 permiten redistribucion inteligente: ganar habitacion extra incrementa valor significativamente.`);
       }
       break;
+      
     case 'alquilar':
-      conclusiones.push(`Con ${propiedad.dormitorios || 0} dormitorios en ${propiedad.ubicacion}, presenta potencial de rentabilidad por alquiler.`);
+      const rentabilidadEstimada = ((propiedad.precio_m2 * propiedad.metros * 0.05 / 12) / propiedad.precio * 100).toFixed(2);
+      conclusiones.push(`PERFIL INVERSOR ALQUILER: Rentabilidad estimada bruta ~${rentabilidadEstimada}% mensual (5% anual orientativo).`);
+      
+      if (propiedad.dormitorios >= 3) {
+        conclusiones.push(`${propiedad.dormitorios} dormitorios facilitan alquiler a familias o compartido, maximizando ocupacion y renta.`);
+      } else if (propiedad.dormitorios === 2) {
+        conclusiones.push('2 dormitorios: demanda alta tanto para parejas como para compartir, versatilidad en perfil inquilino.');
+      }
+      
       if (metrica?.indice_dinamismo >= 60) {
-        conclusiones.push('Alta demanda en la zona segun indice de dinamismo, facilitando ocupacion del inmueble.');
+        conclusiones.push('Alta demanda en la zona (indice de dinamismo elevado): facilita alquiler rapido y minimiza periodos sin ingresos.');
+      }
+      
+      if (propiedad.tiene_ascensor && propiedad.tiene_parking) {
+        conclusiones.push('Ascensor + parking aumentan atractivo para inquilinos y justifican renta superior.');
       }
       break;
+      
     case 'vivir':
       if (matching?.score >= 75) {
-        conclusiones.push('Compatibilidad alta con sus criterios de busqueda. Propiedad recomendada para visitar.');
+        conclusiones.push('VIVIENDA HABITUAL: Alta compatibilidad con sus criterios (score ' + matching.score + '%). Propiedad muy recomendada para visitar.');
       }
+      
       if (propiedad.tiene_ascensor && propiedad.tiene_parking) {
-        conclusiones.push('Cuenta con comodidades clave (ascensor + parking) que mejoran calidad de vida diaria.');
+        conclusiones.push('Comodidades clave para calidad de vida diaria: ascensor (comodidad) + parking (seguridad para su vehiculo).');
+      }
+      
+      if (propiedad.condition === 'buen estado' || propiedad.condition === 'a estrenar') {
+        conclusiones.push('Estado optimo: puede mudarse directamente sin obras, ahorrando tiempo y dinero.');
+      } else if (propiedad.condition === 'a reformar') {
+        conclusiones.push('Estado a reformar permite personalizacion total segun sus gustos, aunque requiere inversion y tiempo adicional.');
+      }
+      
+      if (propiedad.metros >= 90) {
+        conclusiones.push(`Superficie generosa (${propiedad.metros}m2): espacio suficiente para vivir comodo y crecer como familia.`);
       }
       break;
   }
 
-  // Recomendación final
+  // Recomendación final - personalizada por perfil
   if (matching?.score >= 80 && matching?.analisis_mercado?.es_chollo) {
-    conclusiones.push('RECOMENDACION ALTA: Combina score elevado con precio inferior al mercado. Actuar rapido.');
+    if (clientePerfil === 'reformar') {
+      conclusiones.push('★★★ RECOMENDACION MAXIMA PARA REFORMAR: Score alto + precio bajo + zona adecuada. Actuar con urgencia.');
+    } else if (clientePerfil === 'alquilar') {
+      conclusiones.push('★★★ RECOMENDACION MAXIMA PARA ALQUILAR: Combina precio atractivo con ubicacion demandada. ROI esperado excelente.');
+    } else {
+      conclusiones.push('★★★ RECOMENDACION MAXIMA: Propiedad ideal para usted. Score elevado + precio justo. No dejar escapar.');
+    }
   } else if (matching?.score >= 70) {
-    conclusiones.push('RECOMENDACION: Propiedad bien valorada por nuestro algoritmo. Vale la pena considerarla.');
+    conclusiones.push('★★ RECOMENDACION: Propiedad bien valorada por nuestro algoritmo. Merece atencion seria.');
+  } else if (matching?.score >= 60) {
+    conclusiones.push('★ Opcion valida: Cumple criterios basicos, considerar junto a otras alternativas.');
   }
 
   if (conclusiones.length === 0) {
@@ -491,7 +561,8 @@ function formatNumber(num: number | null): string {
 // === GENERADOR DE PRESUPUESTO DE REFORMA ===
 export const generarPDFPresupuesto = async ({
   propiedad,
-  clientePerfil = 'vivir'
+  clientePerfil = 'vivir',
+  clienteNombre = 'Cliente'
 }: PresupuestoReforma) => {
   const doc = new jsPDF({
     format: 'a4',
@@ -520,11 +591,16 @@ export const generarPDFPresupuesto = async ({
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(24);
   doc.setFont('helvetica', 'bold');
-  doc.text('Presupuesto de Reforma', margin, 20);
+  doc.text('Presupuesto de Reforma', margin, 18);
   
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.text('Powered by InmoFinder', margin, 28);
+  doc.text(`Para: ${clienteNombre}`, margin, 26);
+  doc.setFontSize(9);
+  const perfilText = clientePerfil === 'reformar' ? 'Inversor - Reformar y Vender' :
+                     clientePerfil === 'alquilar' ? 'Inversor - Alquilar' :
+                     'Vivienda Habitual';
+  doc.text(`Perfil: ${perfilText}`, margin, 31);
   
   doc.setFontSize(9);
   const fecha = new Date().toLocaleDateString('es-ES');

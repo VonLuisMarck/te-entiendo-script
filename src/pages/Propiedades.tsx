@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, MapPin, Bed, Bath, Maximize, Euro, Calendar, LogOut, Home, FileText, Hammer, Send, X } from "lucide-react";
+import { Building2, MapPin, Bed, Bath, Maximize, Euro, Calendar, LogOut, Home, FileText, Hammer } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { generarPDFAnalisis, generarPDFPresupuesto } from "@/lib/pdf-generator";
 
@@ -33,9 +32,6 @@ const Propiedades = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
   const [generatingPresupuesto, setGeneratingPresupuesto] = useState<string | null>(null);
-  const [sendingWhatsApp, setSendingWhatsApp] = useState<string | null>(null);
-  const [clientes, setClientes] = useState<any[]>([]);
-  const [showClienteSelector, setShowClienteSelector] = useState<{propiedad: Propiedad, tipo: 'analisis' | 'presupuesto'} | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -44,25 +40,10 @@ const Propiedades = () => {
         navigate("/auth");
       } else {
         loadPropiedades();
-        loadClientes(session.user.id);
       }
     });
   }, [navigate]);
 
-  const loadClientes = async (userId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("clientes")
-        .select("id, nombre, telefono, tipo_suscripcion, email")
-        .eq("user_id", userId)
-        .order("nombre");
-
-      if (error) throw error;
-      setClientes(data || []);
-    } catch (error) {
-      console.error("Error loading clientes:", error);
-    }
-  };
 
   const loadPropiedades = async () => {
     try {
@@ -96,7 +77,7 @@ const Propiedades = () => {
       // Buscar cliente del usuario
       const { data: cliente } = await supabase
         .from("clientes")
-        .select("perfil")
+        .select("perfil, nombre")
         .eq("user_id", session.user.id)
         .maybeSingle();
 
@@ -139,7 +120,8 @@ const Propiedades = () => {
         propiedad,
         matching: matching || undefined,
         metrica: metrica || undefined,
-        clientePerfil: cliente?.perfil || 'vivir'
+        clientePerfil: cliente?.perfil || 'vivir',
+        clienteNombre: cliente?.nombre || 'Cliente'
       });
 
       toast.success("Análisis descargado correctamente");
@@ -170,14 +152,15 @@ const Propiedades = () => {
       // Buscar cliente del usuario
       const { data: cliente } = await supabase
         .from("clientes")
-        .select("perfil")
+        .select("perfil, nombre")
         .eq("user_id", session.user.id)
         .maybeSingle();
 
       // Generar PDF de presupuesto
       await generarPDFPresupuesto({
         propiedad,
-        clientePerfil: cliente?.perfil || 'vivir'
+        clientePerfil: cliente?.perfil || 'vivir',
+        clienteNombre: cliente?.nombre || 'Cliente'
       });
 
       toast.success("Presupuesto descargado correctamente");
@@ -189,43 +172,6 @@ const Propiedades = () => {
     }
   };
 
-  const handleEnviarPorWhatsApp = async (cliente: any, propiedad: Propiedad, tipoReporte: 'analisis' | 'presupuesto') => {
-    const isPremium = cliente.tipo_suscripcion === 'investor' || 
-                      cliente.tipo_suscripcion === 'investor_platino';
-
-    if (!isPremium) {
-      toast.error(`${cliente.nombre} no tiene suscripción Premium (Investor o Investor Platino)`);
-      return;
-    }
-
-    if (!cliente.telefono) {
-      toast.error(`${cliente.nombre} no tiene número de teléfono configurado`);
-      return;
-    }
-
-    setSendingWhatsApp(`${propiedad.id}-${tipoReporte}`);
-    setShowClienteSelector(null);
-    
-    try {
-      const { error } = await supabase.functions.invoke('send-property-report', {
-        body: {
-          propiedadId: propiedad.id,
-          clienteId: cliente.id,
-          telefono: cliente.telefono,
-          tipoReporte
-        }
-      });
-
-      if (error) throw error;
-
-      toast.success(`${tipoReporte === 'analisis' ? 'Análisis' : 'Presupuesto'} enviado a ${cliente.nombre} por WhatsApp`);
-    } catch (error: any) {
-      console.error("Error sending via WhatsApp:", error);
-      toast.error(error.message || "Error al enviar por WhatsApp");
-    } finally {
-      setSendingWhatsApp(null);
-    }
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -337,29 +283,6 @@ const Propiedades = () => {
                       </Button>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowClienteSelector({propiedad, tipo: 'analisis'})}
-                        disabled={sendingWhatsApp === `${propiedad.id}-analisis`}
-                        className="text-green-600 border-green-600 hover:bg-green-50"
-                      >
-                        <Send className="h-4 w-4 mr-1" />
-                        {sendingWhatsApp === `${propiedad.id}-analisis` ? "..." : "WhatsApp"}
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setShowClienteSelector({propiedad, tipo: 'presupuesto'})}
-                        disabled={sendingWhatsApp === `${propiedad.id}-presupuesto`}
-                        className="text-green-600 border-green-600 hover:bg-green-50"
-                      >
-                        <Send className="h-4 w-4 mr-1" />
-                        {sendingWhatsApp === `${propiedad.id}-presupuesto` ? "..." : "WhatsApp"}
-                      </Button>
-                    </div>
-                    
                     <Button
                       variant="outline"
                       size="sm"
@@ -384,62 +307,6 @@ const Propiedades = () => {
           </div>
         )}
       </main>
-
-      {/* Dialog para seleccionar cliente */}
-      <Dialog open={!!showClienteSelector} onOpenChange={() => setShowClienteSelector(null)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Seleccionar Cliente</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-2 max-h-96 overflow-y-auto">
-            {clientes.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-4">
-                No hay clientes disponibles
-              </p>
-            ) : (
-              clientes.map((cliente) => {
-                const isPremium = cliente.tipo_suscripcion === 'investor' || 
-                                  cliente.tipo_suscripcion === 'investor_platino';
-                const hasPhone = !!cliente.telefono;
-                
-                return (
-                  <Card 
-                    key={cliente.id} 
-                    className={`cursor-pointer hover:bg-accent transition-colors ${!isPremium || !hasPhone ? 'opacity-60' : ''}`}
-                    onClick={() => {
-                      if (showClienteSelector) {
-                        handleEnviarPorWhatsApp(cliente, showClienteSelector.propiedad, showClienteSelector.tipo);
-                      }
-                    }}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="font-semibold">{cliente.nombre}</p>
-                          <p className="text-sm text-muted-foreground">{cliente.email}</p>
-                          {cliente.telefono && (
-                            <p className="text-xs text-muted-foreground">{cliente.telefono}</p>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-1 items-end">
-                          <Badge variant={isPremium ? "default" : "secondary"} className="text-xs">
-                            {cliente.tipo_suscripcion || 'free'}
-                          </Badge>
-                          {!hasPhone && (
-                            <Badge variant="destructive" className="text-xs">
-                              Sin teléfono
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };
