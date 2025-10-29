@@ -47,10 +47,8 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
   const checkSubscription = async () => {
     try {
-      console.log('[SubscriptionContext] checkSubscription iniciado');
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
-      console.log('[SubscriptionContext] session:', session ? 'existe' : 'no existe');
       
       if (!session) {
         setSubscribed(false);
@@ -60,19 +58,39 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Temporalmente desactivado hasta configurar Stripe
-      // Por ahora todos los usuarios tienen acceso gratuito
-      setSubscribed(false);
-      setTier('free');
-      setProductId(null);
+      // Obtener datos del cliente desde la tabla clientes
+      const { data: clienteData, error: clienteError } = await supabase
+        .from('clientes')
+        .select('tipo_suscripcion')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (clienteError || !clienteData) {
+        setSubscribed(false);
+        setTier('free');
+        setProductId(null);
+        setSubscriptionEnd(null);
+        return;
+      }
+
+      const tier = clienteData.tipo_suscripcion || 'free';
+      const isSubscribed = tier !== 'free';
+      
+      // Mapear tier a productId según los productos definidos
+      let productId = null;
+      if (tier === 'basic') productId = SUBSCRIPTION_PRODUCTS.basic.productId;
+      else if (tier === 'investor') productId = SUBSCRIPTION_PRODUCTS.investor.productId;
+      else if (tier === 'investor_platino') productId = SUBSCRIPTION_PRODUCTS.investor_platino.productId;
+
+      setSubscribed(isSubscribed);
+      setTier(tier);
+      setProductId(productId);
       setSubscriptionEnd(null);
-      console.log('[SubscriptionContext] suscripción establecida como free');
     } catch (error) {
-      console.error('[SubscriptionContext] Error in checkSubscription:', error);
+      console.error('Error in checkSubscription:', error);
       setSubscribed(false);
       setTier('free');
     } finally {
-      console.log('[SubscriptionContext] setLoading(false)');
       setLoading(false);
     }
   };
