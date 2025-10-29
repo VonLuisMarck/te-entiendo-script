@@ -15,6 +15,7 @@ import Metricas from "./pages/Metricas";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 import ClienteDashboard from "./pages/ClienteDashboard";
+import LlamadasIA from "./pages/LlamadasIA";
 
 const queryClient = new QueryClient();
 
@@ -36,6 +37,7 @@ const App = () => (
             <Route path="/metricas" element={<Metricas />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/cliente/dashboard" element={<ClienteDashboard />} />
+            <Route path="/llamadas-ia" element={<LlamadasIA />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -29,3 +29,9 @@ verify_jwt = true
 
 [functions.customer-portal]
 verify_jwt = true
+
+[functions.ai-call-agent]
+verify_jwt = true
+
+[functions.ai-call-webhook]
+verify_jwt = false
