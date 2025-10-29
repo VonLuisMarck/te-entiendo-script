@@ -54,6 +54,9 @@ def transform_item(item):
     property_type_code = str(item.get('propertyType', ''))
     tipo_propiedad_bd = property_type_map.get(property_type_code, None)
     
+    # Log para debugging
+    print(f"[DEBUG] propertyType={property_type_code}, mapped={tipo_propiedad_bd}", flush=True)
+    
     # Si no viene propertyType o no está mapeado, intentar inferir de descripción/título
     if not tipo_propiedad_bd:
         descripcion = (item.get('description') or '').lower()
@@ -70,6 +73,8 @@ def transform_item(item):
             tipo_propiedad_bd = 'estudio'
         else:
             tipo_propiedad_bd = 'piso'  # Por defecto solo si no se puede determinar
+        
+        print(f"[DEBUG] Inferred from text: {tipo_propiedad_bd}", flush=True)
     
     # Capitalizar para el título
     tipo_texto = tipo_propiedad_bd.capitalize()
