@@ -58,23 +58,12 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('check-subscription', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
-      });
-
-      if (error) {
-        console.error('Error checking subscription:', error);
-        setSubscribed(false);
-        setTier('free');
-        return;
-      }
-
-      setSubscribed(data.subscribed);
-      setTier(data.tier || 'free');
-      setProductId(data.product_id);
-      setSubscriptionEnd(data.subscription_end);
+      // Temporalmente desactivado hasta configurar Stripe
+      // Por ahora todos los usuarios tienen acceso gratuito
+      setSubscribed(false);
+      setTier('free');
+      setProductId(null);
+      setSubscriptionEnd(null);
     } catch (error) {
       console.error('Error in checkSubscription:', error);
       setSubscribed(false);
