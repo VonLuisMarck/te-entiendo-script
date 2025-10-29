@@ -133,6 +133,69 @@ export type Database = {
           },
         ]
       }
+      llamadas_ia: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          duracion_segundos: number | null
+          estado: string
+          fecha_programada: string | null
+          fecha_realizada: string | null
+          id: string
+          notas: string | null
+          propiedad_id: string | null
+          resultado: Json | null
+          telefono: string
+          transcripcion: string | null
+          updated_at: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          duracion_segundos?: number | null
+          estado?: string
+          fecha_programada?: string | null
+          fecha_realizada?: string | null
+          id?: string
+          notas?: string | null
+          propiedad_id?: string | null
+          resultado?: Json | null
+          telefono: string
+          transcripcion?: string | null
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          duracion_segundos?: number | null
+          estado?: string
+          fecha_programada?: string | null
+          fecha_realizada?: string | null
+          id?: string
+          notas?: string | null
+          propiedad_id?: string | null
+          resultado?: Json | null
+          telefono?: string
+          transcripcion?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "llamadas_ia_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "llamadas_ia_propiedad_id_fkey"
+            columns: ["propiedad_id"]
+            isOneToOne: false
+            referencedRelation: "propiedades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matchings: {
         Row: {
           analisis_mercado: Json | null
@@ -548,6 +611,70 @@ export type Database = {
           },
           {
             foreignKeyName: "valoraciones_reforma_propiedad_id_fkey"
+            columns: ["propiedad_id"]
+            isOneToOne: false
+            referencedRelation: "propiedades"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visitas_agendadas: {
+        Row: {
+          cliente_id: string
+          contacto_portal: string | null
+          created_at: string
+          estado: string
+          fecha_visita: string
+          hora_visita: string
+          id: string
+          llamada_id: string | null
+          notas: string | null
+          propiedad_id: string
+          updated_at: string
+        }
+        Insert: {
+          cliente_id: string
+          contacto_portal?: string | null
+          created_at?: string
+          estado?: string
+          fecha_visita: string
+          hora_visita: string
+          id?: string
+          llamada_id?: string | null
+          notas?: string | null
+          propiedad_id: string
+          updated_at?: string
+        }
+        Update: {
+          cliente_id?: string
+          contacto_portal?: string | null
+          created_at?: string
+          estado?: string
+          fecha_visita?: string
+          hora_visita?: string
+          id?: string
+          llamada_id?: string | null
+          notas?: string | null
+          propiedad_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visitas_agendadas_cliente_id_fkey"
+            columns: ["cliente_id"]
+            isOneToOne: false
+            referencedRelation: "clientes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_agendadas_llamada_id_fkey"
+            columns: ["llamada_id"]
+            isOneToOne: false
+            referencedRelation: "llamadas_ia"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visitas_agendadas_propiedad_id_fkey"
             columns: ["propiedad_id"]
             isOneToOne: false
             referencedRelation: "propiedades"
