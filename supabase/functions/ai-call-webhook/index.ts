@@ -113,7 +113,7 @@ serve(async (req) => {
     // Obtener datos de la llamada
     const { data: llamada } = await supabase
       .from('llamadas_ia')
-      .select('cliente_id, propiedad_id, propiedades(portal_origen, url)')
+      .select('cliente_id, propiedad_id, propiedades!inner(portal_origen, url)')
       .eq('id', metadata.llamada_id)
       .single();
 
@@ -124,6 +124,9 @@ serve(async (req) => {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
+
+    // Extraer los datos de la propiedad (es un objeto único, no un array)
+    const propiedad = llamada.propiedades as unknown as { portal_origen: string; url: string } | null;
 
     // Si hay interés alto, crear visitas para cada slot mencionado
     if (nivelInteres === 'alto' && (diasDisponibles.length > 0 || horariosDisponibles.length > 0)) {
@@ -142,7 +145,7 @@ serve(async (req) => {
               fecha_visita: new Date(Date.now() + 86400000).toISOString().split('T')[0],
               hora_visita: '10:00',
               estado: 'pendiente_confirmacion',
-              contacto_portal: llamada.propiedades?.url || '',
+              contacto_portal: propiedad?.url || '',
               notas: `Slot capturado por IA: ${dia} - ${horario}`,
             });
           
@@ -188,8 +191,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error procesando webhook:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

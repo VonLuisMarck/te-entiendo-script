@@ -687,6 +687,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_admin_role: { Args: { user_email: string }; Returns: Json }
       get_matchings_limit: {
         Args: { tier: Database["public"]["Enums"]["subscription_tier"] }
         Returns: number
