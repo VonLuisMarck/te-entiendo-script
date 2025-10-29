@@ -51,13 +51,13 @@ const Auth = () => {
 
         if (error) throw error;
         toast.success("¡Bienvenido de vuelta!");
-        navigate("/dashboard");
+        navigate("/cliente/dashboard");
       } else {
         const { data: authData, error: signUpError } = await supabase.auth.signUp({
           email: validated.email,
           password: validated.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/cliente/dashboard`,
             data: {
               nombre: validated.nombre,
             },
@@ -78,7 +78,7 @@ const Auth = () => {
           if (clienteError) throw clienteError;
 
           toast.success("¡Cuenta creada exitosamente!");
-          navigate("/dashboard");
+          navigate("/cliente/dashboard");
         }
       }
     } catch (error: any) {
