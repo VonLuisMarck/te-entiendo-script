@@ -45,14 +45,18 @@ const ClienteDashboard = () => {
 
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('[ClienteDashboard] checkAuth iniciado');
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('[ClienteDashboard] session:', session ? 'existe' : 'no existe');
       
       if (!session) {
+        console.log('[ClienteDashboard] no hay sesión, redirigiendo a /auth');
         navigate('/auth');
         return;
       }
 
       setUser(session.user);
+      console.log('[ClienteDashboard] setLoading(false)');
       setLoading(false);
     };
 
@@ -140,9 +144,13 @@ const ClienteDashboard = () => {
   };
 
   if (loading || subLoading) {
+    console.log('[ClienteDashboard] Mostrando loading:', { loading, subLoading });
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
+        <p className="ml-2 text-sm text-muted-foreground">
+          Cargando... (auth: {loading ? 'cargando' : 'ok'}, sub: {subLoading ? 'cargando' : 'ok'})
+        </p>
       </div>
     );
   }

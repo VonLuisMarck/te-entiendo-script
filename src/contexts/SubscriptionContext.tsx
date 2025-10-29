@@ -47,8 +47,10 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
   const checkSubscription = async () => {
     try {
+      console.log('[SubscriptionContext] checkSubscription iniciado');
       setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
+      console.log('[SubscriptionContext] session:', session ? 'existe' : 'no existe');
       
       if (!session) {
         setSubscribed(false);
@@ -64,11 +66,13 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       setTier('free');
       setProductId(null);
       setSubscriptionEnd(null);
+      console.log('[SubscriptionContext] suscripción establecida como free');
     } catch (error) {
-      console.error('Error in checkSubscription:', error);
+      console.error('[SubscriptionContext] Error in checkSubscription:', error);
       setSubscribed(false);
       setTier('free');
     } finally {
+      console.log('[SubscriptionContext] setLoading(false)');
       setLoading(false);
     }
   };
