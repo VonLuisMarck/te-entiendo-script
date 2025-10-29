@@ -61,19 +61,20 @@ if (route.startsWith('/cliente')) {
 
 ### 2.3 Matriz de Permisos
 
-| Funcionalidad | Admin | Cliente Free | Cliente Investor | Cliente Platino |
-|---------------|-------|--------------|------------------|-----------------|
-| Ver todas las propiedades | ✅ | ❌ | ❌ | ❌ |
-| Ver propios matchings | ✅ | ✅ (limitado) | ✅ | ✅ |
-| Editar criterios búsqueda | ✅ | ❌ | ✅ | ✅ |
-| Análisis mercado completo | ✅ | ❌ | ❌ | ❌ |
-| Análisis mercado resumido | ✅ | ✅ | ✅ | ✅ |
-| Recibir informes WhatsApp | ✅ | ❌ | ❌ | ✅ |
-| Descargar PDF análisis | ✅ | ❌ | ✅ | ✅ |
-| Descargar PDF presupuesto | ✅ | ❌ | ✅ | ✅ |
-| Gestionar suscripción | ❌ | ✅ | ✅ | ✅ |
-| Scraping manual | ✅ | ❌ | ❌ | ❌ |
-| Ver métricas detalladas | ✅ | ❌ | ❌ | ❌ |
+| Funcionalidad | Admin | Free | Básico | Inversor | Inversor Premium |
+|---------------|-------|------|--------|----------|------------------|
+| Ver todas las propiedades | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Ver propios matchings | ✅ | ✅ (5/mes) | ✅ (20/mes) | ✅ ilimitado | ✅ ilimitado |
+| Editar criterios búsqueda | ✅ | ❌ | ✅ básico | ✅ avanzado | ✅ avanzado |
+| Análisis mercado completo | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Análisis mercado resumido | ✅ | ✅ básico | ✅ mejorado | ✅ completo | ✅ completo |
+| Recibir informes WhatsApp | ✅ | ❌ | ❌ | ✅ (20/mes) | ✅ ilimitado |
+| Descargar PDF análisis | ✅ | ❌ | ❌ | ✅ | ✅ |
+| Descargar PDF presupuesto | ✅ | ❌ | ❌ | ✅ | ✅ |
+| Gestionar suscripción | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Acceso API | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Scraping manual | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Ver métricas detalladas | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
@@ -88,20 +89,28 @@ if (route.startsWith('/cliente')) {
 - ❌ Sin WhatsApp
 - ❌ Sin edición de criterios
 
-#### Plan Investor (€29/mes)
+#### Plan Básico (€9.99/mes)
+- ✅ Ver hasta 20 matchings por mes
+- ✅ Dashboard de mercado mejorado
+- ✅ Editar criterios de búsqueda
+- ❌ Sin PDFs personalizados
+- ❌ Sin WhatsApp
+
+#### Plan Inversor (€49.99/mes)
 - ✅ Ver matchings ilimitados
 - ✅ Dashboard de mercado completo (versión cliente)
-- ✅ Descargar PDF análisis y presupuesto
-- ✅ Editar criterios de búsqueda
-- ✅ Recibir 10 informes WhatsApp/mes
+- ✅ Descargar PDF análisis y presupuesto ilimitados
+- ✅ Editar criterios de búsqueda avanzada
+- ✅ Recibir hasta 20 informes WhatsApp/mes
 - ❌ Sin informes WhatsApp ilimitados
 
-#### Plan Platino (€99/mes)
-- ✅ Todo lo de Investor
+#### Plan Inversor Premium (€149.99/mes)
+- ✅ Todo lo de Inversor
 - ✅ Informes WhatsApp ilimitados
 - ✅ Alertas en tiempo real de nuevos matchings
 - ✅ Prioridad en análisis de propiedades
 - ✅ Asesoramiento personalizado (contacto directo)
+- ✅ Acceso API para integraciones
 
 ### 3.2 Flujo de Stripe
 
@@ -127,24 +136,36 @@ sequenceDiagram
 // Edge function: create-stripe-products
 const products = [
   {
-    name: "InmoFinder Investor",
-    price: 2900, // €29.00 en centavos
+    name: "InmoFinder Básico",
+    price: 999, // €9.99 en centavos
     interval: "month",
     features: [
-      "Matchings ilimitados",
-      "PDFs personalizados",
-      "10 informes WhatsApp/mes"
+      "Hasta 20 matchings/mes",
+      "Dashboard mejorado",
+      "Editar criterios"
     ]
   },
   {
-    name: "InmoFinder Platino",
-    price: 9900, // €99.00
+    name: "InmoFinder Inversor",
+    price: 4999, // €49.99
     interval: "month",
     features: [
-      "Todo de Investor",
+      "Matchings ilimitados",
+      "PDFs personalizados ilimitados",
+      "20 informes WhatsApp/mes",
+      "Dashboard completo"
+    ]
+  },
+  {
+    name: "InmoFinder Inversor Premium",
+    price: 14999, // €149.99
+    interval: "month",
+    features: [
+      "Todo de Inversor",
       "WhatsApp ilimitado",
       "Alertas en tiempo real",
-      "Asesoramiento personalizado"
+      "Asesoramiento personalizado",
+      "Acceso API"
     ]
   }
 ]
@@ -497,9 +518,12 @@ CREATE TABLE client_usage_stats (
 
 ## 11. Preguntas Pendientes para el Cliente
 
-1. **Precios finales de suscripciones**:
-   - ¿€29 y €99 están bien o prefieres otros precios?
-   - ¿Incluir plan anual con descuento?
+1. **Precios de suscripciones** (✅ Definidos):
+   - Free: €0
+   - Básico: €9.99/mes
+   - Inversor: €49.99/mes
+   - Inversor Premium: €149.99/mes
+   - ¿Incluir plan anual con descuento (ej: 10% off)?
 
 2. **Límites del plan Free**:
    - ¿5 matchings/mes es suficiente o muy restrictivo?
