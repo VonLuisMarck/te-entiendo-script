@@ -8,11 +8,25 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/cliente/dashboard");
+        // Verificar si es admin o cliente
+        const { data: roleData } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", session.user.id)
+          .eq("role", "admin")
+          .single();
+        
+        if (roleData) {
+          navigate("/dashboard");
+        } else {
+          navigate("/cliente/dashboard");
+        }
       }
-    });
+    };
+    checkSession();
   }, [navigate]);
 
   return (

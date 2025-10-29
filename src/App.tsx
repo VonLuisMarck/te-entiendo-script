@@ -6,7 +6,9 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { SubscriptionProvider } from "@/contexts/SubscriptionContext";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import AdminAuth from "./pages/AdminAuth";
 import Dashboard from "./pages/Dashboard";
+import { AdminProtectedRoute } from "@/components/AdminProtectedRoute";
 import Propiedades from "./pages/Propiedades";
 import Clientes from "./pages/Clientes";
 import Matchings from "./pages/Matchings";
@@ -31,17 +33,18 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/propiedades" element={<Propiedades />} />
-            <Route path="/clientes" element={<Clientes />} />
-            <Route path="/matchings" element={<Matchings />} />
-            <Route path="/scraper" element={<Scraper />} />
-            <Route path="/metricas" element={<Metricas />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/admin/auth" element={<AdminAuth />} />
+            <Route path="/dashboard" element={<AdminProtectedRoute><Dashboard /></AdminProtectedRoute>} />
+            <Route path="/propiedades" element={<AdminProtectedRoute><Propiedades /></AdminProtectedRoute>} />
+            <Route path="/clientes" element={<AdminProtectedRoute><Clientes /></AdminProtectedRoute>} />
+            <Route path="/matchings" element={<AdminProtectedRoute><Matchings /></AdminProtectedRoute>} />
+            <Route path="/scraper" element={<AdminProtectedRoute><Scraper /></AdminProtectedRoute>} />
+            <Route path="/metricas" element={<AdminProtectedRoute><Metricas /></AdminProtectedRoute>} />
+            <Route path="/settings" element={<AdminProtectedRoute><Settings /></AdminProtectedRoute>} />
+            <Route path="/llamadas-ia" element={<AdminProtectedRoute><LlamadasIA /></AdminProtectedRoute>} />
             <Route path="/cliente/dashboard" element={<ClienteDashboard />} />
             <Route path="/cliente/settings" element={<ClienteSettings />} />
             <Route path="/cliente/metricas" element={<ClienteMetricas />} />
-            <Route path="/llamadas-ia" element={<LlamadasIA />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -102,9 +102,9 @@ const Auth = () => {
               <Building2 className="h-8 w-8 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">InmoFinder</CardTitle>
+          <CardTitle className="text-2xl font-bold">Portal de Clientes</CardTitle>
           <CardDescription>
-            {isLogin ? "Inicia sesión en tu cuenta" : "Crea tu cuenta nueva"}
+            {isLogin ? "Inicia sesión en tu cuenta de cliente" : "Crea tu cuenta de cliente"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -149,14 +149,17 @@ const Auth = () => {
               {loading ? "Procesando..." : isLogin ? "Iniciar Sesión" : "Crear Cuenta"}
             </Button>
           </form>
-          <div className="mt-4 text-center text-sm">
+          <div className="mt-4 space-y-2 text-center text-sm">
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline"
+              className="text-primary hover:underline block w-full"
             >
               {isLogin ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
             </button>
+            <div className="text-muted-foreground">
+              ¿Eres empleado? <a href="/admin/auth" className="text-primary hover:underline">Accede al panel de administración</a>
+            </div>
           </div>
         </CardContent>
       </Card>
