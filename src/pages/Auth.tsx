@@ -149,17 +149,14 @@ const Auth = () => {
               {loading ? "Procesando..." : isLogin ? "Iniciar Sesión" : "Crear Cuenta"}
             </Button>
           </form>
-          <div className="mt-4 space-y-2 text-center text-sm">
+          <div className="mt-4 text-center text-sm">
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
-              className="text-primary hover:underline block w-full"
+              className="text-primary hover:underline"
             >
               {isLogin ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
             </button>
-            <div className="text-muted-foreground">
-              ¿Eres empleado? <a href="/admin/auth" className="text-primary hover:underline">Accede al panel de administración</a>
-            </div>
           </div>
         </CardContent>
       </Card>
