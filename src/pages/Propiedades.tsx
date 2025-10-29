@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, MapPin, Bed, Bath, Maximize, Euro, Calendar, LogOut, Home, FileText } from "lucide-react";
+import { Building2, MapPin, Bed, Bath, Maximize, Euro, Calendar, LogOut, Home, FileText, Hammer } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { generarPDFAnalisis } from "@/lib/pdf-generator";
+import { generarPDFAnalisis, generarPDFPresupuesto } from "@/lib/pdf-generator";
 
 interface Propiedad {
   id: string;
@@ -31,6 +31,7 @@ const Propiedades = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
+  const [generatingPresupuesto, setGeneratingPresupuesto] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -136,6 +137,38 @@ const Propiedades = () => {
       prop.ubicacion.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleDescargarPresupuesto = async (propiedad: Propiedad) => {
+    setGeneratingPresupuesto(propiedad.id);
+    try {
+      // Obtener sesión del usuario para buscar su perfil
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Debe iniciar sesión para descargar el presupuesto");
+        return;
+      }
+
+      // Buscar cliente del usuario
+      const { data: cliente } = await supabase
+        .from("clientes")
+        .select("perfil")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+
+      // Generar PDF de presupuesto
+      await generarPDFPresupuesto({
+        propiedad,
+        clientePerfil: cliente?.perfil || 'vivir'
+      });
+
+      toast.success("Presupuesto descargado correctamente");
+    } catch (error) {
+      console.error("Error generating presupuesto PDF:", error);
+      toast.error("Error al generar el presupuesto PDF");
+    } finally {
+      setGeneratingPresupuesto(null);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -224,21 +257,33 @@ const Propiedades = () => {
                     {new Date(propiedad.fecha_scraping).toLocaleDateString('es-ES')}
                   </div>
 
-                  <div className="flex gap-2">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1"
-                      onClick={() => handleDescargarAnalisis(propiedad)}
-                      disabled={generatingPDF === propiedad.id}
-                    >
-                      <FileText className="h-4 w-4 mr-2" />
-                      {generatingPDF === propiedad.id ? "Generando..." : "Análisis PDF"}
-                    </Button>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleDescargarAnalisis(propiedad)}
+                        disabled={generatingPDF === propiedad.id}
+                      >
+                        <FileText className="h-4 w-4 mr-2" />
+                        {generatingPDF === propiedad.id ? "Generando..." : "Análisis"}
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleDescargarPresupuesto(propiedad)}
+                        disabled={generatingPresupuesto === propiedad.id}
+                      >
+                        <Hammer className="h-4 w-4 mr-2" />
+                        {generatingPresupuesto === propiedad.id ? "Generando..." : "Presupuesto"}
+                      </Button>
+                    </div>
                     <Button
                       variant="outline"
                       size="sm"
-                      className="flex-1"
+                      className="w-full"
                       onClick={() => window.open(propiedad.url, '_blank')}
                     >
                       Ver en {propiedad.portal_origen}

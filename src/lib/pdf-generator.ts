@@ -8,6 +8,11 @@ interface PropiedadAnalisis {
   clientePerfil?: string;
 }
 
+interface PresupuestoReforma {
+  propiedad: any;
+  clientePerfil?: string;
+}
+
 export const generarPDFAnalisis = async ({
   propiedad,
   matching,
@@ -481,4 +486,413 @@ function generarConclusiones({ propiedad, matching, metrica, clientePerfil }: an
 function formatNumber(num: number | null): string {
   if (num === null || num === undefined) return 'N/A';
   return num.toLocaleString('es-ES', { maximumFractionDigits: 0 });
+}
+
+// === GENERADOR DE PRESUPUESTO DE REFORMA ===
+export const generarPDFPresupuesto = async ({
+  propiedad,
+  clientePerfil = 'vivir'
+}: PresupuestoReforma) => {
+  const doc = new jsPDF({
+    format: 'a4',
+    unit: 'mm'
+  });
+  
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  const margin = 15;
+  let yPosition = 20;
+
+  // Helper para verificar si necesitamos nueva página
+  const checkNewPage = (requiredSpace: number) => {
+    if (yPosition + requiredSpace > pageHeight - 30) {
+      doc.addPage();
+      yPosition = 20;
+      return true;
+    }
+    return false;
+  };
+
+  // === HEADER ===
+  doc.setFillColor(59, 130, 246);
+  doc.rect(0, 0, pageWidth, 40, 'F');
+  
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(24);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Presupuesto de Reforma', margin, 20);
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Powered by InmoFinder', margin, 28);
+  
+  doc.setFontSize(9);
+  const fecha = new Date().toLocaleDateString('es-ES');
+  doc.text(fecha, pageWidth - margin, 28, { align: 'right' });
+
+  yPosition = 50;
+  doc.setTextColor(0, 0, 0);
+
+  // === INFORMACIÓN DE LA PROPIEDAD ===
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(59, 130, 246);
+  doc.text('Propiedad Analizada', margin, yPosition);
+  yPosition += 8;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+
+  const infoProp = [
+    ['Ubicacion', propiedad.ubicacion],
+    ['Tipo', propiedad.tipo_propiedad],
+    ['Precio Compra', `${formatNumber(propiedad.precio)} EUR`],
+    ['Superficie', `${propiedad.metros} m2`],
+    ['Dormitorios', propiedad.dormitorios || 'N/A'],
+    ['Banos', propiedad.banos || 'N/A'],
+    ['Estado Actual', propiedad.condition || 'No especificado'],
+  ];
+
+  autoTable(doc, {
+    startY: yPosition,
+    body: infoProp,
+    theme: 'striped',
+    styles: { 
+      fontSize: 9,
+      cellPadding: 3,
+      font: 'helvetica'
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 50, fillColor: [249, 250, 251] },
+      1: { cellWidth: 'auto' }
+    },
+    margin: { left: margin, right: margin }
+  });
+
+  yPosition = (doc as any).lastAutoTable.finalY + 12;
+
+  // === FOTOS DE LA PROPIEDAD ===
+  if (propiedad.imagenes && propiedad.imagenes.length > 0) {
+    checkNewPage(80);
+    
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(59, 130, 246);
+    doc.text('Imagenes de la Propiedad', margin, yPosition);
+    yPosition += 8;
+
+    const imagesToShow = propiedad.imagenes.slice(0, 4); // Mostrar hasta 4 imágenes
+    const imagePromises = imagesToShow.map(async (url: string) => {
+      try {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch (error) {
+        console.error('Error loading image:', error);
+        return null;
+      }
+    });
+
+    const imageDataUrls = await Promise.all(imagePromises);
+    
+    let imgX = margin;
+    let imgY = yPosition;
+    const imgWidth = (pageWidth - 2 * margin - 5) / 2;
+    const imgHeight = 50;
+
+    for (let i = 0; i < imageDataUrls.length; i++) {
+      if (imageDataUrls[i]) {
+        try {
+          doc.addImage(imageDataUrls[i]!, 'JPEG', imgX, imgY, imgWidth, imgHeight);
+          
+          if (i % 2 === 0) {
+            imgX = margin + imgWidth + 5;
+          } else {
+            imgX = margin;
+            imgY += imgHeight + 5;
+            
+            // Verificar si necesitamos nueva página
+            if (imgY + imgHeight > pageHeight - 30) {
+              doc.addPage();
+              imgY = 20;
+            }
+          }
+        } catch (error) {
+          console.error('Error adding image to PDF:', error);
+        }
+      }
+    }
+
+    yPosition = imgY + (imageDataUrls.length % 2 === 0 ? 0 : imgHeight) + 12;
+  }
+
+  // === PRESUPUESTO SEGÚN PERFIL ===
+  checkNewPage(100);
+
+  const presupuestoData = generarPresupuestoPorPerfil(propiedad, clientePerfil);
+
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(59, 130, 246);
+  doc.text(`Presupuesto Estimado - Perfil: ${presupuestoData.perfilNombre}`, margin, yPosition);
+  yPosition += 10;
+
+  doc.setFillColor(239, 246, 255);
+  doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, 20, 2, 2, 'F');
+  
+  doc.setFontSize(12);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`Coste Total Estimado: ${formatNumber(presupuestoData.total)} EUR`, margin + 5, yPosition + 8);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.text(`Rango: ${formatNumber(presupuestoData.min)} - ${formatNumber(presupuestoData.max)} EUR`, margin + 5, yPosition + 15);
+
+  yPosition += 28;
+
+  // Tabla de partidas
+  autoTable(doc, {
+    startY: yPosition,
+    head: [['Partida', 'Descripcion', 'Coste Estimado']],
+    body: presupuestoData.partidas.map(p => [
+      p.nombre,
+      p.descripcion,
+      `${formatNumber(p.coste)} EUR`
+    ]),
+    theme: 'striped',
+    styles: { 
+      fontSize: 9,
+      cellPadding: 3,
+      font: 'helvetica'
+    },
+    headStyles: {
+      fillColor: [59, 130, 246],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold'
+    },
+    columnStyles: {
+      0: { cellWidth: 40 },
+      1: { cellWidth: 'auto' },
+      2: { cellWidth: 35, halign: 'right' }
+    },
+    margin: { left: margin, right: margin }
+  });
+
+  yPosition = (doc as any).lastAutoTable.finalY + 12;
+
+  // === OBSERVACIONES ===
+  checkNewPage(50);
+
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(59, 130, 246);
+  doc.text('Observaciones del Presupuesto', margin, yPosition);
+  yPosition += 8;
+
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+
+  const observacionesText = presupuestoData.observaciones.map(o => `- ${o}`).join('\n\n');
+  const splitObs = doc.splitTextToSize(observacionesText, pageWidth - 2 * margin - 10);
+  const obsHeight = splitObs.length * 5 + 10;
+  
+  checkNewPage(obsHeight + 10);
+  
+  doc.setFillColor(254, 243, 199);
+  doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, obsHeight, 2, 2, 'F');
+  
+  yPosition += 6;
+  doc.text(splitObs, margin + 5, yPosition);
+  yPosition += obsHeight + 10;
+
+  // === DISCLAIMER ===
+  checkNewPage(60);
+
+  doc.setFillColor(254, 226, 226);
+  doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, 50, 2, 2, 'F');
+  
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(220, 38, 38);
+  doc.text('IMPORTANTE - Presupuesto Orientativo', margin + 5, yPosition + 8);
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  
+  const disclaimerText = [
+    'Este presupuesto es ORIENTATIVO y no constituye una oferta definitiva. Los costes reales',
+    'pueden variar segun el estado real de la propiedad, materiales seleccionados, y factores',
+    'imprevistos descubiertos durante la obra.',
+    '',
+    'Es imprescindible una visita presencial de nuestros arquitectos para elaborar un',
+    'presupuesto detallado y ajustado a la realidad del inmueble.'
+  ];
+  
+  let disclaimerY = yPosition + 16;
+  disclaimerText.forEach(line => {
+    doc.text(line, margin + 5, disclaimerY);
+    disclaimerY += 5;
+  });
+
+  yPosition += 58;
+
+  // === CONTACTO Y PRÓXIMOS PASOS ===
+  checkNewPage(50);
+
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(59, 130, 246);
+  doc.text('Proximos Pasos', margin, yPosition);
+  yPosition += 10;
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+
+  const pasosText = [
+    '1. Revision de este presupuesto orientativo',
+    '2. Solicitar visita de nuestros arquitectos especializados',
+    '3. Inspeccion detallada de la propiedad',
+    '4. Elaboracion de presupuesto definitivo y planos',
+    '5. Inicio de la reforma con garantias',
+  ];
+
+  pasosText.forEach(paso => {
+    doc.text(paso, margin, yPosition);
+    yPosition += 7;
+  });
+
+  yPosition += 8;
+
+  // Información de contacto con ARQO Estudio
+  doc.setFillColor(239, 246, 255);
+  doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, 35, 2, 2, 'F');
+  
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(59, 130, 246);
+  doc.text('Arquitectura y Reformas - ARQO Estudio', margin + 5, yPosition + 8);
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  doc.text('Nuestro estudio asociado de arquitectura especializado en reformas integrales', margin + 5, yPosition + 15);
+  
+  doc.setTextColor(59, 130, 246);
+  doc.textWithLink('Visita: https://arqoestudio.com/', margin + 5, yPosition + 22, { url: 'https://arqoestudio.com/' });
+  
+  doc.setTextColor(0, 0, 0);
+  doc.text('Contacta para agendar tu visita y presupuesto detallado', margin + 5, yPosition + 29);
+
+  // === FOOTER ===
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(7);
+    doc.setTextColor(107, 114, 128);
+    const footerText = `Pagina ${i} de ${pageCount} | InmoFinder x ARQO Estudio ${new Date().getFullYear()} | Presupuesto orientativo`;
+    doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+  }
+
+  // Guardar PDF
+  const ubicacionLimpia = propiedad.ubicacion.replace(/[,\s]/g, '_').substring(0, 30);
+  const fileName = `Presupuesto_Reforma_${ubicacionLimpia}_${Date.now()}.pdf`;
+  doc.save(fileName);
+};
+
+// Genera presupuesto según el perfil del cliente
+function generarPresupuestoPorPerfil(propiedad: any, perfil: string) {
+  const metros = propiedad.metros || 100;
+  
+  // Presupuestos base por m2 según perfil
+  const perfiles: Record<string, any> = {
+    vivir: {
+      nombre: 'Vivir (Reforma Integral)',
+      costeM2: 650,
+      partidas: [
+        { nombre: 'Demolicion', descripcion: 'Derribo de tabiques, levantado de pavimentos y alicatados', porcentaje: 8 },
+        { nombre: 'Albanileria', descripcion: 'Tabiqueria nueva, enfoscados, solados', porcentaje: 20 },
+        { nombre: 'Fontaneria', descripcion: 'Instalacion completa de tuberias, sanitarios y griferia', porcentaje: 12 },
+        { nombre: 'Electricidad', descripcion: 'Cableado completo, cuadro electrico, enchufes y luces', porcentaje: 10 },
+        { nombre: 'Carpinteria', descripcion: 'Puertas interiores, armarios empotrados, rodapies', porcentaje: 15 },
+        { nombre: 'Revestimientos', descripcion: 'Alicatado banos/cocina, pavimentos, pintura', porcentaje: 18 },
+        { nombre: 'Cocina', descripcion: 'Muebles de cocina, encimera y electrodomesticos', porcentaje: 10 },
+        { nombre: 'Banos', descripcion: 'Sanitarios, mampara, griferia y accesorios', porcentaje: 7 }
+      ],
+      observaciones: [
+        'Reforma integral para habitabilidad inmediata con acabados de calidad media-alta',
+        'Incluye actualizacion completa de instalaciones a normativa vigente',
+        'Plazo estimado: 3-4 meses',
+        'Materiales de primeras marcas con garantia'
+      ]
+    },
+    reformar: {
+      nombre: 'Reformar (Reforma para Reventa)',
+      costeM2: 450,
+      partidas: [
+        { nombre: 'Demolicion', descripcion: 'Trabajos de derribo necesarios', porcentaje: 10 },
+        { nombre: 'Albanileria', descripcion: 'Reparaciones estructurales y nuevos tabiques', porcentaje: 22 },
+        { nombre: 'Fontaneria', descripcion: 'Renovacion de instalaciones criticas', porcentaje: 12 },
+        { nombre: 'Electricidad', descripcion: 'Actualizacion electrica basica', porcentaje: 10 },
+        { nombre: 'Carpinteria', descripcion: 'Puertas y elementos basicos', porcentaje: 12 },
+        { nombre: 'Revestimientos', descripcion: 'Pintura, solados y alicatados funcionales', porcentaje: 18 },
+        { nombre: 'Cocina Basica', descripcion: 'Muebles funcionales sin electrodomesticos', porcentaje: 8 },
+        { nombre: 'Banos Basicos', descripcion: 'Sanitarios estandar y griferia', porcentaje: 8 }
+      ],
+      observaciones: [
+        'Reforma optimizada para maximizar ROI en reventa',
+        'Acabados funcionales con buena relacion calidad-precio',
+        'Plazo estimado: 2-3 meses',
+        'Enfoque en mejorar aspectos visibles y cumplir normativa',
+        'Sin lujos innecesarios, prioridad: funcionalidad y estetica'
+      ]
+    },
+    alquilar: {
+      nombre: 'Alquilar (Reforma para Arrendamiento)',
+      costeM2: 550,
+      partidas: [
+        { nombre: 'Demolicion', descripcion: 'Derribo selectivo', porcentaje: 8 },
+        { nombre: 'Albanileria', descripcion: 'Trabajos de construccion necesarios', porcentaje: 20 },
+        { nombre: 'Fontaneria', descripcion: 'Instalacion duradera y de bajo mantenimiento', porcentaje: 13 },
+        { nombre: 'Electricidad', descripcion: 'Sistema electrico robusto', porcentaje: 11 },
+        { nombre: 'Carpinteria', descripcion: 'Puertas reforzadas, armarios practicos', porcentaje: 14 },
+        { nombre: 'Revestimientos', descripcion: 'Materiales resistentes al desgaste', porcentaje: 18 },
+        { nombre: 'Cocina', descripcion: 'Equipamiento completo con electrodomesticos basicos', porcentaje: 10 },
+        { nombre: 'Banos', descripcion: 'Completos con buena durabilidad', porcentaje: 6 }
+      ],
+      observaciones: [
+        'Reforma enfocada en durabilidad y bajo mantenimiento',
+        'Materiales resistentes al uso intensivo',
+        'Plazo estimado: 3 meses',
+        'Diseño atractivo para inquilinos potenciales',
+        'Incluye electrodomesticos para alquiler llave en mano'
+      ]
+    }
+  };
+
+  const perfilData = perfiles[perfil] || perfiles.vivir;
+  const costetotal = Math.round(metros * perfilData.costeM2);
+  const variacion = 0.15; // +/- 15%
+
+  const partidas = perfilData.partidas.map((p: any) => ({
+    nombre: p.nombre,
+    descripcion: p.descripcion,
+    coste: Math.round(costetotal * (p.porcentaje / 100))
+  }));
+
+  return {
+    perfilNombre: perfilData.nombre,
+    total: costetotal,
+    min: Math.round(costetotal * (1 - variacion)),
+    max: Math.round(costetotal * (1 + variacion)),
+    partidas,
+    observaciones: perfilData.observaciones
+  };
 }
