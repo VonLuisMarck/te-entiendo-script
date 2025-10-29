@@ -81,9 +81,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setTimeout(() => {
-          checkSubscription();
-        }, 0);
+        checkSubscription();
       } else if (event === 'SIGNED_OUT') {
         setSubscribed(false);
         setTier('free');
@@ -94,16 +92,14 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
 
     // Refresh subscription status every minute
     const interval = setInterval(() => {
-      if (user) {
-        checkSubscription();
-      }
+      checkSubscription();
     }, 60000);
 
     return () => {
       subscription.unsubscribe();
       clearInterval(interval);
     };
-  }, [user]);
+  }, []);
 
   return (
     <SubscriptionContext.Provider

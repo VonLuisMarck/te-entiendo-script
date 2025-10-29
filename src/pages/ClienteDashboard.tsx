@@ -31,7 +31,7 @@ const ClienteDashboard = () => {
       });
       checkSubscription();
       // Clean URL
-      navigate('/cliente/dashboard', { replace: true });
+      window.history.replaceState({}, '', '/cliente/dashboard');
     } else if (canceled === 'true') {
       toast({
         title: "Pago cancelado",
@@ -39,9 +39,9 @@ const ClienteDashboard = () => {
         variant: "destructive",
       });
       // Clean URL
-      navigate('/cliente/dashboard', { replace: true });
+      window.history.replaceState({}, '', '/cliente/dashboard');
     }
-  }, [searchParams]);
+  }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
