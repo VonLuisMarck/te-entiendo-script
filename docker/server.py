@@ -88,7 +88,7 @@ def transform_item_pisos(item):
                     'Content-Type': 'application/json; charset=utf-8',
                     'Accept': 'application/json'
                 },
-                timeout=10
+                timeout=30
             )
             
             if classify_response.status_code == 200:
@@ -370,7 +370,7 @@ def transform_item(item):
                 classify_url,
                 json={'titulo': titulo_preliminar, 'descripcion': descripcion or ''},
                 headers={'Content-Type': 'application/json'},
-                timeout=10
+                timeout=30
             )
             
             if classify_response.status_code == 200:
