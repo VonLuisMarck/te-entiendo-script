@@ -68,9 +68,10 @@ def transform_item_pisos(item):
     
     # Intentar clasificar con IA
     try:
-        webhook_url_base = os.environ.get('SUPABASE_URL', '')
-        if webhook_url_base:
-            classify_url = f"{webhook_url_base}/functions/v1/classify-location"
+        # Obtener SUPABASE_URL de la variable global configurada por el job
+        supabase_url = globals().get('SUPABASE_URL', os.environ.get('SUPABASE_URL', ''))
+        if supabase_url:
+            classify_url = f"{supabase_url}/functions/v1/classify-location"
             
             classify_response = requests.post(
                 classify_url,
@@ -343,24 +344,60 @@ def transform_item(item):
     from datetime import datetime, timezone
     fecha_scraping = datetime.now(timezone.utc).isoformat()
     
-    # Construir ubicación completa con provincia - NORMALIZADO
-    barrio = zone or location.get('level8Name') or ''
-    ciudad_raw = location.get('level5Name', 'Murcia')
+    # Construir título preliminar para clasificación con IA
+    titulo_preliminar = item.get('title', '')
+    descripcion = item.get('description', '')
     
-    # Normalizar ciudad (quitar "Capital" y espacios extra)
-    ciudad = ciudad_raw.replace(' Capital', '').replace(' capital', '').strip()
+    # Variables de ubicación (fallback de datos del scraper)
+    provincia = None
+    ciudad = None
+    barrio_limpio = ''
     
-    # Limpiar barrio y eliminar redundancias
-    barrio_limpio = barrio.strip() if barrio else ''
-    # Si el barrio contiene el nombre de la ciudad, extraer solo el barrio
-    if ',' in barrio_limpio:
-        barrio_limpio = barrio_limpio.split(',')[0].strip()
+    # Intentar clasificar con IA
+    try:
+        supabase_url = globals().get('SUPABASE_URL', os.environ.get('SUPABASE_URL', ''))
+        if supabase_url:
+            classify_url = f"{supabase_url}/functions/v1/classify-location"
+            
+            classify_response = requests.post(
+                classify_url,
+                json={'titulo': titulo_preliminar, 'descripcion': descripcion or ''},
+                headers={'Content-Type': 'application/json'},
+                timeout=10
+            )
+            
+            if classify_response.status_code == 200:
+                location_data = classify_response.json()
+                provincia = location_data.get('provincia')
+                ciudad = location_data.get('ciudad')
+                barrio_limpio = location_data.get('barrio', '')
+                print(f"[IA] Fotocasa clasificado: {provincia} / {ciudad} / {barrio_limpio}")
+            else:
+                print(f"[IA] Error {classify_response.status_code}: {classify_response.text}")
+    except Exception as e:
+        print(f"[IA] Excepción al clasificar Fotocasa: {e}")
+    
+    # Fallback: usar datos del scraper si IA falló
+    if not provincia or provincia == 'Desconocida':
+        # Construir ubicación completa con provincia - NORMALIZADO (fallback)
+        # Construir ubicación completa con provincia - NORMALIZADO (fallback)
+        barrio = zone or location.get('level8Name') or ''
+        ciudad_raw = location.get('level5Name', 'Murcia')
+        
+        # Normalizar ciudad (quitar "Capital" y espacios extra)
+        ciudad = ciudad_raw.replace(' Capital', '').replace(' capital', '').strip()
+        
+        # Limpiar barrio y eliminar redundancias
+        barrio_limpio = barrio.strip() if barrio else ''
+        # Si el barrio contiene el nombre de la ciudad, extraer solo el barrio
+        if ',' in barrio_limpio:
+            barrio_limpio = barrio_limpio.split(',')[0].strip()
     
     # Construir ubicación estandarizada: "Barrio, Ciudad"
     if barrio_limpio and barrio_limpio.lower() != ciudad.lower():
         ubicacion_completa = f"{barrio_limpio}, {ciudad}"
     else:
-        ubicacion_completa = ciudad
+        ubicacion_completa = ciudad if ciudad else 'Desconocida'
     
     titulo = f"{tipo_texto} en {ubicacion_completa}"
     
@@ -426,8 +463,13 @@ def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):
         jobs[job_id]['error'] = f'Webhook error: {str(e)}'
         print(f"[ERROR] Job {job_id[:8]} Webhook exception: {e}")
 
-def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth):
+def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, supabase_url=None):
     """Ejecuta el scraper de pisos.com directamente, enviando página por página"""
+    # Configurar SUPABASE_URL global para que transform_item_pisos pueda usarla
+    if supabase_url:
+        globals()['SUPABASE_URL'] = supabase_url
+        print(f"[PISOS] SUPABASE_URL configurado: {supabase_url}")
+    
     print("=" * 80)
     print(f"[PISOS] Starting scraper - Job {job_id[:8]}")
     print(f"Ubicación: {ubicacion}, Max pages: {max_pages}")
@@ -507,8 +549,13 @@ def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth):
         import traceback
         traceback.print_exc()
 
-def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
+def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth, supabase_url=None):
     """Ejecuta el scraper de Python como subprocess"""
+    # Configurar SUPABASE_URL global para que transform_item pueda usarla
+    if supabase_url:
+        globals()['SUPABASE_URL'] = supabase_url
+        print(f"[SCRAPER] SUPABASE_URL configurado: {supabase_url}")
+    
     print("=" * 80)
     print(f"[SCRAPER] Starting subprocess - Job {job_id[:8]}")
     print(f"Portal: {portal}, Max pages: {max_pages}")
@@ -623,6 +670,7 @@ def scrape():
         max_pages = data.get('max_pages', 50)
         webhook_url = data.get('webhook_url')
         webhook_auth = data.get('webhook_auth')
+        supabase_url = data.get('supabase_url')  # URL de Supabase para llamar a classify-location
         
         if not all([portal, webhook_url, webhook_auth]):
             return jsonify({'error': 'Missing required fields'}), 400
@@ -641,12 +689,12 @@ def scrape():
         if portal == 'pisos':
             thread = Thread(
                 target=run_pisos_scraper,
-                args=(job_id, ubicacion, max_pages, webhook_url, webhook_auth)
+                args=(job_id, ubicacion, max_pages, webhook_url, webhook_auth, supabase_url)
             )
         else:  # fotocasa
             thread = Thread(
                 target=run_scraper_subprocess,
-                args=(job_id, portal, max_pages, webhook_url, webhook_auth)
+                args=(job_id, portal, max_pages, webhook_url, webhook_auth, supabase_url)
             )
         
         thread.daemon = True
