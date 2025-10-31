@@ -160,33 +160,26 @@ function agruparPorCiudadBarrio(propiedades: any[]): Record<string, any[]> {
     const ubicacion = prop.ubicacion || '';
     
     let ciudad = 'Desconocida';
-    let barrio = null;
+    let barrio = 'Centro'; // Por defecto, si no hay barrio específico
     
     // Separar por coma - FORMATO: "Barrio, Ciudad"
     if (ubicacion.includes(',')) {
       const partes = ubicacion.split(',').map((p: string) => p.trim());
-      barrio = partes[0] || null;      // Primera parte = Barrio
+      barrio = partes[0] || 'Centro';      // Primera parte = Barrio
       ciudad = partes[1] || 'Desconocida'; // Segunda parte = Ciudad
       console.log(`Ubicación: "${ubicacion}" -> Ciudad: "${ciudad}", Barrio: "${barrio}"`);
     }
-    // Si no hay separador, toda la ubicación es la ciudad
+    // Si no hay separador, es "Ciudad Centro" o "Capital"
     else {
       ciudad = ubicacion.trim() || 'Desconocida';
-      barrio = null;
-      console.log(`Ubicación sin separador: "${ubicacion}" -> Ciudad: "${ciudad}"`);
+      barrio = 'Centro'; // Asignar Centro por defecto
+      console.log(`Ubicación sin barrio: "${ubicacion}" -> Ciudad: "${ciudad}", Barrio: "Centro" (asignado)`);
     }
 
-    // Agrupar por ciudad+barrio específico
-    if (barrio) {
-      const key = `${ciudad}|${barrio}`;
-      if (!grupos[key]) grupos[key] = [];
-      grupos[key].push(prop);
-    }
-
-    // Agrupar por ciudad (agregado total) - siempre
-    const keyCiudad = `${ciudad}|`;
-    if (!grupos[keyCiudad]) grupos[keyCiudad] = [];
-    grupos[keyCiudad].push(prop);
+    // Agrupar SIEMPRE por ciudad|barrio (sin duplicados)
+    const key = `${ciudad}|${barrio}`;
+    if (!grupos[key]) grupos[key] = [];
+    grupos[key].push(prop);
   }
 
   console.log(`Grupos creados: ${Object.keys(grupos).length}`);
