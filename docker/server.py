@@ -54,7 +54,7 @@ def transform_item_pisos(item):
     
     if 'apartment' in property_type or 'piso' in property_type:
         tipo_mapeado = 'piso'
-    elif 'house' in property_type or 'chalet' in property_type or 'villa' in property_type:
+    elif 'house' in property_type or 'chalet' in property_type or 'villa' in property_type or 'singlefamily' in property_type:
         tipo_mapeado = 'chalet'
     elif 'penthouse' in property_type or 'ático' in property_type:
         tipo_mapeado = 'ático'
@@ -68,7 +68,7 @@ def transform_item_pisos(item):
         desc = (item.get('description') or '').lower()
         texto = f"{titulo} {desc}"
         
-        if 'chalet' in texto or 'villa' in texto or 'casa' in texto:
+        if 'chalet' in texto or 'villa' in texto or 'casa independiente' in texto:
             tipo_mapeado = 'chalet'
         elif 'ático' in texto or 'atico' in texto or 'penthouse' in texto:
             tipo_mapeado = 'ático'
@@ -128,17 +128,24 @@ def transform_item_pisos(item):
     if tiene_parking is not None:
         tiene_parking = bool(tiene_parking)
     
-    # Imágenes - pueden venir en varios formatos
-    imagenes = []
-    if isinstance(item.get('imagenes'), list):
+    # Condition - usar de extras si está disponible, sino energy_certificate
+    extras = item.get('extras', {})
+    condition = extras.get('condition') or item.get('energy_certificate')
+    
+    # Imágenes - usar image_urls si está disponible
+    imagenes = item.get('image_urls', [])
+    if not imagenes and isinstance(item.get('imagenes'), list):
         imagenes = item.get('imagenes', [])
     
-    # Título construido
-    titulo = item.get('title') or f"{tipo_texto} en {ubicacion_completa}"
+    # Título construido o usar el original
+    titulo = item.get('title')
+    if not titulo:
+        titulo = f"{tipo_texto} en {ubicacion_completa}"
     
     # Fecha de scraping
-    fecha_scraping = datetime.now(timezone.utc).isoformat()
+    fecha_scraping = item.get('scraped_at') or datetime.now(timezone.utc).isoformat()
     
+    # Construir objeto completo con todos los campos
     return {
         'external_id': f"pisos-{item.get('id', uuid.uuid4())}",
         'portal_origen': 'pisos',
@@ -151,14 +158,32 @@ def transform_item_pisos(item):
         'dormitorios': rooms,
         'banos': baths,
         'metros': metros,
-        'condition': item.get('energy_certificate'),  # Usar certificación energética como condition
+        'condition': condition,
         'ano_construccion': ano_construccion,
         'tiene_ascensor': tiene_ascensor,
         'tiene_parking': tiene_parking,
         'url': item.get('url'),
-        'imagenes': imagenes[:10] if imagenes else [],
+        'imagenes': imagenes[:10] if imagenes else [],  # Limitar a 10 para BD
         'fecha_scraping': fecha_scraping,
         'fecha_publicacion': None,
+        
+        # Campos adicionales que no están en la BD pero guardamos en el log
+        '_extra_data': {
+            'operation': item.get('operation'),
+            'features': item.get('features', []),
+            'photo_count': item.get('photo_count', 0),
+            'address': item.get('address'),
+            'neighborhood': neighborhood,
+            'province': provincia,
+            'postal_code': item.get('postal_code'),
+            'latitude': item.get('latitude'),
+            'longitude': item.get('longitude'),
+            'energy_certificate': item.get('energy_certificate'),
+            'advertiser': item.get('advertiser', {}),
+            'extras': extras,
+            'floor': item.get('floor'),
+            'price_currency': item.get('price_currency', 'EUR'),
+        }
     }
 
 def transform_item(item):
