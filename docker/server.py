@@ -58,102 +58,48 @@ def transform_item_pisos(item):
     ]
     
     # Extraer datos del scraper
-    municipality = item.get('municipality', '')
-    neighborhood = item.get('neighborhood', '')
-    provincia_raw = item.get('province', '')
     titulo = item.get('title', '')
     descripcion = item.get('description', '')
     
-    # Variables de ubicación
+    # Variables de ubicación (fallback de datos del scraper)
     provincia = None
     ciudad = None
-    barrio_limpio = None
+    barrio_limpio = ''
     
-    # PATRÓN PRIORITARIO: Buscar patrón "Barrio (Distrito. Ciudad)" en título
-    # Ejemplos: "Universidad-Malasaña (Distrito Centro. Madrid Capital)"
-    #           "Chamberí (Madrid Capital)"
-    ubicacion_match = re.search(r'([A-ZÁÉÍÓÚÑ][\wáéíóúñ\s-]+?)\s*\(((?:Distrito\s+)?[A-Za-zÁÉÍÓÚáéíóúñ\s]+?)[\.\,]?\s*([A-Za-zÁÉÍÓÚáéíóúñ\s]+?)\s*\)', titulo)
+    # Intentar clasificar con IA
+    try:
+        webhook_url_base = os.environ.get('SUPABASE_URL', '')
+        if webhook_url_base:
+            classify_url = f"{webhook_url_base}/functions/v1/classify-location"
+            
+            classify_response = requests.post(
+                classify_url,
+                json={'titulo': titulo, 'descripcion': descripcion or ''},
+                headers={'Content-Type': 'application/json'},
+                timeout=10
+            )
+            
+            if classify_response.status_code == 200:
+                location_data = classify_response.json()
+                provincia = location_data.get('provincia')
+                ciudad = location_data.get('ciudad')
+                barrio_limpio = location_data.get('barrio', '')
+                print(f"[IA] Clasificado: {provincia} / {ciudad} / {barrio_limpio}")
+            else:
+                print(f"[IA] Error {classify_response.status_code}: {classify_response.text}")
+    except Exception as e:
+        print(f"[IA] Excepción al clasificar: {e}")
     
-    if not ubicacion_match:
-        # Patrón alternativo: "Barrio (Ciudad)" sin distrito
-        ubicacion_match = re.search(r'([A-ZÁÉÍÓÚÑ][\wáéíóúñ\s-]+?)\s*\(([A-Za-zÁÉÍÓÚáéíóúñ\s]+?)\s*\)', titulo)
-    
-    if ubicacion_match:
-        # Extraer componentes
-        if len(ubicacion_match.groups()) == 3:
-            barrio_candidato = ubicacion_match.group(1).strip()
-            distrito = ubicacion_match.group(2).strip()
-            ciudad_candidata = ubicacion_match.group(3).strip()
-        else:
-            barrio_candidato = ubicacion_match.group(1).strip()
-            ciudad_candidata = ubicacion_match.group(2).strip()
+    # Fallback: usar datos del scraper si IA falló
+    if not provincia or provincia == 'Desconocida':
+        municipality = item.get('municipality', '')
+        neighborhood = item.get('neighborhood', '')
+        provincia_raw = item.get('province', '')
         
-        # Procesar ciudad
-        if 'Madrid' in ciudad_candidata:
-            provincia = 'Madrid'
-            ciudad = 'Madrid'
-            
-            # Limpiar barrio (puede ser compuesto: "Universidad-Malasaña")
-            # Verificar si contiene barrios conocidos
-            barrio_encontrado = None
-            for barrio in barriosMadrid:
-                if barrio.lower() in barrio_candidato.lower():
-                    barrio_encontrado = barrio
-                    break
-            
-            # Si encontramos un barrio conocido, usar ese; sino usar el candidato completo
-            barrio_limpio = barrio_encontrado if barrio_encontrado else barrio_candidato
-            
-        else:
-            # Podría ser otra ciudad
-            provincia = ciudad_candidata
-            ciudad = ciudad_candidata
-            barrio_limpio = barrio_candidato
-    
-    # Si no encontramos con el patrón, usar los datos del scraper
-    if not provincia:
-        provincia = provincia_raw.strip() if provincia_raw else ''
-    
-    if not ciudad:
+        provincia = provincia_raw.strip() if provincia_raw else 'Desconocida'
         ciudad = municipality.strip() if municipality else provincia
         ciudad = ciudad.replace(' Capital', '').replace(' capital', '').strip()
-    
-    if not barrio_limpio:
         barrio_limpio = neighborhood.strip() if neighborhood else ''
-    
-    # Si aún no tenemos provincia, intentar inferir del texto completo
-    if not provincia or provincia.lower() == 'desconocida':
-        texto_completo = (titulo + ' ' + (descripcion or '')).lower()
-        
-        # Buscar indicios de Madrid
-        if 'madrid' in texto_completo or any(b.lower() in texto_completo for b in barriosMadrid + municipiosMadrid):
-            provincia = 'Madrid'
-        elif 'murcia' in texto_completo:
-            provincia = 'Murcia'
-        elif ciudad:
-            provincia = ciudad
-        else:
-            provincia = 'Desconocida'
-    
-    # Si provincia es Madrid y no tenemos barrio, buscar en el texto
-    if provincia == 'Madrid' and not barrio_limpio:
-        texto_completo = (titulo + ' ' + (descripcion or '')).lower()
-        
-        # Buscar barrios de Madrid
-        for barrio in barriosMadrid:
-            if barrio.lower() in texto_completo:
-                barrio_limpio = barrio
-                if not ciudad or ciudad == 'Madrid Capital':
-                    ciudad = 'Madrid'
-                break
-        
-        # Si no encontramos barrio, buscar municipios
-        if not barrio_limpio:
-            for municipio in municipiosMadrid:
-                if municipio.lower() in texto_completo:
-                    barrio_limpio = ''
-                    ciudad = municipio
-                    break
     
     # Construir ubicación completa estandarizada: "Barrio, Ciudad"
     if barrio_limpio and barrio_limpio.lower() != ciudad.lower():

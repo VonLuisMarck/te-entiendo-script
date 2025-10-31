@@ -3,6 +3,9 @@ project_id = "mtjomlpwpiuhflwmgctk"
 [functions.calculate-metrics]
 verify_jwt = false
 
+[functions.classify-location]
+verify_jwt = false
+
 [functions.generate-fake-data]
 verify_jwt = false
 
