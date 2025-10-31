@@ -37,19 +37,51 @@ def transform_item_pisos(item):
     """Transforma item del scraper de pisos.com al formato del backend"""
     from datetime import datetime, timezone
     
-    # Extraer ubicación
+    # Listas de referencia para Madrid
+    barriosMadrid = [
+        'Chamberí', 'Salamanca', 'Retiro', 'Arganzuela', 'Chamartín',
+        'Tetuán', 'Moncloa', 'Aravaca', 'Centro', 'Latina', 'Carabanchel',
+        'Usera', 'Puente de Vallecas', 'Moratalaz', 'Ciudad Lineal',
+        'Hortaleza', 'Villaverde', 'Villa de Vallecas', 'Vicálvaro',
+        'San Blas', 'Canillejas', 'Barajas', 'Fuencarral', 'El Pardo'
+    ]
+    
+    municipiosMadrid = [
+        'Alcalá de Henares', 'Alcobendas', 'Alcorcón', 'Aranjuez', 'Arganda',
+        'Collado Villalba', 'Coslada', 'Fuenlabrada', 'Getafe', 'Leganés',
+        'Majadahonda', 'Móstoles', 'Parla', 'Pinto', 'Pozuelo', 'Pozuelo de Alarcón',
+        'Rivas-Vaciamadrid', 'Rivas', 'San Fernando de Henares', 'San Sebastián de los Reyes',
+        'Torrejón de Ardoz', 'Torrejón', 'Tres Cantos', 'Valdemoro', 'Las Rozas'
+    ]
+    
+    # Extraer ubicación del scraper
     municipality = item.get('municipality', '')
     neighborhood = item.get('neighborhood', '')
     provincia_raw = item.get('province', '')
+    titulo = item.get('title', '')
     
-    # Normalizar provincia (Madrid, Murcia, etc.)
+    # Determinar provincia
     provincia = provincia_raw.strip()
-    if not provincia:
-        # Intentar inferir de municipality
-        if 'Madrid' in municipality:
+    
+    # Si no viene provincia, intentar inferir del título o datos
+    if not provincia or provincia.lower() == 'desconocida':
+        titulo_lower = titulo.lower()
+        
+        # Buscar indicios de Madrid
+        if any(b.lower() in titulo_lower for b in barriosMadrid + municipiosMadrid):
             provincia = 'Madrid'
-        elif 'Murcia' in municipality:
+        elif 'madrid' in titulo_lower:
+            provincia = 'Madrid'
+        elif 'murcia' in titulo_lower:
             provincia = 'Murcia'
+        elif municipality:
+            # Usar municipality como pista
+            if 'Madrid' in municipality:
+                provincia = 'Madrid'
+            elif 'Murcia' in municipality:
+                provincia = 'Murcia'
+            else:
+                provincia = municipality
         else:
             provincia = 'Desconocida'
     
@@ -58,6 +90,25 @@ def transform_item_pisos(item):
     
     # Limpiar barrio
     barrio_limpio = neighborhood.strip() if neighborhood else ''
+    
+    # Si no tenemos barrio pero tenemos provincia Madrid, intentar extraer del título
+    if not barrio_limpio and provincia == 'Madrid':
+        titulo_lower = titulo.lower()
+        
+        # Buscar barrios de Madrid
+        for barrio in barriosMadrid:
+            if barrio.lower() in titulo_lower:
+                barrio_limpio = barrio
+                ciudad = 'Madrid'
+                break
+        
+        # Si no encontramos barrio, buscar municipios
+        if not barrio_limpio:
+            for municipio in municipiosMadrid:
+                if municipio.lower() in titulo_lower:
+                    barrio_limpio = ''  # Los municipios no tienen barrio
+                    ciudad = municipio
+                    break
     
     # Construir ubicación completa estandarizada: "Barrio, Ciudad"
     if barrio_limpio and barrio_limpio.lower() != ciudad.lower():
