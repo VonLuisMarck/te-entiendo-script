@@ -33,7 +33,7 @@ serve(async (req) => {
       .from('propiedades')
       .select('*')
       .eq('activo', true)
-      .not('precio_m2', 'is', null) // Solo con precio_m2 calculado
+      .not('precio_m2', 'is', null)
       .not('ubicacion', 'is', null);
 
     if (ciudad && !recalcular_todo) {
@@ -50,21 +50,22 @@ serve(async (req) => {
       );
     }
 
-    // Agrupar por ciudad y barrio
-    const grupos = agruparPorCiudadBarrio(propiedades);
+    // Agrupar por provincia, ciudad y barrio
+    const grupos = agruparPorProvinciaBarrio(propiedades);
     
     let metricasActualizadas = 0;
 
     for (const [key, props] of Object.entries(grupos)) {
-      const [ciudad, barrio] = key.split('|');
-      const metricas = calcularMetricas(props);
+      const [provincia, ciudad, barrio] = key.split('|');
+      const metricas = calcularMetricas(props as any[]);
 
       // Obtener métrica existente para calcular proyección
       const { data: metricaExistente } = await supabase
         .from('metricas_barrios')
         .select('id, precio_m2_medio, created_at')
-        .eq('ciudad', ciudad)
-        .eq('barrio', barrio || null)
+        .eq('provincia', provincia || '')
+        .eq('ciudad', ciudad || '')
+        .eq('barrio', barrio || '')
         .maybeSingle();
 
       let proyeccionRevalorizacion = null;
@@ -75,7 +76,8 @@ serve(async (req) => {
         // Guardar snapshot histórico ANTES de actualizar
         await supabase.from('metricas_barrios_historico').insert({
           metrica_id: metricaExistente.id,
-          ciudad,
+          provincia: provincia || null,
+          ciudad: ciudad || null,
           barrio: barrio || null,
           precio_medio: metricaExistente.precio_m2_medio,
           precio_m2_medio: metricaExistente.precio_m2_medio,
@@ -88,30 +90,28 @@ serve(async (req) => {
           .select('precio_m2_medio, fecha_snapshot')
           .eq('metrica_id', metricaExistente.id)
           .order('fecha_snapshot', { ascending: false })
-          .limit(6); // Últimos 6 meses
+          .limit(6);
 
         if (historico && historico.length >= 3) {
-          // Calcular proyección real con datos históricos
           proyeccionRevalorizacion = calcularProyeccionRevalorizacion(historico);
           mesesDatosHistoricos = historico.length;
         }
       }
 
-      // Calcular índice de dinamismo temporal (siempre)
-      indiceDinamismo = calcularIndiceDinamismo(props);
+      // Calcular índice de dinamismo temporal
+      indiceDinamismo = calcularIndiceDinamismo(props as any[]);
 
-      // Upsert de métricas con proyección
+      // Upsert de métricas con provincia
       const { error: upsertError } = await supabase
         .from('metricas_barrios')
         .upsert({
-          ciudad,
+          provincia: provincia || null,
+          ciudad: ciudad || null,
           barrio: barrio || null,
           ...metricas,
           proyeccion_revalorizacion_anual: proyeccionRevalorizacion,
           indice_dinamismo: indiceDinamismo,
           meses_datos_historicos: mesesDatosHistoricos,
-        }, {
-          onConflict: 'ciudad,barrio'
         });
 
       if (upsertError) {
@@ -152,7 +152,7 @@ serve(async (req) => {
   }
 });
 
-function agruparPorCiudadBarrio(propiedades: any[]): Record<string, any[]> {
+function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
   const grupos: Record<string, any[]> = {};
 
   // Barrios conocidos de Murcia capital
@@ -164,8 +164,8 @@ function agruparPorCiudadBarrio(propiedades: any[]): Record<string, any[]> {
     'Santa María de Gracia', 'Vistabella', 'Barriomar'
   ];
 
-  // Municipios/pueblos de la provincia de Murcia
-  const municipiosProvincia = [
+  // Municipios de la provincia de Murcia (son ciudades)
+  const municipiosMurcia = [
     'Calabardina', 'Santiago de La Ribera', 'San Javier', 'Los Alcázares',
     'Águilas', 'Cartagena', 'Lorca', 'Mazarrón', 'Torre Pacheco',
     'La Manga', 'San Pedro del Pinatar', 'Cabo de Palos'
@@ -175,53 +175,61 @@ function agruparPorCiudadBarrio(propiedades: any[]): Record<string, any[]> {
     const ubicacion = prop.ubicacion || '';
     const titulo = prop.titulo || '';
     
-    let ciudad = 'Desconocida';
-    let barrio = null;
+    let provincia = '';
+    let ciudad = '';
+    let barrio = '';
     
     // CASO 1: Formato "Barrio, Ciudad" (típico de Fotocasa)
     if (ubicacion.includes(',')) {
       const partes = ubicacion.split(',').map((p: string) => p.trim());
       barrio = partes[0];
-      ciudad = partes[1] || 'Desconocida';
-      console.log(`✓ Formato completo: "${ubicacion}" -> ${ciudad} | ${barrio}`);
+      ciudad = partes[1];
+      provincia = ciudad; // Por ahora provincia = ciudad
+      console.log(`✓ Completo: "${ubicacion}" -> Prov: ${provincia}, Ciudad: ${ciudad}, Barrio: ${barrio}`);
     }
-    // CASO 2: Solo ciudad (típico de Pisos.com)
+    // CASO 2: Solo ubicación genérica (típico de Pisos.com)
     else {
-      ciudad = ubicacion.trim() || 'Desconocida';
+      const ubicacionLimpia = ubicacion.trim();
+      provincia = ubicacionLimpia || 'Desconocida';
       
-      // Intentar extraer barrio del título
-      if (ciudad === 'Murcia') {
-        // Buscar barrios conocidos en el título
+      // Para Murcia, intentar extraer barrio/ciudad del título
+      if (provincia === 'Murcia') {
+        // 1. Buscar barrios de Murcia capital
         const barrioEncontrado = barriosMurciaCapital.find(b => 
           titulo.toLowerCase().includes(b.toLowerCase())
         );
         
         if (barrioEncontrado) {
+          ciudad = 'Murcia';
           barrio = barrioEncontrado;
-          console.log(`✓ Barrio extraído del título: "${titulo}" -> ${ciudad} | ${barrio}`);
+          console.log(`✓ Barrio de capital: "${titulo}" -> Prov: Murcia, Ciudad: Murcia, Barrio: ${barrio}`);
         } else {
-          // Buscar si es un municipio de la provincia
-          const municipioEncontrado = municipiosProvincia.find(m => 
+          // 2. Buscar municipios de la provincia
+          const municipioEncontrado = municipiosMurcia.find(m => 
             titulo.toLowerCase().includes(m.toLowerCase())
           );
           
           if (municipioEncontrado) {
-            barrio = municipioEncontrado;
-            console.log(`✓ Municipio extraído: "${titulo}" -> ${ciudad} | ${barrio}`);
+            ciudad = municipioEncontrado;
+            barrio = ''; // El municipio es la ciudad, no hay barrio específico
+            console.log(`✓ Municipio: "${titulo}" -> Prov: Murcia, Ciudad: ${ciudad}`);
           } else {
-            // No podemos determinar el barrio específico
-            barrio = 'Provincia';
-            console.log(`⚠ Sin barrio específico: "${titulo}" -> ${ciudad} | Provincia`);
+            // 3. No se puede determinar - dejar como provincia sin detalles
+            ciudad = '';
+            barrio = '';
+            console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Murcia`);
           }
         }
       } else {
-        // Para otras ciudades, usar el nombre de la ciudad como barrio
-        barrio = ciudad;
+        // Otras provincias: si no hay coma, no tenemos detalles
+        ciudad = '';
+        barrio = '';
+        console.log(`⚠ Provincia genérica: "${ubicacion}"`);
       }
     }
 
-    // Agrupar por ciudad|barrio
-    const key = `${ciudad}|${barrio}`;
+    // Clave única: provincia|ciudad|barrio
+    const key = `${provincia}|${ciudad}|${barrio}`;
     if (!grupos[key]) grupos[key] = [];
     grupos[key].push(prop);
   }
@@ -274,7 +282,7 @@ function calcularMetricas(propiedades: any[]) {
     total_chalets: chalets.length,
     total_otros: otros.length,
 
-    // Tendencia (por ahora estable, se puede mejorar comparando con datos históricos)
+    // Tendencia
     tendencia: 'estable',
     variacion_mensual: null,
   };
@@ -286,11 +294,9 @@ function avg(arr: number[]): number | null {
   return Math.round(sum / arr.length);
 }
 
-// Calcula proyección de revalorización anual en % basada en datos históricos
 function calcularProyeccionRevalorizacion(historico: any[]): number | null {
   if (historico.length < 3) return null;
 
-  // Calcular tasa de crecimiento mensual promedio
   let sumaVariaciones = 0;
   let countVariaciones = 0;
 
@@ -307,25 +313,21 @@ function calcularProyeccionRevalorizacion(historico: any[]): number | null {
 
   if (countVariaciones === 0) return null;
 
-  // Promedio de variación mensual → Proyección anual
   const variacionMensualPromedio = sumaVariaciones / countVariaciones;
   const proyeccionAnual = variacionMensualPromedio * 12;
 
-  return Math.round(proyeccionAnual * 10) / 10; // Redondear a 1 decimal
+  return Math.round(proyeccionAnual * 10) / 10;
 }
 
-// Calcula índice de dinamismo 0-100 basado en actividad del mercado
 function calcularIndiceDinamismo(propiedades: any[]): number {
-  let score = 50; // Base neutral
+  let score = 50;
 
-  // Factor 1: Volumen de propiedades (más = más dinámico)
   const volumen = propiedades.length;
   if (volumen >= 50) score += 20;
   else if (volumen >= 30) score += 15;
   else if (volumen >= 15) score += 10;
   else if (volumen < 5) score -= 10;
 
-  // Factor 2: Propiedades nuevas recientes (últimos 30 días)
   const ahora = new Date();
   const hace30Dias = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
   const nuevasRecientes = propiedades.filter(p => {
@@ -339,12 +341,10 @@ function calcularIndiceDinamismo(propiedades: any[]): number {
   else if (ratioNuevas >= 15) score += 5;
   else if (ratioNuevas < 5) score -= 5;
 
-  // Factor 3: Diversidad de tipos de propiedad (más = más dinámico)
   const tiposUnicos = new Set(propiedades.map(p => p.tipo_propiedad)).size;
   if (tiposUnicos >= 4) score += 10;
   else if (tiposUnicos >= 3) score += 5;
 
-  // Factor 4: Dispersión de precios (más variedad = más dinámico)
   const precios = propiedades.map(p => p.precio_m2).filter(p => p > 0);
   if (precios.length >= 5) {
     const precioMin = Math.min(...precios);
@@ -355,5 +355,5 @@ function calcularIndiceDinamismo(propiedades: any[]): number {
     else if (dispersion >= 25) score += 3;
   }
 
-  return Math.min(100, Math.max(0, score)); // Limitar 0-100
+  return Math.min(100, Math.max(0, score));
 }

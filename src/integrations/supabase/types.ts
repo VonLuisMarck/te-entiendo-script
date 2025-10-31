@@ -274,6 +274,7 @@ export type Database = {
           precio_medio: number | null
           precio_medio_chalet: number | null
           precio_medio_piso: number | null
+          provincia: string
           proyeccion_revalorizacion_anual: number | null
           tendencia: string | null
           total_chalets: number | null
@@ -303,6 +304,7 @@ export type Database = {
           precio_medio?: number | null
           precio_medio_chalet?: number | null
           precio_medio_piso?: number | null
+          provincia: string
           proyeccion_revalorizacion_anual?: number | null
           tendencia?: string | null
           total_chalets?: number | null
@@ -332,6 +334,7 @@ export type Database = {
           precio_medio?: number | null
           precio_medio_chalet?: number | null
           precio_medio_piso?: number | null
+          provincia?: string
           proyeccion_revalorizacion_anual?: number | null
           tendencia?: string | null
           total_chalets?: number | null
@@ -353,6 +356,7 @@ export type Database = {
           metrica_id: string
           precio_m2_medio: number | null
           precio_medio: number | null
+          provincia: string | null
           total_propiedades: number | null
         }
         Insert: {
@@ -364,6 +368,7 @@ export type Database = {
           metrica_id: string
           precio_m2_medio?: number | null
           precio_medio?: number | null
+          provincia?: string | null
           total_propiedades?: number | null
         }
         Update: {
@@ -375,6 +380,7 @@ export type Database = {
           metrica_id?: string
           precio_m2_medio?: number | null
           precio_medio?: number | null
+          provincia?: string | null
           total_propiedades?: number | null
         }
         Relationships: [
