@@ -42,11 +42,17 @@ def transform_item_pisos(item):
     neighborhood = item.get('neighborhood', '')
     provincia = item.get('province', 'Murcia')
     
-    # Construir ubicación completa
-    if neighborhood and neighborhood.lower() != municipality.lower():
-        ubicacion_completa = f"{neighborhood}, {municipality}"
+    # Normalizar ciudad (quitar "Capital" y similares)
+    ciudad = municipality.replace(' Capital', '').replace(' capital', '').strip() if municipality else provincia
+    
+    # Limpiar barrio
+    barrio_limpio = neighborhood.strip() if neighborhood else ''
+    
+    # Construir ubicación completa estandarizada: "Barrio, Ciudad"
+    if barrio_limpio and barrio_limpio.lower() != ciudad.lower():
+        ubicacion_completa = f"{barrio_limpio}, {ciudad}"
     else:
-        ubicacion_completa = municipality or provincia
+        ubicacion_completa = ciudad
     
     # Mapear tipo de propiedad
     property_type = (item.get('property_type') or '').lower()
@@ -284,13 +290,22 @@ def transform_item(item):
     from datetime import datetime, timezone
     fecha_scraping = datetime.now(timezone.utc).isoformat()
     
-    # Construir ubicación completa con provincia
+    # Construir ubicación completa con provincia - NORMALIZADO
     barrio = zone or location.get('level8Name') or ''
-    ciudad = location.get('level5Name', 'Murcia')
+    ciudad_raw = location.get('level5Name', 'Murcia')
     
-    # Construir ubicación: Si hay barrio, "Barrio, Ciudad", sino solo "Ciudad"
-    if barrio and barrio.lower() != ciudad.lower():
-        ubicacion_completa = f"{barrio}, {ciudad}"
+    # Normalizar ciudad (quitar "Capital" y espacios extra)
+    ciudad = ciudad_raw.replace(' Capital', '').replace(' capital', '').strip()
+    
+    # Limpiar barrio y eliminar redundancias
+    barrio_limpio = barrio.strip() if barrio else ''
+    # Si el barrio contiene el nombre de la ciudad, extraer solo el barrio
+    if ',' in barrio_limpio:
+        barrio_limpio = barrio_limpio.split(',')[0].strip()
+    
+    # Construir ubicación estandarizada: "Barrio, Ciudad"
+    if barrio_limpio and barrio_limpio.lower() != ciudad.lower():
+        ubicacion_completa = f"{barrio_limpio}, {ciudad}"
     else:
         ubicacion_completa = ciudad
     
