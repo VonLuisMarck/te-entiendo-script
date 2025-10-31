@@ -61,7 +61,11 @@ def transform_item_pisos(item):
     titulo = item.get('title', '')
     descripcion = item.get('description', '')
     
-    # Variables de ubicación (fallback de datos del scraper)
+    # Variables de ubicación (fallback de datos del scraper) - Inicializar SIEMPRE
+    municipality = item.get('municipality', '')
+    neighborhood = item.get('neighborhood', '')
+    provincia_raw = item.get('province', '')
+    
     provincia = None
     ciudad = None
     barrio_limpio = ''
@@ -100,10 +104,6 @@ def transform_item_pisos(item):
     
     # Fallback: usar datos del scraper si IA falló
     if not provincia or provincia == 'Desconocida':
-        municipality = item.get('municipality', '')
-        neighborhood = item.get('neighborhood', '')
-        provincia_raw = item.get('province', '')
-        
         provincia = provincia_raw.strip() if provincia_raw else 'Desconocida'
         ciudad = municipality.strip() if municipality else provincia
         ciudad = ciudad.replace(' Capital', '').replace(' capital', '').strip()
