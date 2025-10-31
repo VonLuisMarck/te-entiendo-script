@@ -63,7 +63,8 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         .from('clientes')
         .select('tipo_suscripcion')
         .eq('user_id', session.user.id)
-        .single();
+        .limit(1)
+        .maybeSingle();
 
       if (clienteError || !clienteData) {
         setSubscribed(false);
