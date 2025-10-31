@@ -362,16 +362,28 @@ def scrape_listings(session: Session, start_url: str, max_pages: int, delay: flo
 
     while next_url and page <= max_pages:
         logger.info(f"[pisos] Página {page}: {next_url}")
-        resp = session.get(next_url, timeout=timeout)
-        resp.raise_for_status()
+        print(f"[DEBUG] Fetching page {page}: {next_url}", flush=True)
+        
+        try:
+            resp = session.get(next_url, timeout=timeout)
+            print(f"[DEBUG] Got response: {resp.status_code}", flush=True)
+            resp.raise_for_status()
+        except Exception as e:
+            print(f"[ERROR] Request failed: {e}", flush=True)
+            logger.error(f"[pisos] Error fetching page {page}: {e}")
+            raise
+        
         html = resp.text
+        print(f"[DEBUG] HTML length: {len(html)}", flush=True)
 
         detail_urls = parse_listing_cards(html, next_url)
         logger.info(f"[pisos] Detectados {len(detail_urls)} enlaces de ficha en la página {page}.")
+        print(f"[DEBUG] Found {len(detail_urls)} detail URLs", flush=True)
         
         # Acumular propiedades de esta página
         page_items = []
-        for du in detail_urls:
+        for idx, du in enumerate(detail_urls, 1):
+            print(f"[DEBUG] Processing property {idx}/{len(detail_urls)}", flush=True)
             if du in seen_detail_urls:
                 continue
             seen_detail_urls.add(du)

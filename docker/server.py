@@ -400,10 +400,14 @@ def run_pisos_scraper(job_id, max_pages, webhook_url, webhook_auth):
         start_url = "https://www.pisos.com/venta/pisos-murcia/"
         
         print(f"[PISOS] URL: {start_url}")
+        print(f"[PISOS] Starting scraping loop...", flush=True)
         
         # Ejecutar scraper - ahora recibe páginas completas
         total_propiedades = 0
-        for page_items in scrape_pisos(session, start_url, max_pages, delay=1.5, timeout=20, logger=logger):
+        page_count = 0
+        for page_items in scrape_pisos(session, start_url, max_pages, delay=1.5, timeout=15, logger=logger):
+            page_count += 1
+            print(f"[PISOS] Received page {page_count} with {len(page_items)} items", flush=True)
             # Transformar propiedades de esta página
             propiedades_pagina = []
             for item in page_items:
