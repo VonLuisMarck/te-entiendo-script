@@ -207,7 +207,8 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
   const { data: existingProperties, error: fetchError } = await supabase
     .from("propiedades")
     .select("external_id")
-    .eq("portal_origen", portal);
+    .eq("portal_origen", portal)
+    .range(0, 99999); // Sin límite práctico para obtener todos los IDs
 
   if (fetchError) {
     console.error('[Trigger] Error obteniendo propiedades existentes:', fetchError);
