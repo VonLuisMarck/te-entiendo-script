@@ -11,7 +11,7 @@ const ScrapingRequestSchema = z.object({
   portal: z.string().min(1).max(50),
   ubicacion: z.string().min(1).max(200).optional(),
   tipo_propiedad: z.string().min(1).max(50).optional(),
-  max_pages: z.number().int().min(1).optional(),  // Opcional, sin límite por defecto
+  max_pages: z.number().int().min(1).nullish(),  // Acepta null, undefined o número
 });
 
 const PropiedadSchema = z.object({
