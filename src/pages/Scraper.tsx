@@ -29,7 +29,8 @@ const Scraper = () => {
   const [generatingFake, setGeneratingFake] = useState(false);
   const [formData, setFormData] = useState({
     portal: "fotocasa",
-    ubicacion: "murcia"
+    ubicacion: "murcia",
+    maxPages: null as number | null  // null = sin límite
   });
   const navigate = useNavigate();
 
@@ -67,7 +68,11 @@ const Scraper = () => {
     
     try {
       const { data, error } = await supabase.functions.invoke('scraping-service', {
-        body: formData
+        body: {
+          portal: formData.portal,
+          ubicacion: formData.ubicacion,
+          max_pages: formData.maxPages  // null = sin límite
+        }
       });
 
       if (error) throw error;
@@ -183,6 +188,24 @@ const Scraper = () => {
                         <SelectItem value="malaga">Málaga</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="maxPages">Límite de páginas</Label>
+                    <Input
+                      id="maxPages"
+                      type="number"
+                      placeholder="Sin límite (dejar vacío)"
+                      value={formData.maxPages || ''}
+                      onChange={(e) => setFormData({ 
+                        ...formData, 
+                        maxPages: e.target.value ? parseInt(e.target.value) : null 
+                      })}
+                      min="1"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Dejar vacío para scraper todas las páginas disponibles. Solo descarga propiedades nuevas (incremental).
+                    </p>
                   </div>
 
                   <Button type="submit" className="w-full" disabled={scraping}>

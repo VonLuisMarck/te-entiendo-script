@@ -470,16 +470,20 @@ def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):
         jobs[job_id]['error'] = f'Webhook error: {str(e)}'
         print(f"[ERROR] Job {job_id[:8]} Webhook exception: {e}")
 
-def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, supabase_url=None):
+def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, supabase_url=None, existing_ids=None):
     """Ejecuta el scraper de pisos.com directamente, enviando página por página"""
     # Configurar SUPABASE_URL global para que transform_item_pisos pueda usarla
     if supabase_url:
         globals()['SUPABASE_URL'] = supabase_url
         print(f"[PISOS] SUPABASE_URL configurado: {supabase_url}")
     
+    # Convertir existing_ids a set para búsqueda O(1)
+    existing_ids_set = set(existing_ids) if existing_ids else set()
+    print(f"[PISOS] Loaded {len(existing_ids_set)} existing property IDs for incremental scraping")
+    
     print("=" * 80)
     print(f"[PISOS] Starting scraper - Job {job_id[:8]}")
-    print(f"Ubicación: {ubicacion}, Max pages: {max_pages}")
+    print(f"Ubicación: {ubicacion}, Max pages: {max_pages if max_pages else 'UNLIMITED'}")
     print("=" * 80)
     
     try:
@@ -522,32 +526,46 @@ def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, s
         
         # Ejecutar scraper - ahora recibe páginas completas
         total_propiedades = 0
+        nuevas_propiedades = 0
+        duplicadas_propiedades = 0
         page_count = 0
         for page_items in scrape_pisos(session, start_url, max_pages, delay=1.5, timeout=15, logger=logger):
             page_count += 1
             print(f"[PISOS] Received page {page_count} with {len(page_items)} items", flush=True)
-            # Transformar propiedades de esta página
+            
+            # Transformar propiedades de esta página, filtrando duplicados
             propiedades_pagina = []
             for item in page_items:
                 try:
                     prop = transform_item_pisos(item)
+                    external_id = prop.get('external_id')
+                    
+                    # Verificar si ya existe
+                    if external_id in existing_ids_set:
+                        duplicadas_propiedades += 1
+                        continue
+                    
                     propiedades_pagina.append(prop)
+                    existing_ids_set.add(external_id)  # Añadir para evitar duplicados en la misma sesión
                     print(f"[PISOS] Property scraped: {prop.get('titulo', 'No title')[:50]}...")
                 except Exception as e:
                     print(f"[WARN] Error transforming item: {e}")
             
-            # Enviar esta página inmediatamente
+            # Enviar esta página inmediatamente (solo propiedades nuevas)
             if propiedades_pagina:
-                print(f"[PISOS] Sending page with {len(propiedades_pagina)} properties to webhook...")
+                print(f"[PISOS] Sending page with {len(propiedades_pagina)} NEW properties to webhook...")
                 send_to_webhook(job_id, 'pisos', propiedades_pagina, webhook_url, webhook_auth)
+                nuevas_propiedades += len(propiedades_pagina)
                 total_propiedades += len(propiedades_pagina)
-                print(f"[PISOS] Page sent. Total so far: {total_propiedades}")
+                print(f"[PISOS] Page sent. New: {len(propiedades_pagina)}, Total new: {nuevas_propiedades}, Duplicates skipped: {duplicadas_propiedades}")
+            else:
+                print(f"[PISOS] Page {page_count} had no new properties (all duplicates)")
         
-        print(f"[PISOS] Scraping completed. Total properties: {total_propiedades}")
+        print(f"[PISOS] Scraping completed. New: {nuevas_propiedades}, Duplicates: {duplicadas_propiedades}")
         
-        if total_propiedades == 0:
-            jobs[job_id]['status'] = 'completed'
-            jobs[job_id]['propiedades_encontradas'] = 0
+        jobs[job_id]['status'] = 'completed'
+        jobs[job_id]['propiedades_encontradas'] = nuevas_propiedades
+        jobs[job_id]['propiedades_duplicadas'] = duplicadas_propiedades
             
     except Exception as e:
         jobs[job_id]['status'] = 'error'
@@ -556,16 +574,20 @@ def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, s
         import traceback
         traceback.print_exc()
 
-def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth, supabase_url=None):
+def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth, supabase_url=None, existing_ids=None):
     """Ejecuta el scraper de Python como subprocess"""
     # Configurar SUPABASE_URL global para que transform_item pueda usarla
     if supabase_url:
         globals()['SUPABASE_URL'] = supabase_url
-        print(f"[SCRAPER] SUPABASE_URL configurado: {supabase_url}")
+        print(f"[FOTOCASA] SUPABASE_URL configurado: {supabase_url}")
+    
+    # Convertir existing_ids a set para búsqueda O(1)
+    existing_ids_set = set(existing_ids) if existing_ids else set()
+    print(f"[FOTOCASA] Loaded {len(existing_ids_set)} existing property IDs for incremental scraping")
     
     print("=" * 80)
     print(f"[SCRAPER] Starting subprocess - Job {job_id[:8]}")
-    print(f"Portal: {portal}, Max pages: {max_pages}")
+    print(f"Portal: {portal}, Max pages: {max_pages if max_pages else 'UNLIMITED'}")
     print("=" * 80)
     
     try:
@@ -579,7 +601,7 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
             'python', 'fotocasa_scraper.py',
             '--city', 'murcia-capital',
             '--output', output_file,
-            '--max-pages', str(max_pages),
+            '--max-pages', str(max_pages) if max_pages else '999999',  # Sin límite
             '--transaction', '1'
         ]
         
@@ -618,7 +640,9 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
             jobs[job_id]['propiedades_encontradas'] = 0
             return
         
+        # Procesar archivo línea por línea, filtrando duplicados
         propiedades = []
+        duplicadas = 0
         print(f"[READ] Reading results from {output_file}")
         
         with open(output_file, 'r', encoding='utf-8') as f:
@@ -627,17 +651,29 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
                     try:
                         item = json.loads(line)
                         prop = transform_item(item)
+                        external_id = prop.get('external_id')
+                        
+                        # Verificar si ya existe
+                        if external_id in existing_ids_set:
+                            duplicadas += 1
+                            continue
+                        
                         propiedades.append(prop)
+                        existing_ids_set.add(external_id)
                     except Exception as e:
                         print(f"[WARN] Line {line_num} error: {e}")
         
-        print(f"[OK] Total properties: {len(propiedades)}")
+        print(f"[OK] Total new properties: {len(propiedades)}, Duplicates skipped: {duplicadas}")
         
         if propiedades:
             send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth)
+            jobs[job_id]['status'] = 'completed'
+            jobs[job_id]['propiedades_encontradas'] = len(propiedades)
+            jobs[job_id]['propiedades_duplicadas'] = duplicadas
         else:
             jobs[job_id]['status'] = 'completed'
             jobs[job_id]['propiedades_encontradas'] = 0
+            jobs[job_id]['propiedades_duplicadas'] = duplicadas
         
         if os.path.exists(output_file):
             os.remove(output_file)
@@ -674,10 +710,11 @@ def scrape():
         
         portal = data.get('portal')
         ubicacion = data.get('ubicacion', 'murcia')  # Por defecto Murcia
-        max_pages = data.get('max_pages', 50)
+        max_pages = data.get('max_pages')  # None = sin límite
         webhook_url = data.get('webhook_url')
         webhook_auth = data.get('webhook_auth')
         supabase_url = data.get('supabase_url')  # URL de Supabase para llamar a classify-location
+        existing_ids = data.get('existing_ids', [])  # IDs de propiedades ya existentes
         
         if not all([portal, webhook_url, webhook_auth]):
             return jsonify({'error': 'Missing required fields'}), 400
@@ -696,12 +733,12 @@ def scrape():
         if portal == 'pisos':
             thread = Thread(
                 target=run_pisos_scraper,
-                args=(job_id, ubicacion, max_pages, webhook_url, webhook_auth, supabase_url)
+                args=(job_id, ubicacion, max_pages, webhook_url, webhook_auth, supabase_url, existing_ids)
             )
         else:  # fotocasa
             thread = Thread(
                 target=run_scraper_subprocess,
-                args=(job_id, portal, max_pages, webhook_url, webhook_auth, supabase_url)
+                args=(job_id, portal, max_pages, webhook_url, webhook_auth, supabase_url, existing_ids)
             )
         
         thread.daemon = True

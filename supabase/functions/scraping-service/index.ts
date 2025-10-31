@@ -11,7 +11,7 @@ const ScrapingRequestSchema = z.object({
   portal: z.string().min(1).max(50),
   ubicacion: z.string().min(1).max(200).optional(),
   tipo_propiedad: z.string().min(1).max(50).optional(),
-  max_pages: z.number().int().min(1).max(50).optional(),
+  max_pages: z.number().int().min(1).optional(),  // Opcional, sin límite por defecto
 });
 
 const PropiedadSchema = z.object({
@@ -171,8 +171,8 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
 
 // Función para triggerar el scraper Docker
 async function triggerDockerScraper(supabase: any, request: z.infer<typeof ScrapingRequestSchema>) {
-  const { portal, ubicacion, tipo_propiedad, max_pages = 50 } = request;
-  console.log(`[Trigger] Solicitando scraping: ${portal}${ubicacion ? ` - ${ubicacion}` : ' - Toda España'}`);
+  const { portal, ubicacion, tipo_propiedad, max_pages } = request;
+  console.log(`[Trigger] Solicitando scraping: ${portal}${ubicacion ? ` - ${ubicacion}` : ' - Toda España'}${max_pages ? ` (max ${max_pages} páginas)` : ' (sin límite)'}`);
   const startTime = Date.now();
   
   const scraperUrl = Deno.env.get('PYTHON_SCRAPER_URL');
@@ -202,6 +202,20 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
     );
   }
 
+  // NUEVO: Obtener IDs de propiedades existentes para scraping incremental
+  console.log('[Trigger] Obteniendo IDs de propiedades existentes para scraping incremental...');
+  const { data: existingProperties, error: fetchError } = await supabase
+    .from("propiedades")
+    .select("external_id")
+    .eq("portal_origen", portal);
+
+  if (fetchError) {
+    console.error('[Trigger] Error obteniendo propiedades existentes:', fetchError);
+  }
+
+  const existingIds = existingProperties?.map((p: any) => p.external_id) || [];
+  console.log(`[Trigger] Encontradas ${existingIds.length} propiedades existentes en BD`);
+
   try {
     // Triggear el scraper Python/Docker
     const response = await fetch(`${scraperUrl}/scrape`, {
@@ -212,10 +226,11 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
       body: JSON.stringify({
         portal,
         ubicacion: ubicacion || 'murcia',
-        max_pages,
+        max_pages: max_pages || null,  // null = sin límite
         webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/scraping-service`,
         webhook_auth: Deno.env.get('SCRAPER_SECRET'),
         supabase_url: Deno.env.get('SUPABASE_URL'),
+        existing_ids: existingIds,  // Pasar IDs existentes para scraping incremental
       }),
     });
 
