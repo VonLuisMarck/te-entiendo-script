@@ -527,45 +527,53 @@ def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, s
         # Ejecutar scraper - ahora recibe páginas completas
         total_propiedades = 0
         nuevas_propiedades = 0
-        duplicadas_propiedades = 0
+        actualizadas_propiedades = 0
         page_count = 0
         for page_items in scrape_pisos(session, start_url, max_pages, delay=1.5, timeout=15, logger=logger):
             page_count += 1
             print(f"[PISOS] Received page {page_count} with {len(page_items)} items", flush=True)
             
-            # Transformar propiedades de esta página, filtrando duplicados
+            # Transformar TODAS las propiedades de esta página
             propiedades_pagina = []
+            all_already_exist = True  # Para detectar si debemos parar (scraping incremental)
+            
             for item in page_items:
                 try:
                     prop = transform_item_pisos(item)
                     external_id = prop.get('external_id')
                     
-                    # Verificar si ya existe
+                    # Verificar si ya existe (para stats y decisión de parada)
                     if external_id in existing_ids_set:
-                        duplicadas_propiedades += 1
-                        continue
+                        actualizadas_propiedades += 1
+                    else:
+                        nuevas_propiedades += 1
+                        all_already_exist = False  # Hay al menos una propiedad nueva
                     
                     propiedades_pagina.append(prop)
-                    existing_ids_set.add(external_id)  # Añadir para evitar duplicados en la misma sesión
                     print(f"[PISOS] Property scraped: {prop.get('titulo', 'No title')[:50]}...")
                 except Exception as e:
                     print(f"[WARN] Error transforming item: {e}")
             
-            # Enviar esta página inmediatamente (solo propiedades nuevas)
+            # Enviar TODAS las propiedades de esta página al webhook
             if propiedades_pagina:
-                print(f"[PISOS] Sending page with {len(propiedades_pagina)} NEW properties to webhook...")
-                send_to_webhook(job_id, 'pisos', propiedades_pagina, webhook_url, webhook_auth)
-                nuevas_propiedades += len(propiedades_pagina)
                 total_propiedades += len(propiedades_pagina)
-                print(f"[PISOS] Page sent. New: {len(propiedades_pagina)}, Total new: {nuevas_propiedades}, Duplicates skipped: {duplicadas_propiedades}")
+                print(f"[PISOS] Sending page {page_count} with {len(propiedades_pagina)} properties to webhook...")
+                send_to_webhook(job_id, 'pisos', propiedades_pagina, webhook_url, webhook_auth)
+                print(f"[PISOS] Total so far: {total_propiedades} ({nuevas_propiedades} new, {actualizadas_propiedades} updates)")
+                
+                # SCRAPING INCREMENTAL: Si toda la página ya existía, parar
+                if all_already_exist and page_count > 1:
+                    print(f"[PISOS] ✓ Incremental: página {page_count} completa ya existía, deteniendo...")
+                    break
             else:
-                print(f"[PISOS] Page {page_count} had no new properties (all duplicates)")
+                print(f"[PISOS] Page {page_count} had no valid properties")
         
-        print(f"[PISOS] Scraping completed. New: {nuevas_propiedades}, Duplicates: {duplicadas_propiedades}")
+        print(f"[PISOS] Scraping completed. Total: {total_propiedades} (New: {nuevas_propiedades}, Updates: {actualizadas_propiedades})")
         
         jobs[job_id]['status'] = 'completed'
-        jobs[job_id]['propiedades_encontradas'] = nuevas_propiedades
-        jobs[job_id]['propiedades_duplicadas'] = duplicadas_propiedades
+        jobs[job_id]['propiedades_encontradas'] = total_propiedades
+        jobs[job_id]['propiedades_nuevas'] = nuevas_propiedades
+        jobs[job_id]['propiedades_actualizadas'] = actualizadas_propiedades
             
     except Exception as e:
         jobs[job_id]['status'] = 'error'
@@ -640,9 +648,10 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
             jobs[job_id]['propiedades_encontradas'] = 0
             return
         
-        # Procesar archivo línea por línea, filtrando duplicados
+        # Procesar archivo línea por línea
         propiedades = []
-        duplicadas = 0
+        nuevas = 0
+        actualizadas = 0
         print(f"[READ] Reading results from {output_file}")
         
         with open(output_file, 'r', encoding='utf-8') as f:
@@ -653,27 +662,29 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
                         prop = transform_item(item)
                         external_id = prop.get('external_id')
                         
-                        # Verificar si ya existe
+                        # Verificar si ya existe (para stats)
                         if external_id in existing_ids_set:
-                            duplicadas += 1
-                            continue
+                            actualizadas += 1
+                        else:
+                            nuevas += 1
                         
                         propiedades.append(prop)
-                        existing_ids_set.add(external_id)
                     except Exception as e:
                         print(f"[WARN] Line {line_num} error: {e}")
         
-        print(f"[OK] Total new properties: {len(propiedades)}, Duplicates skipped: {duplicadas}")
+        print(f"[OK] Total: {len(propiedades)} properties (New: {nuevas}, Updates: {actualizadas})")
         
         if propiedades:
             send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth)
             jobs[job_id]['status'] = 'completed'
             jobs[job_id]['propiedades_encontradas'] = len(propiedades)
-            jobs[job_id]['propiedades_duplicadas'] = duplicadas
+            jobs[job_id]['propiedades_nuevas'] = nuevas
+            jobs[job_id]['propiedades_actualizadas'] = actualizadas
         else:
             jobs[job_id]['status'] = 'completed'
             jobs[job_id]['propiedades_encontradas'] = 0
-            jobs[job_id]['propiedades_duplicadas'] = duplicadas
+            jobs[job_id]['propiedades_nuevas'] = 0
+            jobs[job_id]['propiedades_actualizadas'] = 0
         
         if os.path.exists(output_file):
             os.remove(output_file)
