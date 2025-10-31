@@ -13,6 +13,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código del scraper
 COPY fotocasa_scraper.py .
+COPY pisos_scraper.py .
+COPY utils.py .
 COPY server.py .
 COPY config.py .
 COPY __init__.py .

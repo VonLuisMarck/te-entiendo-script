@@ -159,7 +159,7 @@ const Scraper = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="fotocasa">Fotocasa</SelectItem>
-                        <SelectItem value="idealista">Idealista</SelectItem>
+                        <SelectItem value="pisos">Pisos.com</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

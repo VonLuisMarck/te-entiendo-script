@@ -22,6 +22,8 @@ print("=" * 80, flush=True)
 try:
     from config import get_random_user_agent
     print("[OK] Config imported", flush=True)
+    from pisos_scraper import scrape_listings as scrape_pisos
+    print("[OK] Pisos scraper imported", flush=True)
 except Exception as e:
     print(f"[ERROR] Import failed: {e}", flush=True)
     import traceback
@@ -30,6 +32,134 @@ except Exception as e:
 
 app = Flask(__name__)
 jobs = {}
+
+def transform_item_pisos(item):
+    """Transforma item del scraper de pisos.com al formato del backend"""
+    from datetime import datetime, timezone
+    
+    # Extraer ubicación
+    municipality = item.get('municipality', '')
+    neighborhood = item.get('neighborhood', '')
+    provincia = item.get('province', 'Murcia')
+    
+    # Construir ubicación completa
+    if neighborhood and neighborhood.lower() != municipality.lower():
+        ubicacion_completa = f"{neighborhood}, {municipality}"
+    else:
+        ubicacion_completa = municipality or provincia
+    
+    # Mapear tipo de propiedad
+    property_type = (item.get('property_type') or '').lower()
+    tipo_mapeado = None
+    
+    if 'apartment' in property_type or 'piso' in property_type:
+        tipo_mapeado = 'piso'
+    elif 'house' in property_type or 'chalet' in property_type or 'villa' in property_type:
+        tipo_mapeado = 'chalet'
+    elif 'penthouse' in property_type or 'ático' in property_type:
+        tipo_mapeado = 'ático'
+    elif 'duplex' in property_type or 'dúplex' in property_type:
+        tipo_mapeado = 'dúplex'
+    elif 'studio' in property_type or 'estudio' in property_type:
+        tipo_mapeado = 'estudio'
+    else:
+        # Intentar inferir del título o descripción
+        titulo = (item.get('title') or '').lower()
+        desc = (item.get('description') or '').lower()
+        texto = f"{titulo} {desc}"
+        
+        if 'chalet' in texto or 'villa' in texto or 'casa' in texto:
+            tipo_mapeado = 'chalet'
+        elif 'ático' in texto or 'atico' in texto or 'penthouse' in texto:
+            tipo_mapeado = 'ático'
+        elif 'dúplex' in texto or 'duplex' in texto:
+            tipo_mapeado = 'dúplex'
+        elif 'estudio' in texto:
+            tipo_mapeado = 'estudio'
+        else:
+            tipo_mapeado = 'piso'  # Por defecto
+    
+    # Capitalizar para el título
+    tipo_texto = tipo_mapeado.capitalize()
+    
+    # Precio
+    precio = item.get('price', 0)
+    try:
+        precio = float(precio) if precio else 0
+    except (ValueError, TypeError):
+        precio = 0
+    
+    # Metros y precio_m2
+    metros = item.get('size_m2')
+    try:
+        metros = float(metros) if metros else None
+    except (ValueError, TypeError):
+        metros = None
+    
+    precio_m2 = round(precio / metros, 2) if metros and metros > 0 and precio else None
+    
+    # Rooms y bathrooms
+    rooms = item.get('rooms')
+    try:
+        rooms = int(rooms) if rooms else None
+    except (ValueError, TypeError):
+        rooms = None
+    
+    baths = item.get('bathrooms')
+    try:
+        baths = int(baths) if baths else None
+    except (ValueError, TypeError):
+        baths = None
+    
+    # Año construcción
+    ano_construccion = item.get('year_built')
+    if ano_construccion:
+        try:
+            ano_construccion = int(ano_construccion)
+        except (ValueError, TypeError):
+            ano_construccion = None
+    
+    # Features booleanas
+    tiene_ascensor = item.get('has_lift')
+    if tiene_ascensor is not None:
+        tiene_ascensor = bool(tiene_ascensor)
+    
+    tiene_parking = item.get('has_parking')
+    if tiene_parking is not None:
+        tiene_parking = bool(tiene_parking)
+    
+    # Imágenes - pueden venir en varios formatos
+    imagenes = []
+    if isinstance(item.get('imagenes'), list):
+        imagenes = item.get('imagenes', [])
+    
+    # Título construido
+    titulo = item.get('title') or f"{tipo_texto} en {ubicacion_completa}"
+    
+    # Fecha de scraping
+    fecha_scraping = datetime.now(timezone.utc).isoformat()
+    
+    return {
+        'external_id': f"pisos-{item.get('id', uuid.uuid4())}",
+        'portal_origen': 'pisos',
+        'titulo': titulo,
+        'descripcion': item.get('description'),
+        'precio': precio,
+        'precio_m2': precio_m2,
+        'ubicacion': ubicacion_completa,
+        'tipo_propiedad': tipo_mapeado,
+        'dormitorios': rooms,
+        'banos': baths,
+        'metros': metros,
+        'condition': item.get('energy_certificate'),  # Usar certificación energética como condition
+        'ano_construccion': ano_construccion,
+        'tiene_ascensor': tiene_ascensor,
+        'tiene_parking': tiene_parking,
+        'url': item.get('url'),
+        'imagenes': imagenes[:10] if imagenes else [],
+        'fecha_scraping': fecha_scraping,
+        'fecha_publicacion': None,
+    }
 
 def transform_item(item):
     """Transforma item del nuevo formato de Fotocasa al formato del backend"""
@@ -203,6 +333,74 @@ def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):
         jobs[job_id]['error'] = f'Webhook error: {str(e)}'
         print(f"[ERROR] Job {job_id[:8]} Webhook exception: {e}")
 
+def run_pisos_scraper(job_id, max_pages, webhook_url, webhook_auth):
+    """Ejecuta el scraper de pisos.com directamente"""
+    print("=" * 80)
+    print(f"[PISOS] Starting scraper - Job {job_id[:8]}")
+    print(f"Max pages: {max_pages}")
+    print("=" * 80)
+    
+    try:
+        jobs[job_id]['status'] = 'running'
+        
+        # Crear sesión con requests
+        import requests
+        from requests.adapters import HTTPAdapter
+        from urllib3.util.retry import Retry
+        import logging
+        
+        session = requests.Session()
+        session.headers.update({
+            "User-Agent": get_random_user_agent(),
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "es-ES,es;q=0.9",
+            "Connection": "keep-alive",
+        })
+        
+        retry = Retry(
+            total=5,
+            backoff_factor=0.5,
+            status_forcelist=(429, 500, 502, 503, 504),
+            allowed_methods=["GET", "HEAD"]
+        )
+        adapter = HTTPAdapter(max_retries=retry, pool_connections=10, pool_maxsize=10)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        # Logger
+        logger = logging.getLogger(f"pisos_{job_id[:8]}")
+        logger.setLevel(logging.INFO)
+        
+        # URL de inicio para Murcia
+        start_url = "https://www.pisos.com/venta/pisos-murcia/"
+        
+        print(f"[PISOS] URL: {start_url}")
+        
+        # Ejecutar scraper
+        propiedades = []
+        for item in scrape_pisos(session, start_url, max_pages, delay=1.5, timeout=20, logger=logger):
+            try:
+                prop = transform_item_pisos(item)
+                propiedades.append(prop)
+                print(f"[PISOS] Property scraped: {prop.get('titulo', 'No title')[:50]}...")
+            except Exception as e:
+                print(f"[WARN] Error transforming item: {e}")
+        
+        print(f"[PISOS] Total properties: {len(propiedades)}")
+        
+        if propiedades:
+            send_to_webhook(job_id, 'pisos', propiedades, webhook_url, webhook_auth)
+        else:
+            jobs[job_id]['status'] = 'completed'
+            jobs[job_id]['propiedades_encontradas'] = 0
+            
+    except Exception as e:
+        jobs[job_id]['status'] = 'error'
+        jobs[job_id]['error'] = str(e)
+        print(f"[ERROR] Job {job_id[:8]} Exception: {e}")
+        import traceback
+        traceback.print_exc()
+
 def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth):
     """Ejecuta el scraper de Python como subprocess"""
     print("=" * 80)
@@ -331,14 +529,22 @@ def scrape():
         
         print(f"[JOB] Created: {job_id}")
         
-        thread = Thread(
-            target=run_scraper_subprocess,
-            args=(job_id, portal, max_pages, webhook_url, webhook_auth)
-        )
+        # Elegir el scraper apropiado
+        if portal == 'pisos':
+            thread = Thread(
+                target=run_pisos_scraper,
+                args=(job_id, max_pages, webhook_url, webhook_auth)
+            )
+        else:  # fotocasa
+            thread = Thread(
+                target=run_scraper_subprocess,
+                args=(job_id, portal, max_pages, webhook_url, webhook_auth)
+            )
+        
         thread.daemon = True
         thread.start()
         
-        print(f"[THREAD] Started")
+        print(f"[THREAD] Started for portal: {portal}")
         
         return jsonify({
             'job_id': job_id,
