@@ -42,15 +42,18 @@ def parse_listing_cards(html: str, base_url: str) -> List[str]:
             if not href:
                 continue
             full = urljoin(base_url, href)
-            # crude filter: must be property detail (avoid tracking, anchors)
-            if re.search(r'/ficha/|/inmueble/|/comprar/|/venta/', full) and '#' not in full:
+            # CRITICAL: Must be property detail with ID (avoid pagination, filters, navigation)
+            # Valid patterns: /comprar/piso-...-12345678/ or /venta/piso-...-12345678/
+            # Invalid: /venta/pisos-murcia/3/ (pagination)
+            if re.search(r'/(ficha|inmueble|comprar|venta)/.+?-\d{7,}', full) and '#' not in full:
                 links.append(full)
     # Heuristic: some sites embed links in data attributes
     for a in soup.find_all('a'):
         data_href = a.get('data-href')
         if data_href:
             full = urljoin(base_url, data_href)
-            if re.search(r'/comprar/|/venta/', full):
+            # Same validation for data-href
+            if re.search(r'/(comprar|venta)/.+?-\d{7,}', full):
                 links.append(full)
     return _unique_urls(links)
 
@@ -165,6 +168,18 @@ def parse_detail_page(html: str, url: str) -> Dict[str, Any]:
     def rx(pattern):
         m = re.search(pattern, text)
         return m.group(1) if m else None
+
+    # Extract price from HTML if not found in JSON-LD
+    if not out.get("price"):
+        # Try to find price in common patterns
+        price_match = rx(r'(\d+(?:\.\d{3})*(?:,\d+)?)\s*€')
+        if price_match:
+            # Convert Spanish format (1.234.567,89) to number
+            price_str = price_match.replace('.', '').replace(',', '.')
+            try:
+                out["price"] = float(price_str)
+            except:
+                pass
 
     size = rx(r'(\d+(?:[.,]\d+)?)\s*m[²2]\b')
     rooms = rx(r'(\d+)\s*habi(?:taciones|tación)\b')
