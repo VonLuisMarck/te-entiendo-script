@@ -375,7 +375,7 @@ def scrape_listings(session: Session, start_url: str, max_pages: int, delay: flo
     next_url = start_url
     seen_detail_urls = set()
 
-    while next_url and page <= max_pages:
+    while next_url and (max_pages is None or page <= max_pages):
         logger.info(f"[pisos] Página {page}: {next_url}")
         print(f"[DEBUG] Fetching page {page}: {next_url}", flush=True)
         

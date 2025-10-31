@@ -18,9 +18,10 @@ serve(async (req) => {
     titulo = titulo?.normalize('NFC').trim() || '';
     descripcion = descripcion?.normalize('NFC').trim() || '';
     
-    if (!titulo) {
+    // Requerir al menos título O descripción
+    if (!titulo && !descripcion) {
       return new Response(
-        JSON.stringify({ error: 'Título requerido' }),
+        JSON.stringify({ error: 'Se requiere título o descripción' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -56,8 +57,9 @@ Formato de salida:
 - NUNCA incluir caracteres extraños, solo texto limpio en español`;
 
     const userPrompt = `Analiza esta propiedad y extrae la ubicación:
-Título: ${titulo}
+${titulo ? `Título: ${titulo}` : ''}
 ${descripcion ? `Descripción: ${descripcion}` : ''}`;
+
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
