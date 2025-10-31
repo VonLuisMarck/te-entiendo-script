@@ -155,35 +155,79 @@ serve(async (req) => {
 function agruparPorCiudadBarrio(propiedades: any[]): Record<string, any[]> {
   const grupos: Record<string, any[]> = {};
 
+  // Barrios conocidos de Murcia capital
+  const barriosMurciaCapital = [
+    'Centro', 'La Catedral', 'Santa Eulalia', 'San Andrés', 'El Carmen',
+    'La Flota', 'Santiago el Mayor', 'Vista Alegre', 'Vistalegre',
+    'Infante Juan Manuel', 'La Ñora', 'Espinardo', 'El Puntal',
+    'Zarandona', 'San Antón', 'Barrio del Progreso', 'Juan de Borbón',
+    'Santa María de Gracia', 'Vistabella', 'Barriomar'
+  ];
+
+  // Municipios/pueblos de la provincia de Murcia
+  const municipiosProvincia = [
+    'Calabardina', 'Santiago de La Ribera', 'San Javier', 'Los Alcázares',
+    'Águilas', 'Cartagena', 'Lorca', 'Mazarrón', 'Torre Pacheco',
+    'La Manga', 'San Pedro del Pinatar', 'Cabo de Palos'
+  ];
+
   for (const prop of propiedades) {
-    // Formato normalizado esperado: "Barrio, Ciudad" o solo "Ciudad"
     const ubicacion = prop.ubicacion || '';
+    const titulo = prop.titulo || '';
     
     let ciudad = 'Desconocida';
-    let barrio = 'Centro'; // Por defecto, si no hay barrio específico
+    let barrio = null;
     
-    // Separar por coma - FORMATO: "Barrio, Ciudad"
+    // CASO 1: Formato "Barrio, Ciudad" (típico de Fotocasa)
     if (ubicacion.includes(',')) {
       const partes = ubicacion.split(',').map((p: string) => p.trim());
-      barrio = partes[0] || 'Centro';      // Primera parte = Barrio
-      ciudad = partes[1] || 'Desconocida'; // Segunda parte = Ciudad
-      console.log(`Ubicación: "${ubicacion}" -> Ciudad: "${ciudad}", Barrio: "${barrio}"`);
+      barrio = partes[0];
+      ciudad = partes[1] || 'Desconocida';
+      console.log(`✓ Formato completo: "${ubicacion}" -> ${ciudad} | ${barrio}`);
     }
-    // Si no hay separador, es "Ciudad Centro" o "Capital"
+    // CASO 2: Solo ciudad (típico de Pisos.com)
     else {
       ciudad = ubicacion.trim() || 'Desconocida';
-      barrio = 'Centro'; // Asignar Centro por defecto
-      console.log(`Ubicación sin barrio: "${ubicacion}" -> Ciudad: "${ciudad}", Barrio: "Centro" (asignado)`);
+      
+      // Intentar extraer barrio del título
+      if (ciudad === 'Murcia') {
+        // Buscar barrios conocidos en el título
+        const barrioEncontrado = barriosMurciaCapital.find(b => 
+          titulo.toLowerCase().includes(b.toLowerCase())
+        );
+        
+        if (barrioEncontrado) {
+          barrio = barrioEncontrado;
+          console.log(`✓ Barrio extraído del título: "${titulo}" -> ${ciudad} | ${barrio}`);
+        } else {
+          // Buscar si es un municipio de la provincia
+          const municipioEncontrado = municipiosProvincia.find(m => 
+            titulo.toLowerCase().includes(m.toLowerCase())
+          );
+          
+          if (municipioEncontrado) {
+            barrio = municipioEncontrado;
+            console.log(`✓ Municipio extraído: "${titulo}" -> ${ciudad} | ${barrio}`);
+          } else {
+            // No podemos determinar el barrio específico
+            barrio = 'Provincia';
+            console.log(`⚠ Sin barrio específico: "${titulo}" -> ${ciudad} | Provincia`);
+          }
+        }
+      } else {
+        // Para otras ciudades, usar el nombre de la ciudad como barrio
+        barrio = ciudad;
+      }
     }
 
-    // Agrupar SIEMPRE por ciudad|barrio (sin duplicados)
+    // Agrupar por ciudad|barrio
     const key = `${ciudad}|${barrio}`;
     if (!grupos[key]) grupos[key] = [];
     grupos[key].push(prop);
   }
 
   console.log(`Grupos creados: ${Object.keys(grupos).length}`);
-  Object.keys(grupos).slice(0, 5).forEach(key => {
+  Object.keys(grupos).slice(0, 10).forEach(key => {
     console.log(`  ${key} -> ${grupos[key].length} propiedades`);
   });
 
