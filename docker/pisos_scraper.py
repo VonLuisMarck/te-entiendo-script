@@ -355,6 +355,7 @@ def parse_detail_page(html: str, url: str) -> Dict[str, Any]:
     return out
 
 def scrape_listings(session: Session, start_url: str, max_pages: int, delay: float, timeout: int, logger: logging.Logger):
+    """Scrape listings page by page, yielding lists of properties per page"""
     page = 1
     next_url = start_url
     seen_detail_urls = set()
@@ -367,6 +368,9 @@ def scrape_listings(session: Session, start_url: str, max_pages: int, delay: flo
 
         detail_urls = parse_listing_cards(html, next_url)
         logger.info(f"[pisos] Detectados {len(detail_urls)} enlaces de ficha en la página {page}.")
+        
+        # Acumular propiedades de esta página
+        page_items = []
         for du in detail_urls:
             if du in seen_detail_urls:
                 continue
@@ -377,13 +381,18 @@ def scrape_listings(session: Session, start_url: str, max_pages: int, delay: flo
                     logger.warning(f"[pisos] {du} -> HTTP {r.status_code}")
                     continue
                 item = parse_detail_page(r.text, du)
-                yield item
+                page_items.append(item)
             except Exception as e:
                 logger.exception(f"[pisos] Error en detalle {du}: {e}")
             finally:
                 from utils import sleep_courteous
                 sleep_courteous(delay)
-
+        
+        # Yield toda la página completa
+        if page_items:
+            logger.info(f"[pisos] Página {page} completada: {len(page_items)} propiedades")
+            yield page_items
+        
         # Pagination
         nu = find_next_page(html, next_url)
         next_url = nu

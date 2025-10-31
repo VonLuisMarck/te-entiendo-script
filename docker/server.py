@@ -359,7 +359,7 @@ def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):
         print(f"[ERROR] Job {job_id[:8]} Webhook exception: {e}")
 
 def run_pisos_scraper(job_id, max_pages, webhook_url, webhook_auth):
-    """Ejecuta el scraper de pisos.com directamente"""
+    """Ejecuta el scraper de pisos.com directamente, enviando página por página"""
     print("=" * 80)
     print(f"[PISOS] Starting scraper - Job {job_id[:8]}")
     print(f"Max pages: {max_pages}")
@@ -401,21 +401,29 @@ def run_pisos_scraper(job_id, max_pages, webhook_url, webhook_auth):
         
         print(f"[PISOS] URL: {start_url}")
         
-        # Ejecutar scraper
-        propiedades = []
-        for item in scrape_pisos(session, start_url, max_pages, delay=1.5, timeout=20, logger=logger):
-            try:
-                prop = transform_item_pisos(item)
-                propiedades.append(prop)
-                print(f"[PISOS] Property scraped: {prop.get('titulo', 'No title')[:50]}...")
-            except Exception as e:
-                print(f"[WARN] Error transforming item: {e}")
+        # Ejecutar scraper - ahora recibe páginas completas
+        total_propiedades = 0
+        for page_items in scrape_pisos(session, start_url, max_pages, delay=1.5, timeout=20, logger=logger):
+            # Transformar propiedades de esta página
+            propiedades_pagina = []
+            for item in page_items:
+                try:
+                    prop = transform_item_pisos(item)
+                    propiedades_pagina.append(prop)
+                    print(f"[PISOS] Property scraped: {prop.get('titulo', 'No title')[:50]}...")
+                except Exception as e:
+                    print(f"[WARN] Error transforming item: {e}")
+            
+            # Enviar esta página inmediatamente
+            if propiedades_pagina:
+                print(f"[PISOS] Sending page with {len(propiedades_pagina)} properties to webhook...")
+                send_to_webhook(job_id, 'pisos', propiedades_pagina, webhook_url, webhook_auth)
+                total_propiedades += len(propiedades_pagina)
+                print(f"[PISOS] Page sent. Total so far: {total_propiedades}")
         
-        print(f"[PISOS] Total properties: {len(propiedades)}")
+        print(f"[PISOS] Scraping completed. Total properties: {total_propiedades}")
         
-        if propiedades:
-            send_to_webhook(job_id, 'pisos', propiedades, webhook_url, webhook_auth)
-        else:
+        if total_propiedades == 0:
             jobs[job_id]['status'] = 'completed'
             jobs[job_id]['propiedades_encontradas'] = 0
             

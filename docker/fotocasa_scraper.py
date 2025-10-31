@@ -96,6 +96,9 @@ def main():
         "filters": {}
     }
 
+    # Preparar archivo de salida para modo append
+    ensure_dir(os.path.dirname(output_file))
+    
     # Primera página
     print("🔹 Página 1")
     r = s.post(SEARCH_V1, json=payload)
@@ -108,10 +111,18 @@ def main():
     print(f"📊 Total propiedades: {total_count}")
     print(f"📄 Páginas detectadas: {total_pages}")
 
+    # Procesar primera página
     found = normalize_items(data)
     seen = set(str(a.get("id")) for a in found if isinstance(a, dict))
+    
+    # Guardar primera página inmediatamente
+    if found:
+        with open(output_file, "w", encoding="utf-8") as f:
+            for item in found:
+                f.write(json.dumps(item, ensure_ascii=False) + "\n")
+        print(f"💾 Página 1: {len(found)} propiedades guardadas")
 
-    # Resto de páginas
+    # Resto de páginas - guardar cada una inmediatamente
     for page in range(2, min(total_pages, args.max_pages) + 1):
         payload["page"] = page
         print(f"🔹 Página {page}")
@@ -128,23 +139,23 @@ def main():
             print(f"⚠️ Sin resultados en página {page}, finalizando...")
             break
             
+        # Filtrar duplicados
         new = [a for a in items if str(a.get("id")) not in seen]
-        found.extend(new)
-        seen.update(str(a.get("id")) for a in new)
+        if new:
+            # Append a archivo existente
+            with open(output_file, "a", encoding="utf-8") as f:
+                for item in new:
+                    f.write(json.dumps(item, ensure_ascii=False) + "\n")
+            print(f"💾 Página {page}: {len(new)} propiedades guardadas")
+            seen.update(str(a.get("id")) for a in new)
         
         if len(items) < args.size:
             print(f"⚠️ Página {page} tiene menos resultados que el tamaño esperado, finalizando...")
             break
             
         time.sleep(1.0)
-
-    # Guardar resultados en JSONL (una propiedad por línea)
-    print(f"💾 Guardando {len(found)} propiedades en {output_file}")
-    with open(output_file, "w", encoding="utf-8") as f:
-        for item in found:
-            f.write(json.dumps(item, ensure_ascii=False) + "\n")
     
-    print(f"✅ Completado: {len(found)} propiedades guardadas")
+    print(f"✅ Completado: {len(seen)} propiedades totales guardadas")
 
 if __name__ == "__main__":
     main()
