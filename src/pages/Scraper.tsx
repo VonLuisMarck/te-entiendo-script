@@ -28,7 +28,8 @@ const Scraper = () => {
   const [scraping, setScraping] = useState(false);
   const [generatingFake, setGeneratingFake] = useState(false);
   const [formData, setFormData] = useState({
-    portal: "fotocasa"
+    portal: "fotocasa",
+    ubicacion: "murcia"
   });
   const navigate = useNavigate();
 
@@ -152,7 +153,7 @@ const Scraper = () => {
                     <Label htmlFor="portal">Portal</Label>
                     <Select
                       value={formData.portal}
-                      onValueChange={(value) => setFormData({ portal: value })}
+                      onValueChange={(value) => setFormData({ ...formData, portal: value })}
                     >
                       <SelectTrigger id="portal">
                         <SelectValue />
@@ -160,6 +161,26 @@ const Scraper = () => {
                       <SelectContent>
                         <SelectItem value="fotocasa">Fotocasa</SelectItem>
                         <SelectItem value="pisos">Pisos.com</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="ubicacion">Ciudad</Label>
+                    <Select
+                      value={formData.ubicacion}
+                      onValueChange={(value) => setFormData({ ...formData, ubicacion: value })}
+                    >
+                      <SelectTrigger id="ubicacion">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="murcia">Murcia</SelectItem>
+                        <SelectItem value="madrid">Madrid</SelectItem>
+                        <SelectItem value="barcelona">Barcelona</SelectItem>
+                        <SelectItem value="valencia">Valencia</SelectItem>
+                        <SelectItem value="sevilla">Sevilla</SelectItem>
+                        <SelectItem value="malaga">Málaga</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

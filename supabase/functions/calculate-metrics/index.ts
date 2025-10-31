@@ -194,6 +194,24 @@ function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
     'La Manga', 'San Pedro del Pinatar', 'Cabo de Palos'
   ];
 
+  // Barrios conocidos de Madrid capital
+  const barriosMadridCapital = [
+    'Chamberí', 'Salamanca', 'Retiro', 'Arganzuela', 'Chamartín',
+    'Tetuán', 'Moncloa-Aravaca', 'Centro', 'Latina', 'Carabanchel',
+    'Usera', 'Puente de Vallecas', 'Moratalaz', 'Ciudad Lineal',
+    'Hortaleza', 'Villaverde', 'Villa de Vallecas', 'Vicálvaro',
+    'San Blas-Canillejas', 'Barajas', 'Fuencarral-El Pardo'
+  ];
+
+  // Municipios del área metropolitana de Madrid
+  const municipiosMadrid = [
+    'Alcalá de Henares', 'Alcobendas', 'Alcorcón', 'Aranjuez', 'Arganda del Rey',
+    'Collado Villalba', 'Coslada', 'Fuenlabrada', 'Getafe', 'Leganés',
+    'Majadahonda', 'Móstoles', 'Parla', 'Pinto', 'Pozuelo de Alarcón',
+    'Rivas-Vaciamadrid', 'San Fernando de Henares', 'San Sebastián de los Reyes',
+    'Torrejón de Ardoz', 'Tres Cantos', 'Valdemoro', 'Las Rozas'
+  ];
+
   for (const prop of propiedades) {
     const ubicacion = prop.ubicacion || '';
     const titulo = prop.titulo || '';
@@ -219,7 +237,6 @@ function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
       
       // Para Murcia, intentar extraer barrio/ciudad del título
       if (provincia === 'Murcia') {
-        // 1. Buscar barrios de Murcia capital
         const barrioEncontrado = barriosMurciaCapital.find(b => 
           titulo.toLowerCase().includes(b.toLowerCase())
         );
@@ -229,21 +246,42 @@ function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
           barrio = barrioEncontrado;
           console.log(`✓ Barrio de capital: "${titulo}" -> Prov: Murcia, Ciudad: Murcia, Barrio: ${barrio}`);
         } else {
-          // 2. Buscar municipios de la provincia
           const municipioEncontrado = municipiosMurcia.find(m => 
             titulo.toLowerCase().includes(m.toLowerCase())
           );
           
           if (municipioEncontrado) {
             ciudad = municipioEncontrado;
-            // barrio queda vacío - no hay barrio específico
             console.log(`✓ Municipio: "${titulo}" -> Prov: Murcia, Ciudad: ${ciudad}, Barrio: (vacío)`);
           } else {
-            // 3. No se puede determinar - solo provincia
             console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Murcia, Ciudad: (vacío), Barrio: (vacío)`);
           }
         }
-      } else {
+      }
+      // Para Madrid
+      else if (provincia === 'Madrid') {
+        const barrioEncontrado = barriosMadridCapital.find(b => 
+          titulo.toLowerCase().includes(b.toLowerCase())
+        );
+        
+        if (barrioEncontrado) {
+          ciudad = 'Madrid';
+          barrio = barrioEncontrado;
+          console.log(`✓ Barrio de capital: "${titulo}" -> Prov: Madrid, Ciudad: Madrid, Barrio: ${barrio}`);
+        } else {
+          const municipioEncontrado = municipiosMadrid.find(m => 
+            titulo.toLowerCase().includes(m.toLowerCase())
+          );
+          
+          if (municipioEncontrado) {
+            ciudad = municipioEncontrado;
+            console.log(`✓ Municipio: "${titulo}" -> Prov: Madrid, Ciudad: ${ciudad}, Barrio: (vacío)`);
+          } else {
+            console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Madrid, Ciudad: (vacío), Barrio: (vacío)`);
+          }
+        }
+      }
+      else {
         // Otras provincias sin detalles
         console.log(`⚠ Provincia genérica: "${ubicacion}" -> Prov: ${provincia}, Ciudad: (vacío), Barrio: (vacío)`);
       }

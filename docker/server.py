@@ -40,7 +40,18 @@ def transform_item_pisos(item):
     # Extraer ubicación
     municipality = item.get('municipality', '')
     neighborhood = item.get('neighborhood', '')
-    provincia = item.get('province', 'Murcia')
+    provincia_raw = item.get('province', '')
+    
+    # Normalizar provincia (Madrid, Murcia, etc.)
+    provincia = provincia_raw.strip()
+    if not provincia:
+        # Intentar inferir de municipality
+        if 'Madrid' in municipality:
+            provincia = 'Madrid'
+        elif 'Murcia' in municipality:
+            provincia = 'Murcia'
+        else:
+            provincia = 'Desconocida'
     
     # Normalizar ciudad (quitar "Capital" y similares)
     ciudad = municipality.replace(' Capital', '').replace(' capital', '').strip() if municipality else provincia
@@ -373,11 +384,11 @@ def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):
         jobs[job_id]['error'] = f'Webhook error: {str(e)}'
         print(f"[ERROR] Job {job_id[:8]} Webhook exception: {e}")
 
-def run_pisos_scraper(job_id, max_pages, webhook_url, webhook_auth):
+def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth):
     """Ejecuta el scraper de pisos.com directamente, enviando página por página"""
     print("=" * 80)
     print(f"[PISOS] Starting scraper - Job {job_id[:8]}")
-    print(f"Max pages: {max_pages}")
+    print(f"Ubicación: {ubicacion}, Max pages: {max_pages}")
     print("=" * 80)
     
     try:
@@ -411,8 +422,9 @@ def run_pisos_scraper(job_id, max_pages, webhook_url, webhook_auth):
         logger = logging.getLogger(f"pisos_{job_id[:8]}")
         logger.setLevel(logging.INFO)
         
-        # URL de inicio para Murcia
-        start_url = "https://www.pisos.com/venta/pisos-murcia/"
+        # Construir URL según la ubicación
+        ubicacion_clean = ubicacion.lower().replace(' ', '-')
+        start_url = f"https://www.pisos.com/venta/pisos-{ubicacion_clean}/"
         
         print(f"[PISOS] URL: {start_url}")
         print(f"[PISOS] Starting scraping loop...", flush=True)
@@ -565,6 +577,7 @@ def scrape():
             return jsonify({'error': 'No data provided'}), 400
         
         portal = data.get('portal')
+        ubicacion = data.get('ubicacion', 'murcia')  # Por defecto Murcia
         max_pages = data.get('max_pages', 50)
         webhook_url = data.get('webhook_url')
         webhook_auth = data.get('webhook_auth')
@@ -576,16 +589,17 @@ def scrape():
         jobs[job_id] = {
             'status': 'pending',
             'portal': portal,
+            'ubicacion': ubicacion,
             'max_pages': max_pages,
         }
         
-        print(f"[JOB] Created: {job_id}")
+        print(f"[JOB] Created: {job_id} - {portal} - {ubicacion}")
         
         # Elegir el scraper apropiado
         if portal == 'pisos':
             thread = Thread(
                 target=run_pisos_scraper,
-                args=(job_id, max_pages, webhook_url, webhook_auth)
+                args=(job_id, ubicacion, max_pages, webhook_url, webhook_auth)
             )
         else:  # fotocasa
             thread = Thread(
