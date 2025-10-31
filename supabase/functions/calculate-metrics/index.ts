@@ -156,26 +156,18 @@ function agruparPorCiudadBarrio(propiedades: any[]): Record<string, any[]> {
   const grupos: Record<string, any[]> = {};
 
   for (const prop of propiedades) {
-    // Intentar extraer ciudad y barrio de la ubicación
-    // Formatos esperados: "Ciudad, Barrio" o "Ciudad - Barrio" o solo "Ciudad"
+    // Formato normalizado esperado: "Barrio, Ciudad" o solo "Ciudad"
     const ubicacion = prop.ubicacion || '';
     
     let ciudad = 'Desconocida';
     let barrio = null;
     
-    // Intentar separar por coma primero
+    // Separar por coma - FORMATO: "Barrio, Ciudad"
     if (ubicacion.includes(',')) {
       const partes = ubicacion.split(',').map((p: string) => p.trim());
-      ciudad = partes[0] || 'Desconocida';
-      barrio = partes[1] || null;
+      barrio = partes[0] || null;      // Primera parte = Barrio
+      ciudad = partes[1] || 'Desconocida'; // Segunda parte = Ciudad
       console.log(`Ubicación: "${ubicacion}" -> Ciudad: "${ciudad}", Barrio: "${barrio}"`);
-    }
-    // Luego intentar por guión
-    else if (ubicacion.includes('-')) {
-      const partes = ubicacion.split('-').map((p: string) => p.trim());
-      ciudad = partes[0] || 'Desconocida';
-      barrio = partes[1] || null;
-      console.log(`Ubicación con guión: "${ubicacion}" -> Ciudad: "${ciudad}", Barrio: "${barrio}"`);
     }
     // Si no hay separador, toda la ubicación es la ciudad
     else {
