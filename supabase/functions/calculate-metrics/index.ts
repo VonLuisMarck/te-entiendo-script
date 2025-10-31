@@ -191,6 +191,8 @@ function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
     else {
       const ubicacionLimpia = ubicacion.trim();
       provincia = ubicacionLimpia || 'Desconocida';
+      ciudad = ''; // Por defecto vacío
+      barrio = ''; // Por defecto vacío
       
       // Para Murcia, intentar extraer barrio/ciudad del título
       if (provincia === 'Murcia') {
@@ -211,20 +213,16 @@ function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
           
           if (municipioEncontrado) {
             ciudad = municipioEncontrado;
-            barrio = ''; // El municipio es la ciudad, no hay barrio específico
-            console.log(`✓ Municipio: "${titulo}" -> Prov: Murcia, Ciudad: ${ciudad}`);
+            // barrio queda vacío - no hay barrio específico
+            console.log(`✓ Municipio: "${titulo}" -> Prov: Murcia, Ciudad: ${ciudad}, Barrio: (vacío)`);
           } else {
-            // 3. No se puede determinar - dejar como provincia sin detalles
-            ciudad = '';
-            barrio = '';
-            console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Murcia`);
+            // 3. No se puede determinar - solo provincia
+            console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Murcia, Ciudad: (vacío), Barrio: (vacío)`);
           }
         }
       } else {
-        // Otras provincias: si no hay coma, no tenemos detalles
-        ciudad = '';
-        barrio = '';
-        console.log(`⚠ Provincia genérica: "${ubicacion}"`);
+        // Otras provincias sin detalles
+        console.log(`⚠ Provincia genérica: "${ubicacion}" -> Prov: ${provincia}, Ciudad: (vacío), Barrio: (vacío)`);
       }
     }
 
