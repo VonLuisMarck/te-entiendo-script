@@ -101,21 +101,44 @@ serve(async (req) => {
       // Calcular índice de dinamismo temporal
       indiceDinamismo = calcularIndiceDinamismo(props as any[]);
 
-      // Upsert de métricas con provincia
-      const { error: upsertError } = await supabase
-        .from('metricas_barrios')
-        .upsert({
-          provincia: provincia || null,
-          ciudad: ciudad || null,
-          barrio: barrio || null,
-          ...metricas,
-          proyeccion_revalorizacion_anual: proyeccionRevalorizacion,
-          indice_dinamismo: indiceDinamismo,
-          meses_datos_historicos: mesesDatosHistoricos,
-        });
+      // Upsert de métricas con provincia (onConflict en el índice único)
+      const metricaData = {
+        provincia: provincia || null,
+        ciudad: ciudad || null,
+        barrio: barrio || null,
+        ...metricas,
+        proyeccion_revalorizacion_anual: proyeccionRevalorizacion,
+        indice_dinamismo: indiceDinamismo,
+        meses_datos_historicos: mesesDatosHistoricos,
+      };
 
-      if (upsertError) {
-        console.error(`Error actualizando métricas para ${key}:`, upsertError);
+      // Buscar si ya existe
+      const { data: existing } = await supabase
+        .from('metricas_barrios')
+        .select('id')
+        .eq('provincia', provincia || '')
+        .eq('ciudad', ciudad || '')
+        .eq('barrio', barrio || '')
+        .maybeSingle();
+
+      let error: any = null;
+      if (existing) {
+        // Actualizar existente
+        const result = await supabase
+          .from('metricas_barrios')
+          .update(metricaData)
+          .eq('id', existing.id);
+        error = result.error;
+      } else {
+        // Insertar nueva
+        const result = await supabase
+          .from('metricas_barrios')
+          .insert(metricaData);
+        error = result.error;
+      }
+
+      if (error) {
+        console.error(`Error actualizando métricas para ${key}:`, error);
       } else {
         metricasActualizadas++;
       }
