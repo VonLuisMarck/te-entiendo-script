@@ -73,10 +73,17 @@ def transform_item_pisos(item):
         if supabase_url:
             classify_url = f"{supabase_url}/functions/v1/classify-location"
             
+            # Normalizar texto antes de enviar
+            titulo_clean = titulo.encode('utf-8').decode('utf-8') if titulo else ''
+            desc_clean = (descripcion or '').encode('utf-8').decode('utf-8')
+            
             classify_response = requests.post(
                 classify_url,
-                json={'titulo': titulo, 'descripcion': descripcion or ''},
-                headers={'Content-Type': 'application/json'},
+                json={'titulo': titulo_clean, 'descripcion': desc_clean},
+                headers={
+                    'Content-Type': 'application/json; charset=utf-8',
+                    'Accept': 'application/json'
+                },
                 timeout=10
             )
             

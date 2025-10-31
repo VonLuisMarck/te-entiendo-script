@@ -11,7 +11,12 @@ serve(async (req) => {
   }
 
   try {
-    const { titulo, descripcion } = await req.json();
+    const requestBody = await req.json();
+    let { titulo, descripcion } = requestBody;
+    
+    // Limpiar y normalizar texto para evitar problemas de encoding
+    titulo = titulo?.normalize('NFC').trim() || '';
+    descripcion = descripcion?.normalize('NFC').trim() || '';
     
     if (!titulo) {
       return new Response(
@@ -32,13 +37,23 @@ serve(async (req) => {
     const systemPrompt = `Eres un experto en geografía española y clasificación de ubicaciones inmobiliarias.
 Tu tarea es extraer información de ubicación de títulos y descripciones de propiedades.
 
-Reglas importantes:
-- Provincia: región/provincia española (Madrid, Barcelona, Murcia, etc)
-- Ciudad: municipio o ciudad (Madrid, Pozuelo de Alarcón, Getafe, etc)
-- Barrio: distrito o barrio dentro de una ciudad (Chamberí, Salamanca, Malasaña, etc)
-- Si es un municipio metropolitano (Pozuelo, Alcobendas, etc), NO es un barrio
-- Si el texto dice "Madrid Capital", la ciudad es "Madrid"
-- Si solo hay provincia sin más detalles, ciudad = provincia y barrio vacío`;
+Reglas CRÍTICAS:
+1. Provincia: región/provincia española (Madrid, Barcelona, Murcia, etc)
+2. Ciudad: municipio o ciudad oficial (Madrid, Pozuelo de Alarcón, Getafe, Alcobendas, etc)
+3. Barrio: SOLO distritos o barrios DENTRO de una ciudad grande (Chamberí, Salamanca, Malasaña, Retiro, etc)
+
+Casos especiales de la Comunidad de Madrid:
+- Ciudalcampo, La Moraleja, El Soto: son urbanizaciones en San Sebastián de los Reyes
+- Montealina: urbanización en Pozuelo de Alarcón
+- Las Lomas, El Olivar: urbanizaciones en Boadilla del Monte
+- Villafranca del Castillo: urbanización en Villanueva de la Cañada
+- Si mencionan "Madrid Capital" → ciudad = "Madrid"
+- Municipios metropolitanos (Pozuelo, Alcobendas, Las Rozas, Majadahonda, etc) son CIUDADES, no barrios
+
+Formato de salida:
+- Barrio vacío si es un municipio completo o urbanización
+- Si es urbanización dentro de municipio, el barrio puede ser el nombre de la urbanización
+- NUNCA incluir caracteres extraños, solo texto limpio en español`;
 
     const userPrompt = `Analiza esta propiedad y extrae la ubicación:
 Título: ${titulo}
@@ -125,15 +140,20 @@ ${descripcion ? `Descripción: ${descripcion}` : ''}`;
 
     const location = JSON.parse(toolCall.function.arguments);
     
-    console.log('Ubicación clasificada:', location);
+    // Normalizar y limpiar el texto de salida
+    const cleanText = (text: string) => text?.normalize('NFC').trim().replace(/[^\w\sáéíóúñÁÉÍÓÚÑüÜ,.-]/g, '') || '';
+    
+    const result = {
+      provincia: cleanText(location.provincia) || 'Desconocida',
+      ciudad: cleanText(location.ciudad || location.provincia) || 'Desconocida',
+      barrio: cleanText(location.barrio) || ''
+    };
+    
+    console.log('Ubicación clasificada:', result);
 
     return new Response(
-      JSON.stringify({
-        provincia: location.provincia || 'Desconocida',
-        ciudad: location.ciudad || location.provincia || 'Desconocida',
-        barrio: location.barrio || ''
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify(result),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' } }
     );
 
   } catch (error) {
