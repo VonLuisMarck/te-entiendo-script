@@ -36,6 +36,7 @@ jobs = {}
 def transform_item_pisos(item):
     """Transforma item del scraper de pisos.com al formato del backend"""
     from datetime import datetime, timezone
+    import re
     
     # Listas de referencia para Madrid
     barriosMadrid = [
@@ -43,7 +44,9 @@ def transform_item_pisos(item):
         'Tetuán', 'Moncloa', 'Aravaca', 'Centro', 'Latina', 'Carabanchel',
         'Usera', 'Puente de Vallecas', 'Moratalaz', 'Ciudad Lineal',
         'Hortaleza', 'Villaverde', 'Villa de Vallecas', 'Vicálvaro',
-        'San Blas', 'Canillejas', 'Barajas', 'Fuencarral', 'El Pardo'
+        'San Blas', 'Canillejas', 'Barajas', 'Fuencarral', 'El Pardo',
+        'Universidad', 'Malasaña', 'Chueca', 'Sol', 'Ópera', 'Palacio',
+        'Embajadores', 'Cortes', 'Justicia', 'Lavapiés', 'Castellana'
     ]
     
     municipiosMadrid = [
@@ -54,59 +57,101 @@ def transform_item_pisos(item):
         'Torrejón de Ardoz', 'Torrejón', 'Tres Cantos', 'Valdemoro', 'Las Rozas'
     ]
     
-    # Extraer ubicación del scraper
+    # Extraer datos del scraper
     municipality = item.get('municipality', '')
     neighborhood = item.get('neighborhood', '')
     provincia_raw = item.get('province', '')
     titulo = item.get('title', '')
+    descripcion = item.get('description', '')
     
-    # Determinar provincia
-    provincia = provincia_raw.strip()
+    # Variables de ubicación
+    provincia = None
+    ciudad = None
+    barrio_limpio = None
     
-    # Si no viene provincia, intentar inferir del título o datos
+    # PATRÓN PRIORITARIO: Buscar patrón "Barrio (Distrito. Ciudad)" en título
+    # Ejemplos: "Universidad-Malasaña (Distrito Centro. Madrid Capital)"
+    #           "Chamberí (Madrid Capital)"
+    ubicacion_match = re.search(r'([A-ZÁÉÍÓÚÑ][\wáéíóúñ\s-]+?)\s*\(((?:Distrito\s+)?[A-Za-zÁÉÍÓÚáéíóúñ\s]+?)[\.\,]?\s*([A-Za-zÁÉÍÓÚáéíóúñ\s]+?)\s*\)', titulo)
+    
+    if not ubicacion_match:
+        # Patrón alternativo: "Barrio (Ciudad)" sin distrito
+        ubicacion_match = re.search(r'([A-ZÁÉÍÓÚÑ][\wáéíóúñ\s-]+?)\s*\(([A-Za-zÁÉÍÓÚáéíóúñ\s]+?)\s*\)', titulo)
+    
+    if ubicacion_match:
+        # Extraer componentes
+        if len(ubicacion_match.groups()) == 3:
+            barrio_candidato = ubicacion_match.group(1).strip()
+            distrito = ubicacion_match.group(2).strip()
+            ciudad_candidata = ubicacion_match.group(3).strip()
+        else:
+            barrio_candidato = ubicacion_match.group(1).strip()
+            ciudad_candidata = ubicacion_match.group(2).strip()
+        
+        # Procesar ciudad
+        if 'Madrid' in ciudad_candidata:
+            provincia = 'Madrid'
+            ciudad = 'Madrid'
+            
+            # Limpiar barrio (puede ser compuesto: "Universidad-Malasaña")
+            # Verificar si contiene barrios conocidos
+            barrio_encontrado = None
+            for barrio in barriosMadrid:
+                if barrio.lower() in barrio_candidato.lower():
+                    barrio_encontrado = barrio
+                    break
+            
+            # Si encontramos un barrio conocido, usar ese; sino usar el candidato completo
+            barrio_limpio = barrio_encontrado if barrio_encontrado else barrio_candidato
+            
+        else:
+            # Podría ser otra ciudad
+            provincia = ciudad_candidata
+            ciudad = ciudad_candidata
+            barrio_limpio = barrio_candidato
+    
+    # Si no encontramos con el patrón, usar los datos del scraper
+    if not provincia:
+        provincia = provincia_raw.strip() if provincia_raw else ''
+    
+    if not ciudad:
+        ciudad = municipality.strip() if municipality else provincia
+        ciudad = ciudad.replace(' Capital', '').replace(' capital', '').strip()
+    
+    if not barrio_limpio:
+        barrio_limpio = neighborhood.strip() if neighborhood else ''
+    
+    # Si aún no tenemos provincia, intentar inferir del texto completo
     if not provincia or provincia.lower() == 'desconocida':
-        titulo_lower = titulo.lower()
+        texto_completo = (titulo + ' ' + (descripcion or '')).lower()
         
         # Buscar indicios de Madrid
-        if any(b.lower() in titulo_lower for b in barriosMadrid + municipiosMadrid):
+        if 'madrid' in texto_completo or any(b.lower() in texto_completo for b in barriosMadrid + municipiosMadrid):
             provincia = 'Madrid'
-        elif 'madrid' in titulo_lower:
-            provincia = 'Madrid'
-        elif 'murcia' in titulo_lower:
+        elif 'murcia' in texto_completo:
             provincia = 'Murcia'
-        elif municipality:
-            # Usar municipality como pista
-            if 'Madrid' in municipality:
-                provincia = 'Madrid'
-            elif 'Murcia' in municipality:
-                provincia = 'Murcia'
-            else:
-                provincia = municipality
+        elif ciudad:
+            provincia = ciudad
         else:
             provincia = 'Desconocida'
     
-    # Normalizar ciudad (quitar "Capital" y similares)
-    ciudad = municipality.replace(' Capital', '').replace(' capital', '').strip() if municipality else provincia
-    
-    # Limpiar barrio
-    barrio_limpio = neighborhood.strip() if neighborhood else ''
-    
-    # Si no tenemos barrio pero tenemos provincia Madrid, intentar extraer del título
-    if not barrio_limpio and provincia == 'Madrid':
-        titulo_lower = titulo.lower()
+    # Si provincia es Madrid y no tenemos barrio, buscar en el texto
+    if provincia == 'Madrid' and not barrio_limpio:
+        texto_completo = (titulo + ' ' + (descripcion or '')).lower()
         
         # Buscar barrios de Madrid
         for barrio in barriosMadrid:
-            if barrio.lower() in titulo_lower:
+            if barrio.lower() in texto_completo:
                 barrio_limpio = barrio
-                ciudad = 'Madrid'
+                if not ciudad or ciudad == 'Madrid Capital':
+                    ciudad = 'Madrid'
                 break
         
         # Si no encontramos barrio, buscar municipios
         if not barrio_limpio:
             for municipio in municipiosMadrid:
-                if municipio.lower() in titulo_lower:
-                    barrio_limpio = ''  # Los municipios no tienen barrio
+                if municipio.lower() in texto_completo:
+                    barrio_limpio = ''
                     ciudad = municipio
                     break
     
