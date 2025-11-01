@@ -255,9 +255,9 @@ export type Database = {
       }
       metricas_barrios: {
         Row: {
-          barrio: string | null
           ciudad: string
           created_at: string | null
+          distrito: string | null
           id: string
           indice_dinamismo: number | null
           meses_datos_historicos: number | null
@@ -285,9 +285,9 @@ export type Database = {
           variacion_mensual: number | null
         }
         Insert: {
-          barrio?: string | null
           ciudad: string
           created_at?: string | null
+          distrito?: string | null
           id?: string
           indice_dinamismo?: number | null
           meses_datos_historicos?: number | null
@@ -315,9 +315,9 @@ export type Database = {
           variacion_mensual?: number | null
         }
         Update: {
-          barrio?: string | null
           ciudad?: string
           created_at?: string | null
+          distrito?: string | null
           id?: string
           indice_dinamismo?: number | null
           meses_datos_historicos?: number | null
@@ -348,9 +348,9 @@ export type Database = {
       }
       metricas_barrios_historico: {
         Row: {
-          barrio: string | null
           ciudad: string
           created_at: string | null
+          distrito: string | null
           fecha_snapshot: string
           id: string
           metrica_id: string
@@ -360,9 +360,9 @@ export type Database = {
           total_propiedades: number | null
         }
         Insert: {
-          barrio?: string | null
           ciudad: string
           created_at?: string | null
+          distrito?: string | null
           fecha_snapshot?: string
           id?: string
           metrica_id: string
@@ -372,9 +372,9 @@ export type Database = {
           total_propiedades?: number | null
         }
         Update: {
-          barrio?: string | null
           ciudad?: string
           created_at?: string | null
+          distrito?: string | null
           fecha_snapshot?: string
           id?: string
           metrica_id?: string
