@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { TrendingUp, Home, LogOut, Play, Activity } from "lucide-react";
+import { TrendingUp, Home, LogOut, Play, Activity, Search, Database, RefreshCw, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -124,18 +124,34 @@ const Scraper = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+      <header className="border-b bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 backdrop-blur-sm">
+        <div className="container mx-auto px-4 py-6 flex justify-between items-center">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate("/dashboard")}>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate("/dashboard")}
+              className="hover:scale-110 transition-transform"
+            >
               <Home className="h-5 w-5" />
             </Button>
-            <div className="flex items-center gap-2">
-              <TrendingUp className="h-6 w-6 text-primary" />
-              <h1 className="text-2xl font-bold">Scraper</h1>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10 ring-2 ring-primary/20">
+                <Database className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+                  Scraper
+                </h1>
+                <p className="text-xs text-muted-foreground">Gestión de datos inmobiliarios</p>
+              </div>
             </div>
           </div>
-          <Button variant="ghost" onClick={handleLogout}>
+          <Button 
+            variant="outline" 
+            onClick={handleLogout}
+            className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-all"
+          >
             <LogOut className="h-4 w-4 mr-2" />
             Cerrar Sesión
           </Button>
@@ -144,10 +160,13 @@ const Scraper = () => {
 
       <main className="container mx-auto px-4 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <CardTitle>Configurar Scraping</CardTitle>
+          <div className="lg:col-span-1 space-y-6">
+            <Card className="shadow-lg hover:shadow-xl transition-shadow border-primary/20">
+              <CardHeader className="pb-4 space-y-1">
+                <div className="flex items-center gap-2">
+                  <Search className="h-5 w-5 text-primary" />
+                  <CardTitle>Configurar Scraping</CardTitle>
+                </div>
                 <CardDescription>
                   Scraping completo de toda España - Los filtros se aplicarán en el matching
                 </CardDescription>
@@ -208,16 +227,20 @@ const Scraper = () => {
                     </p>
                   </div>
 
-                  <Button type="submit" className="w-full" disabled={scraping}>
-                    <Play className={`h-4 w-4 mr-2 ${scraping ? 'animate-pulse' : ''}`} />
+                  <Button 
+                    type="submit" 
+                    className="w-full bg-gradient-to-r from-primary to-primary-glow hover:opacity-90 shadow-md hover:shadow-lg transition-all" 
+                    disabled={scraping}
+                  >
+                    <Play className={`h-4 w-4 mr-2 ${scraping ? 'animate-spin' : ''}`} />
                     {scraping ? 'Scrapeando...' : 'Ejecutar Scraping'}
                   </Button>
                 </form>
 
-                <div className="mt-6 space-y-4">
+                <div className="mt-6 pt-6 border-t space-y-4">
                   <Button 
                     variant="outline" 
-                    className="w-full"
+                    className="w-full border-dashed hover:border-solid hover:bg-accent/10 transition-all"
                     onClick={handleGenerateFakeData}
                     disabled={generatingFake}
                   >
@@ -225,12 +248,12 @@ const Scraper = () => {
                     {generatingFake ? 'Generando...' : '✨ Generar Datos Fake'}
                   </Button>
 
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2">
-                      <Activity className="h-4 w-4" />
+                  <div className="p-4 bg-gradient-to-br from-accent/5 to-accent/10 rounded-lg border border-accent/20">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                      <Activity className="h-4 w-4 text-accent" />
                       Datos de Prueba
                     </h4>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground leading-relaxed">
                       Genera 50 propiedades fake realistas en varias ciudades para probar el sistema sin necesidad del scraper real.
                     </p>
                   </div>
@@ -240,9 +263,22 @@ const Scraper = () => {
           </div>
 
           <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Historial de Scraping</CardTitle>
+            <Card className="shadow-lg border-primary/20">
+              <CardHeader className="pb-4 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <CardTitle>Historial de Scraping</CardTitle>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={loadLogs}
+                    className="hover:bg-primary/10"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
                 <CardDescription>Últimas ejecuciones del scraper</CardDescription>
               </CardHeader>
               <CardContent>
@@ -251,52 +287,77 @@ const Scraper = () => {
                 ) : (
                   <div className="space-y-3">
                     {logs.map((log) => (
-                      <div key={log.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <Badge variant="outline" className="mb-2">
-                              {log.portal}
-                            </Badge>
-                            <h4 className="font-semibold">
-                              {log.ubicacion || 'Toda España'}
-                            </h4>
+                      <div 
+                        key={log.id} 
+                        className="border rounded-xl p-4 hover:shadow-md transition-all bg-gradient-to-br from-card to-muted/20 group"
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                              <Database className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <Badge 
+                                variant="outline" 
+                                className="mb-2 bg-background/50"
+                              >
+                                {log.portal}
+                              </Badge>
+                              <h4 className="font-semibold text-base">
+                                {log.ubicacion || 'Toda España'}
+                              </h4>
+                            </div>
                           </div>
-                          <Badge variant={log.status === 'success' ? 'default' : 'destructive'}>
+                          <Badge 
+                            variant={log.status === 'success' ? 'default' : 'destructive'}
+                            className="gap-1"
+                          >
+                            {log.status === 'success' ? (
+                              <CheckCircle2 className="h-3 w-3" />
+                            ) : (
+                              <AlertCircle className="h-3 w-3" />
+                            )}
                             {log.status}
                           </Badge>
                         </div>
                         
-                        <div className="grid grid-cols-4 gap-4 mt-3 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Encontradas</p>
-                            <p className="font-semibold">{log.propiedades_encontradas}</p>
+                        <div className="grid grid-cols-4 gap-3 mt-4 p-3 bg-background/60 rounded-lg">
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground mb-1">Encontradas</p>
+                            <p className="text-lg font-bold">{log.propiedades_encontradas}</p>
                           </div>
-                          <div>
-                            <p className="text-muted-foreground">Nuevas</p>
-                            <p className="font-semibold text-green-500">{log.propiedades_nuevas}</p>
+                          <div className="text-center border-l">
+                            <p className="text-xs text-muted-foreground mb-1">Nuevas</p>
+                            <p className="text-lg font-bold text-success">{log.propiedades_nuevas}</p>
                           </div>
-                          <div>
-                            <p className="text-muted-foreground">Actualizadas</p>
-                            <p className="font-semibold text-blue-500">{log.propiedades_actualizadas}</p>
+                          <div className="text-center border-l">
+                            <p className="text-xs text-muted-foreground mb-1">Actualizadas</p>
+                            <p className="text-lg font-bold text-primary">{log.propiedades_actualizadas}</p>
                           </div>
-                          <div>
-                            <p className="text-muted-foreground">Duración</p>
-                            <p className="font-semibold">{log.duracion_segundos}s</p>
+                          <div className="text-center border-l">
+                            <p className="text-xs text-muted-foreground mb-1">Duración</p>
+                            <p className="text-lg font-bold">{log.duracion_segundos}s</p>
                           </div>
                         </div>
 
-                        <p className="text-xs text-muted-foreground mt-3">
-                          {new Date(log.created_at).toLocaleString('es-ES')}
-                        </p>
+                        <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(log.created_at).toLocaleString('es-ES')}
+                          </p>
+                        </div>
                       </div>
                     ))}
                   </div>
                 )}
 
                 {!loading && logs.length === 0 && (
-                  <div className="text-center py-8">
-                    <Activity className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
-                    <p className="text-muted-foreground">No hay historial todavía</p>
+                  <div className="text-center py-12">
+                    <div className="inline-flex p-4 rounded-full bg-muted/50 mb-4">
+                      <Activity className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <p className="text-muted-foreground text-lg font-medium">No hay historial todavía</p>
+                    <p className="text-sm text-muted-foreground mt-2">Ejecuta tu primer scraping para comenzar</p>
                   </div>
                 )}
               </CardContent>
