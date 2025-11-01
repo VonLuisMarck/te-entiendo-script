@@ -50,13 +50,13 @@ serve(async (req) => {
       );
     }
 
-    // Agrupar por provincia, ciudad y barrio
-    const grupos = agruparPorProvinciaBarrio(propiedades);
+    // Agrupar por provincia, ciudad y distrito
+    const grupos = agruparPorProvinciaDistrito(propiedades);
     
     let metricasActualizadas = 0;
 
     for (const [key, props] of Object.entries(grupos)) {
-      const [provincia, ciudad, barrio] = key.split('|');
+      const [provincia, ciudad, distrito] = key.split('|');
       const metricas = calcularMetricas(props as any[]);
 
       // Obtener métrica existente para calcular proyección
@@ -65,7 +65,7 @@ serve(async (req) => {
         .select('id, precio_m2_medio, created_at')
         .eq('provincia', provincia || '')
         .eq('ciudad', ciudad || '')
-        .eq('barrio', barrio || '')
+        .eq('distrito', distrito || '')
         .maybeSingle();
 
       let proyeccionRevalorizacion = null;
@@ -78,7 +78,7 @@ serve(async (req) => {
           metrica_id: metricaExistente.id,
           provincia: provincia || null,
           ciudad: ciudad || null,
-          barrio: barrio || null,
+          distrito: distrito || null,
           precio_medio: metricaExistente.precio_m2_medio,
           precio_m2_medio: metricaExistente.precio_m2_medio,
           total_propiedades: metricas.total_propiedades,
@@ -105,7 +105,7 @@ serve(async (req) => {
       const metricaData = {
         provincia: provincia || null,
         ciudad: ciudad || null,
-        barrio: barrio || null,
+        distrito: distrito || null,
         ...metricas,
         proyeccion_revalorizacion_anual: proyeccionRevalorizacion,
         indice_dinamismo: indiceDinamismo,
@@ -118,7 +118,7 @@ serve(async (req) => {
         .select('id')
         .eq('provincia', provincia || '')
         .eq('ciudad', ciudad || '')
-        .eq('barrio', barrio || '')
+        .eq('distrito', distrito || '')
         .maybeSingle();
 
       let error: any = null;
@@ -175,16 +175,12 @@ serve(async (req) => {
   }
 });
 
-function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
+function agruparPorProvinciaDistrito(propiedades: any[]): Record<string, any[]> {
   const grupos: Record<string, any[]> = {};
 
-  // Barrios conocidos de Murcia capital
-  const barriosMurciaCapital = [
-    'Centro', 'La Catedral', 'Santa Eulalia', 'San Andrés', 'El Carmen',
-    'La Flota', 'Santiago el Mayor', 'Vista Alegre', 'Vistalegre',
-    'Infante Juan Manuel', 'La Ñora', 'Espinardo', 'El Puntal',
-    'Zarandona', 'San Antón', 'Barrio del Progreso', 'Juan de Borbón',
-    'Santa María de Gracia', 'Vistabella', 'Barriomar'
+  // Distritos conocidos de Murcia capital (AMPLIOS)
+  const distritosMurciaCapital = [
+    'Centro', 'Norte', 'Sur', 'Este', 'Oeste', 'Pedanías'
   ];
 
   // Municipios de la provincia de Murcia (son ciudades)
@@ -194,13 +190,13 @@ function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
     'La Manga', 'San Pedro del Pinatar', 'Cabo de Palos'
   ];
 
-  // Barrios conocidos de Madrid capital
-  const barriosMadridCapital = [
-    'Chamberí', 'Salamanca', 'Retiro', 'Arganzuela', 'Chamartín',
-    'Tetuán', 'Moncloa-Aravaca', 'Centro', 'Latina', 'Carabanchel',
-    'Usera', 'Puente de Vallecas', 'Moratalaz', 'Ciudad Lineal',
-    'Hortaleza', 'Villaverde', 'Villa de Vallecas', 'Vicálvaro',
-    'San Blas-Canillejas', 'Barajas', 'Fuencarral-El Pardo'
+  // Distritos conocidos de Madrid capital (AMPLIOS)
+  const distritosMadridCapital = [
+    'Centro', 'Arganzuela', 'Retiro', 'Salamanca', 'Chamartín',
+    'Tetuán', 'Chamberí', 'Fuencarral-El Pardo', 'Moncloa-Aravaca',
+    'Latina', 'Carabanchel', 'Usera', 'Puente de Vallecas',
+    'Moratalaz', 'Ciudad Lineal', 'Hortaleza', 'Villaverde',
+    'Villa de Vallecas', 'Vicálvaro', 'San Blas-Canillejas', 'Barajas'
   ];
 
   // Municipios del área metropolitana de Madrid
@@ -209,7 +205,7 @@ function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
     'Collado Villalba', 'Coslada', 'Fuenlabrada', 'Getafe', 'Leganés',
     'Majadahonda', 'Móstoles', 'Parla', 'Pinto', 'Pozuelo de Alarcón',
     'Rivas-Vaciamadrid', 'San Fernando de Henares', 'San Sebastián de los Reyes',
-    'Torrejón de Ardoz', 'Tres Cantos', 'Valdemoro', 'Las Rozas'
+    'Torrejón de Ardoz', 'Tres Cantos', 'Valdemoro', 'Las Rozas', 'Boadilla del Monte'
   ];
 
   for (const prop of propiedades) {
@@ -218,33 +214,33 @@ function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
     
     let provincia = '';
     let ciudad = '';
-    let barrio = '';
+    let distrito = '';
     
-    // CASO 1: Formato "Barrio, Ciudad" (típico de Fotocasa)
+    // CASO 1: Formato "Distrito, Ciudad" (típico de Fotocasa)
     if (ubicacion.includes(',')) {
       const partes = ubicacion.split(',').map((p: string) => p.trim());
-      barrio = partes[0];
+      distrito = partes[0];
       ciudad = partes[1];
       provincia = ciudad; // Por ahora provincia = ciudad
-      console.log(`✓ Completo: "${ubicacion}" -> Prov: ${provincia}, Ciudad: ${ciudad}, Barrio: ${barrio}`);
+      console.log(`✓ Completo: "${ubicacion}" -> Prov: ${provincia}, Ciudad: ${ciudad}, Distrito: ${distrito}`);
     }
     // CASO 2: Solo ubicación genérica (típico de Pisos.com)
     else {
       const ubicacionLimpia = ubicacion.trim();
       provincia = ubicacionLimpia || 'Desconocida';
       ciudad = ''; // Por defecto vacío
-      barrio = ''; // Por defecto vacío
+      distrito = ''; // Por defecto vacío
       
-      // Para Murcia, intentar extraer barrio/ciudad del título
+      // Para Murcia, intentar extraer distrito/ciudad del título
       if (provincia === 'Murcia') {
-        const barrioEncontrado = barriosMurciaCapital.find(b => 
-          titulo.toLowerCase().includes(b.toLowerCase())
+        const distritoEncontrado = distritosMurciaCapital.find(d => 
+          titulo.toLowerCase().includes(d.toLowerCase())
         );
         
-        if (barrioEncontrado) {
+        if (distritoEncontrado) {
           ciudad = 'Murcia';
-          barrio = barrioEncontrado;
-          console.log(`✓ Barrio de capital: "${titulo}" -> Prov: Murcia, Ciudad: Murcia, Barrio: ${barrio}`);
+          distrito = distritoEncontrado;
+          console.log(`✓ Distrito de capital: "${titulo}" -> Prov: Murcia, Ciudad: Murcia, Distrito: ${distrito}`);
         } else {
           const municipioEncontrado = municipiosMurcia.find(m => 
             titulo.toLowerCase().includes(m.toLowerCase())
@@ -252,22 +248,22 @@ function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
           
           if (municipioEncontrado) {
             ciudad = municipioEncontrado;
-            console.log(`✓ Municipio: "${titulo}" -> Prov: Murcia, Ciudad: ${ciudad}, Barrio: (vacío)`);
+            console.log(`✓ Municipio: "${titulo}" -> Prov: Murcia, Ciudad: ${ciudad}, Distrito: (vacío)`);
           } else {
-            console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Murcia, Ciudad: (vacío), Barrio: (vacío)`);
+            console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Murcia, Ciudad: (vacío), Distrito: (vacío)`);
           }
         }
       }
       // Para Madrid
       else if (provincia === 'Madrid') {
-        const barrioEncontrado = barriosMadridCapital.find(b => 
-          titulo.toLowerCase().includes(b.toLowerCase())
+        const distritoEncontrado = distritosMadridCapital.find(d => 
+          titulo.toLowerCase().includes(d.toLowerCase())
         );
         
-        if (barrioEncontrado) {
+        if (distritoEncontrado) {
           ciudad = 'Madrid';
-          barrio = barrioEncontrado;
-          console.log(`✓ Barrio de capital: "${titulo}" -> Prov: Madrid, Ciudad: Madrid, Barrio: ${barrio}`);
+          distrito = distritoEncontrado;
+          console.log(`✓ Distrito de capital: "${titulo}" -> Prov: Madrid, Ciudad: Madrid, Distrito: ${distrito}`);
         } else {
           const municipioEncontrado = municipiosMadrid.find(m => 
             titulo.toLowerCase().includes(m.toLowerCase())
@@ -275,20 +271,20 @@ function agruparPorProvinciaBarrio(propiedades: any[]): Record<string, any[]> {
           
           if (municipioEncontrado) {
             ciudad = municipioEncontrado;
-            console.log(`✓ Municipio: "${titulo}" -> Prov: Madrid, Ciudad: ${ciudad}, Barrio: (vacío)`);
+            console.log(`✓ Municipio: "${titulo}" -> Prov: Madrid, Ciudad: ${ciudad}, Distrito: (vacío)`);
           } else {
-            console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Madrid, Ciudad: (vacío), Barrio: (vacío)`);
+            console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Madrid, Ciudad: (vacío), Distrito: (vacío)`);
           }
         }
       }
       else {
         // Otras provincias sin detalles
-        console.log(`⚠ Provincia genérica: "${ubicacion}" -> Prov: ${provincia}, Ciudad: (vacío), Barrio: (vacío)`);
+        console.log(`⚠ Provincia genérica: "${ubicacion}" -> Prov: ${provincia}, Ciudad: (vacío), Distrito: (vacío)`);
       }
     }
 
-    // Clave única: provincia|ciudad|barrio
-    const key = `${provincia}|${ciudad}|${barrio}`;
+    // Clave única: provincia|ciudad|distrito
+    const key = `${provincia}|${ciudad}|${distrito}`;
     if (!grupos[key]) grupos[key] = [];
     grupos[key].push(prop);
   }

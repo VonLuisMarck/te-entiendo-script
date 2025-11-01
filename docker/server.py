@@ -68,7 +68,7 @@ def transform_item_pisos(item):
     
     provincia = None
     ciudad = None
-    barrio_limpio = ''
+    distrito_limpio = ''
     
     # Intentar clasificar con IA
     try:
@@ -95,8 +95,8 @@ def transform_item_pisos(item):
                 location_data = classify_response.json()
                 provincia = location_data.get('provincia')
                 ciudad = location_data.get('ciudad')
-                barrio_limpio = location_data.get('barrio', '')
-                print(f"[IA] Clasificado: {provincia} / {ciudad} / {barrio_limpio}")
+                distrito_limpio = location_data.get('distrito', '')
+                print(f"[IA] Clasificado: {provincia} / {ciudad} / {distrito_limpio}")
             else:
                 print(f"[IA] Error {classify_response.status_code}: {classify_response.text}")
     except Exception as e:
@@ -107,11 +107,11 @@ def transform_item_pisos(item):
         provincia = provincia_raw.strip() if provincia_raw else 'Desconocida'
         ciudad = municipality.strip() if municipality else provincia
         ciudad = ciudad.replace(' Capital', '').replace(' capital', '').strip()
-        barrio_limpio = neighborhood.strip() if neighborhood else ''
+        distrito_limpio = neighborhood.strip() if neighborhood else ''
     
-    # Construir ubicación completa estandarizada: "Barrio, Ciudad"
-    if barrio_limpio and barrio_limpio.lower() != ciudad.lower():
-        ubicacion_completa = f"{barrio_limpio}, {ciudad}"
+    # Construir ubicación completa estandarizada: "Distrito, Ciudad"
+    if distrito_limpio and distrito_limpio.lower() != ciudad.lower():
+        ubicacion_completa = f"{distrito_limpio}, {ciudad}"
     else:
         ubicacion_completa = ciudad
     
@@ -358,7 +358,7 @@ def transform_item(item):
     # Variables de ubicación (fallback de datos del scraper)
     provincia = None
     ciudad = None
-    barrio_limpio = ''
+    distrito_limpio = ''
     
     # Intentar clasificar con IA
     try:
@@ -377,8 +377,8 @@ def transform_item(item):
                 location_data = classify_response.json()
                 provincia = location_data.get('provincia')
                 ciudad = location_data.get('ciudad')
-                barrio_limpio = location_data.get('barrio', '')
-                print(f"[IA] Fotocasa clasificado: {provincia} / {ciudad} / {barrio_limpio}")
+                distrito_limpio = location_data.get('distrito', '')
+                print(f"[IA] Fotocasa clasificado: {provincia} / {ciudad} / {distrito_limpio}")
             else:
                 print(f"[IA] Error {classify_response.status_code}: {classify_response.text}")
     except Exception as e:
@@ -388,21 +388,21 @@ def transform_item(item):
     if not provincia or provincia == 'Desconocida':
         # Construir ubicación completa con provincia - NORMALIZADO (fallback)
         # Construir ubicación completa con provincia - NORMALIZADO (fallback)
-        barrio = zone or location.get('level8Name') or ''
+        distrito = zone or location.get('level8Name') or ''
         ciudad_raw = location.get('level5Name', 'Murcia')
         
         # Normalizar ciudad (quitar "Capital" y espacios extra)
         ciudad = ciudad_raw.replace(' Capital', '').replace(' capital', '').strip()
         
-        # Limpiar barrio y eliminar redundancias
-        barrio_limpio = barrio.strip() if barrio else ''
-        # Si el barrio contiene el nombre de la ciudad, extraer solo el barrio
-        if ',' in barrio_limpio:
-            barrio_limpio = barrio_limpio.split(',')[0].strip()
+        # Limpiar distrito y eliminar redundancias
+        distrito_limpio = distrito.strip() if distrito else ''
+        # Si el distrito contiene el nombre de la ciudad, extraer solo el distrito
+        if ',' in distrito_limpio:
+            distrito_limpio = distrito_limpio.split(',')[0].strip()
     
-    # Construir ubicación estandarizada: "Barrio, Ciudad"
-    if barrio_limpio and barrio_limpio.lower() != ciudad.lower():
-        ubicacion_completa = f"{barrio_limpio}, {ciudad}"
+    # Construir ubicación estandarizada: "Distrito, Ciudad"
+    if distrito_limpio and distrito_limpio.lower() != ciudad.lower():
+        ubicacion_completa = f"{distrito_limpio}, {ciudad}"
     else:
         ubicacion_completa = ciudad if ciudad else 'Desconocida'
     

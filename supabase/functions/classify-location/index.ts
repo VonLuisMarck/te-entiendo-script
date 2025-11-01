@@ -40,20 +40,28 @@ Tu tarea es extraer información de ubicación de títulos y descripciones de pr
 
 Reglas CRÍTICAS:
 1. Provincia: región/provincia española (Madrid, Barcelona, Murcia, etc)
-2. Ciudad: municipio o ciudad oficial (Madrid, Pozuelo de Alarcón, Getafe, Alcobendas, etc)
-3. Barrio: SOLO distritos o barrios DENTRO de una ciudad grande (Chamberí, Salamanca, Malasaña, Retiro, etc)
+2. Ciudad: municipio o ciudad oficial (Madrid, Pozuelo de Alarcón, Getafe, Cartagena, etc)
+3. Distrito: SOLO grandes zonas/distritos administrativos DENTRO de ciudades grandes (Centro, Norte, Sur, Este, Oeste, etc)
+
+IMPORTANTE sobre DISTRITOS:
+- Los distritos deben ser AMPLIOS, no micro-barrios
+- Madrid: Centro, Salamanca-Retiro, Chamberí-Tetuán, Norte, Sur, Este, Oeste
+- Barcelona: Ciutat Vella, Eixample, Gràcia, Sarrià-Sant Gervasi, Horta-Guinardó, etc.
+- Murcia: Centro, Norte, Sur, Este, Oeste, Pedanías
+- NUNCA usar barrios pequeños como "Malasaña" o "Lavapiés", agrúpalos en "Centro"
+- Si NO es una ciudad grande o no se especifica zona: distrito VACÍO
 
 Casos especiales de la Comunidad de Madrid:
-- Ciudalcampo, La Moraleja, El Soto: son urbanizaciones en San Sebastián de los Reyes
-- Montealina: urbanización en Pozuelo de Alarcón
-- Las Lomas, El Olivar: urbanizaciones en Boadilla del Monte
-- Villafranca del Castillo: urbanización en Villanueva de la Cañada
+- Ciudalcampo, La Moraleja, El Soto: son urbanizaciones en San Sebastián de los Reyes → distrito vacío
+- Montealina: urbanización en Pozuelo de Alarcón → distrito vacío
+- Las Lomas, El Olivar: urbanizaciones en Boadilla del Monte → distrito vacío
+- Villafranca del Castillo: urbanización en Villanueva de la Cañada → distrito vacío
 - Si mencionan "Madrid Capital" → ciudad = "Madrid"
-- Municipios metropolitanos (Pozuelo, Alcobendas, Las Rozas, Majadahonda, etc) son CIUDADES, no barrios
+- Municipios metropolitanos (Pozuelo, Alcobendas, Las Rozas, Majadahonda, etc) son CIUDADES → distrito vacío
 
 Formato de salida:
-- Barrio vacío si es un municipio completo o urbanización
-- Si es urbanización dentro de municipio, el barrio puede ser el nombre de la urbanización
+- Distrito VACÍO si es un municipio pequeño/medio o no hay información de zona
+- Solo usar distrito para ciudades grandes (Madrid, Barcelona, Valencia, Sevilla, Murcia, Málaga, etc)
 - NUNCA incluir caracteres extraños, solo texto limpio en español`;
 
     const userPrompt = `Analiza esta propiedad y extrae la ubicación:
@@ -78,7 +86,7 @@ ${descripcion ? `Descripción: ${descripcion}` : ''}`;
             type: 'function',
             function: {
               name: 'extract_location',
-              description: 'Extrae provincia, ciudad y barrio de una propiedad inmobiliaria',
+              description: 'Extrae provincia, ciudad y distrito de una propiedad inmobiliaria',
               parameters: {
                 type: 'object',
                 properties: {
@@ -88,11 +96,11 @@ ${descripcion ? `Descripción: ${descripcion}` : ''}`;
                   },
                   ciudad: {
                     type: 'string',
-                    description: 'Municipio o ciudad (ej: Madrid, Pozuelo de Alarcón, Getafe). Si es Madrid Capital, usar "Madrid"'
+                    description: 'Municipio o ciudad (ej: Madrid, Pozuelo de Alarcón, Getafe, Cartagena). Si es Madrid Capital, usar "Madrid"'
                   },
-                  barrio: {
+                  distrito: {
                     type: 'string',
-                    description: 'Barrio o distrito dentro de la ciudad. Dejar vacío si es un municipio completo o no se especifica'
+                    description: 'SOLO distrito AMPLIO dentro de ciudades grandes (ej: Centro, Norte, Salamanca-Retiro). Vacío si es municipio pequeño o no aplica'
                   }
                 },
                 required: ['provincia', 'ciudad'],
@@ -148,7 +156,7 @@ ${descripcion ? `Descripción: ${descripcion}` : ''}`;
     const result = {
       provincia: cleanText(location.provincia) || 'Desconocida',
       ciudad: cleanText(location.ciudad || location.provincia) || 'Desconocida',
-      barrio: cleanText(location.barrio) || ''
+      distrito: cleanText(location.distrito) || ''
     };
     
     console.log('Ubicación clasificada:', result);
