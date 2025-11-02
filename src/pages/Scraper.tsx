@@ -40,19 +40,20 @@ const Scraper = () => {
   const [newTrigger, setNewTrigger] = useState({
     nombre: "",
     intervalo: "24h" as "1h" | "6h" | "12h" | "24h",
+    horaInicio: 2,  // hora por defecto 2am
     portal: "fotocasa",
     ubicacion: "murcia",
     scraping_mode: "single" as "single" | "all"
   });
   const navigate = useNavigate();
 
-  const intervalToCron = (intervalo: string) => {
+  const intervalToCron = (intervalo: string, hora: number) => {
     switch(intervalo) {
-      case "1h": return "0 * * * *";      // Cada hora
-      case "6h": return "0 */6 * * *";    // Cada 6 horas
-      case "12h": return "0 */12 * * *";  // Cada 12 horas
-      case "24h": return "0 2 * * *";     // Diario a las 2am
-      default: return "0 2 * * *";
+      case "1h": return "0 * * * *";              // Cada hora (ignora hora de inicio)
+      case "6h": return `0 ${hora},${(hora+6)%24},${(hora+12)%24},${(hora+18)%24} * * *`;  // Cada 6 horas desde la hora especificada
+      case "12h": return `0 ${hora},${(hora+12)%24} * * *`;  // Cada 12 horas desde la hora especificada
+      case "24h": return `0 ${hora} * * *`;       // Diario a la hora especificada
+      default: return `0 ${hora} * * *`;
     }
   };
 
@@ -140,7 +141,7 @@ const Scraper = () => {
         .from("scraping_triggers")
         .insert({
           nombre: newTrigger.nombre,
-          cron_expression: intervalToCron(newTrigger.intervalo),
+          cron_expression: intervalToCron(newTrigger.intervalo, newTrigger.horaInicio),
           portal: newTrigger.portal,
           ubicacion: newTrigger.scraping_mode === "all" ? null : newTrigger.ubicacion,
           scraping_mode: newTrigger.scraping_mode,
@@ -154,6 +155,7 @@ const Scraper = () => {
       setNewTrigger({
         nombre: "",
         intervalo: "24h",
+        horaInicio: 2,
         portal: "fotocasa",
         ubicacion: "murcia",
         scraping_mode: "single"
@@ -437,10 +439,36 @@ const Scraper = () => {
                               <SelectItem value="1h">⏱️ Cada hora</SelectItem>
                               <SelectItem value="6h">🕕 Cada 6 horas</SelectItem>
                               <SelectItem value="12h">🕛 Cada 12 horas</SelectItem>
-                              <SelectItem value="24h">📅 Cada 24 horas (2am)</SelectItem>
+                              <SelectItem value="24h">📅 Cada 24 horas</SelectItem>
                             </SelectContent>
                           </Select>
                         </div>
+
+                        {newTrigger.intervalo !== "1h" && (
+                          <div>
+                            <Label>Hora de inicio (0-23)</Label>
+                            <Select
+                              value={newTrigger.horaInicio.toString()}
+                              onValueChange={(value) => setNewTrigger({...newTrigger, horaInicio: parseInt(value)})}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="max-h-60">
+                                {Array.from({length: 24}, (_, i) => (
+                                  <SelectItem key={i} value={i.toString()}>
+                                    {i.toString().padStart(2, '0')}:00 {i < 12 ? 'AM' : 'PM'}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {newTrigger.intervalo === "6h" && `Se ejecutará a las ${newTrigger.horaInicio}h, ${(newTrigger.horaInicio+6)%24}h, ${(newTrigger.horaInicio+12)%24}h, ${(newTrigger.horaInicio+18)%24}h`}
+                              {newTrigger.intervalo === "12h" && `Se ejecutará a las ${newTrigger.horaInicio}h y ${(newTrigger.horaInicio+12)%24}h`}
+                              {newTrigger.intervalo === "24h" && `Se ejecutará diariamente a las ${newTrigger.horaInicio}h`}
+                            </p>
+                          </div>
+                        )}
 
                         <div>
                           <Label>Portal</Label>
@@ -518,9 +546,12 @@ const Scraper = () => {
                     {cronJobs.map((job) => {
                       const getFrecuencia = (cron: string) => {
                         if (cron === "0 * * * *") return "⏱️ Cada hora";
-                        if (cron === "0 */6 * * *") return "🕕 Cada 6 horas";
-                        if (cron === "0 */12 * * *") return "🕛 Cada 12 horas";
-                        if (cron === "0 2 * * *") return "📅 Cada 24h (2am)";
+                        if (cron.match(/^0 \d+,\d+,\d+,\d+ \* \* \*$/)) return "🕕 Cada 6h";
+                        if (cron.match(/^0 \d+,\d+ \* \* \*$/)) return "🕛 Cada 12h";
+                        if (cron.match(/^0 \d+ \* \* \*$/)) {
+                          const hora = cron.split(' ')[1];
+                          return `📅 Diario ${hora}h`;
+                        }
                         return `📅 ${cron}`;
                       };
 
