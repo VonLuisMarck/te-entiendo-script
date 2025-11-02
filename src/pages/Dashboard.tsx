@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Building2, Users, Search, TrendingUp, LogOut, BarChart3, Settings, MapPin } from "lucide-react";
+import { Building2, Users, Search, TrendingUp, LogOut, BarChart3, Settings, MapPin, FileText } from "lucide-react";
+import { generateBusinessReport } from "@/lib/business-report-generator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -58,6 +59,55 @@ const Dashboard = () => {
     }
   };
 
+  const handleGenerateReport = async () => {
+    try {
+      // Cargar métricas del sistema
+      const [propsData, clientesData, matchingsData, scrapingData] = await Promise.all([
+        supabase.from("propiedades").select("id, activo, created_at, precio, precio_m2"),
+        supabase.from("clientes").select("id, tipo_suscripcion, activo"),
+        supabase.from("matchings").select("id, score, notificado, created_at"),
+        supabase.from("scraping_logs").select("propiedades_encontradas, propiedades_nuevas, duracion_segundos").gte('created_at', new Date(Date.now() - 30*24*60*60*1000).toISOString())
+      ]);
+      
+      const sevenDaysAgo = new Date(Date.now() - 7*24*60*60*1000);
+      
+      const metrics = {
+        propiedades: {
+          total: propsData.data?.length || 0,
+          activas: propsData.data?.filter(p => p.activo).length || 0,
+          nuevasSemana: propsData.data?.filter(p => new Date(p.created_at) > sevenDaysAgo).length || 0,
+          precioMedio: propsData.data?.reduce((sum, p) => sum + (p.precio || 0), 0) / (propsData.data?.length || 1),
+          precioM2Medio: propsData.data?.reduce((sum, p) => sum + (p.precio_m2 || 0), 0) / (propsData.data?.length || 1)
+        },
+        clientes: {
+          total: clientesData.data?.length || 0,
+          free: clientesData.data?.filter(c => c.tipo_suscripcion === 'free').length || 0,
+          basic: clientesData.data?.filter(c => c.tipo_suscripcion === 'basic').length || 0,
+          investor: clientesData.data?.filter(c => c.tipo_suscripcion === 'investor' || c.tipo_suscripcion === 'investor_platino').length || 0,
+          activos: clientesData.data?.filter(c => c.activo).length || 0
+        },
+        matchings: {
+          total: matchingsData.data?.length || 0,
+          semana: matchingsData.data?.filter(m => new Date(m.created_at) > sevenDaysAgo).length || 0,
+          scorePromedio: matchingsData.data && matchingsData.data.length > 0 ? matchingsData.data.reduce((sum, m) => sum + (m.score || 0), 0) / matchingsData.data.length : null,
+          notificados: matchingsData.data?.filter(m => m.notificado).length || 0
+        },
+        scraping: {
+          logsTotal: scrapingData.data?.length || 0,
+          totalScraped: scrapingData.data?.reduce((sum, s) => sum + (s.propiedades_encontradas || 0), 0) || 0,
+          totalNuevas: scrapingData.data?.reduce((sum, s) => sum + (s.propiedades_nuevas || 0), 0) || 0,
+          duracionMedia: scrapingData.data && scrapingData.data.length > 0 ? scrapingData.data.reduce((sum, s) => sum + (s.duracion_segundos || 0), 0) / scrapingData.data.length : 0
+        }
+      };
+      
+      generateBusinessReport(metrics);
+      toast.success("📄 Informe generado correctamente");
+    } catch (error) {
+      console.error("Error generando informe:", error);
+      toast.error("Error al generar el informe");
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     toast.success("Sesión cerrada");
@@ -75,6 +125,10 @@ const Dashboard = () => {
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
+            <Button variant="outline" onClick={handleGenerateReport}>
+              <FileText className="h-4 w-4 mr-2" />
+              Descargar Informe
+            </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}>
               <Settings className="h-5 w-5" />
             </Button>
