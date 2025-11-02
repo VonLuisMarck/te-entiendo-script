@@ -430,16 +430,16 @@ export const generateBusinessReport = (metrics: SystemMetrics) => {
     footStyles: { fillColor: [76, 175, 80], fontStyle: 'bold', fontSize: 9 },
     styles: { fontSize: 8, cellPadding: 2 },
     columnStyles: {
-      0: { cellWidth: 32 },
-      1: { cellWidth: 24, halign: 'right' },
-      2: { cellWidth: 24, halign: 'right' },
-      3: { cellWidth: 24, halign: 'right' },
-      4: { cellWidth: 32 }
+      0: { cellWidth: 28 },
+      1: { cellWidth: 20, halign: 'right' },
+      2: { cellWidth: 20, halign: 'right' },
+      3: { cellWidth: 20, halign: 'right' },
+      4: { cellWidth: 28 }
     }
   });
   
   // Desglose por etapa
-  yPos = (doc as any).autoTable.previous.finalY + 15;
+  yPos = (doc as any).autoTable?.previous?.finalY ? (doc as any).autoTable.previous.finalY + 15 : yPos + 80;
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
@@ -514,10 +514,16 @@ export const generateBusinessReport = (metrics: SystemMetrics) => {
     ],
     theme: 'striped',
     headStyles: { fillColor: [41, 128, 185] },
-    styles: { fontSize: 10 }
+    styles: { fontSize: 10 },
+    columnStyles: {
+      0: { cellWidth: 35 },
+      1: { cellWidth: 25, halign: 'right' },
+      2: { cellWidth: 25, halign: 'center' },
+      3: { cellWidth: 70 }
+    }
   });
   
-  yPos = (doc as any).autoTable.previous.finalY + 15;
+  yPos = (doc as any).autoTable?.previous?.finalY ? (doc as any).autoTable.previous.finalY + 15 : yPos + 80;
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
@@ -541,11 +547,15 @@ export const generateBusinessReport = (metrics: SystemMetrics) => {
     headStyles: { fillColor: [76, 175, 80] },
     bodyStyles: { fontSize: 9 },
     columnStyles: {
-      4: { fontStyle: 'bold', textColor: [46, 125, 50] }
+      0: { cellWidth: 40 },
+      1: { cellWidth: 25, halign: 'center' },
+      2: { cellWidth: 30, halign: 'right' },
+      3: { cellWidth: 30, halign: 'right' },
+      4: { cellWidth: 30, fontStyle: 'bold', textColor: [46, 125, 50], halign: 'right' }
     }
   });
   
-  yPos = (doc as any).autoTable.previous.finalY + 15;
+  yPos = (doc as any).autoTable?.previous?.finalY ? (doc as any).autoTable.previous.finalY + 15 : yPos + 80;
   
   // KPIs clave
   doc.setFillColor(232, 245, 233);
