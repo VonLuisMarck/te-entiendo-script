@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PropiedadAnalisis {
   propiedad: any;
@@ -45,47 +46,81 @@ export const generarPDFAnalisis = async ({
   // Extraer ciudad y provincia de la ubicación
   const [ciudad, provincia] = propiedad.ubicacion.split(',').map((s: string) => s.trim());
   
+  // Generar imagen de la ciudad
+  let cityImageUrl = null;
+  try {
+    const { data: imageData } = await supabase.functions.invoke('generate-city-image', {
+      body: { ciudad, provincia }
+    });
+    if (imageData?.imageUrl) {
+      cityImageUrl = imageData.imageUrl;
+    }
+  } catch (error) {
+    console.error('Error generando imagen de ciudad:', error);
+  }
+  
   // === PORTADA ===
   doc.setFillColor(240, 244, 248);
   doc.rect(0, 0, pageWidth, pageHeight, 'F');
   
+  // Añadir imagen de la ciudad si está disponible
+  if (cityImageUrl) {
+    try {
+      // La imagen está en base64, la añadimos directamente
+      doc.addImage(cityImageUrl, 'PNG', 0, 0, pageWidth, 80, undefined, 'FAST');
+      
+      // Overlay oscuro para mejorar legibilidad del texto
+      doc.setFillColor(0, 0, 0);
+      (doc as any).setGState({ opacity: 0.4 });
+      doc.rect(0, 0, pageWidth, 80, 'F');
+      (doc as any).setGState({ opacity: 1 });
+    } catch (error) {
+      console.error('Error añadiendo imagen al PDF:', error);
+    }
+  }
+  
   // Título principal - ubicación
-  doc.setTextColor(30, 58, 138);
+  doc.setTextColor(cityImageUrl ? 255 : 30, cityImageUrl ? 255 : 58, cityImageUrl ? 255 : 138);
   doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
   const ubicacionTitle = ciudad || propiedad.ubicacion;
-  doc.text(ubicacionTitle, pageWidth / 2, 80, { align: 'center' });
+  doc.text(ubicacionTitle, pageWidth / 2, cityImageUrl ? 50 : 80, { align: 'center' });
   
   // Subtítulo con tipo de propiedad
-  doc.setTextColor(71, 85, 105);
+  const ySubtitle = cityImageUrl ? 65 : 95;
+  doc.setTextColor(cityImageUrl ? 255 : 71, cityImageUrl ? 255 : 85, cityImageUrl ? 255 : 105);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'normal');
-  doc.text(propiedad.tipo_propiedad, pageWidth / 2, 95, { align: 'center' });
+  doc.text(propiedad.tipo_propiedad, pageWidth / 2, ySubtitle, { align: 'center' });
   
   // Precio destacado
+  const yPrecio = cityImageUrl ? 100 : 120;
   doc.setTextColor(30, 58, 138);
   doc.setFontSize(32);
   doc.setFont('helvetica', 'bold');
-  doc.text(`${formatNumber(propiedad.precio)} €`, pageWidth / 2, 120, { align: 'center' });
+  doc.text(`${formatNumber(propiedad.precio)} €`, pageWidth / 2, yPrecio, { align: 'center' });
   
   // Info adicional
+  const yInfo = cityImageUrl ? 112 : 132;
   doc.setTextColor(71, 85, 105);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
   const infoLinea = `${propiedad.metros} m² • ${propiedad.dormitorios} dorm. • ${propiedad.banos} baños`;
-  doc.text(infoLinea, pageWidth / 2, 132, { align: 'center' });
+  doc.text(infoLinea, pageWidth / 2, yInfo, { align: 'center' });
   
   // Perfil del cliente
+  const yPerfil = cityImageUrl ? 125 : 145;
   doc.setFontSize(10);
   const perfilText = clientePerfil === 'reformar' ? 'Perfil: Inversor - Reformar y Vender' :
                      clientePerfil === 'alquilar' ? 'Perfil: Inversor - Alquilar' :
                      'Perfil: Vivienda Habitual';
-  doc.text(perfilText, pageWidth / 2, 145, { align: 'center' });
+  doc.text(perfilText, pageWidth / 2, yPerfil, { align: 'center' });
   
   // Preparado para
+  const yNombre = cityImageUrl ? 135 : 155;
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Análisis preparado para: ${clienteNombre}`, pageWidth / 2, 155, { align: 'center' });
+  doc.text(`Análisis preparado para: ${clienteNombre}`, pageWidth / 2, yNombre, { align: 'center' });
   
   // Footer portada
   doc.setTextColor(148, 163, 184);
