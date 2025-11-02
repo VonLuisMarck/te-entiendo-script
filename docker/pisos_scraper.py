@@ -182,7 +182,8 @@ def parse_detail_page(html: str, url: str) -> Dict[str, Any]:
                 pass
 
     size = rx(r'(\d+(?:[.,]\d+)?)\s*m[²2]\b')
-    rooms = rx(r'(\d+)\s*habi(?:taciones|tación)\b')
+    # Mejorado: captura habitaciones, dormitorios, hab., dorm.
+    rooms = rx(r'(\d+)\s*(?:habi(?:taciones?|tación)|dormitorios?|hab\.?|dorm\.?)\b')
     baths = rx(r'(\d+)\s*bañ(?:os|o)\b')
     floor = rx(r'(\d+)(?:ª|º)?\s*planta\b')
     year_built = rx(r'(?:año|construido|antigüedad).*?(\d{4})\b')
