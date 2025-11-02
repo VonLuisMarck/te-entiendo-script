@@ -36,6 +36,14 @@ const Scraper = () => {
   });
   const [cronJobs, setCronJobs] = useState<any[]>([]);
   const [loadingCron, setLoadingCron] = useState(false);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newTrigger, setNewTrigger] = useState({
+    nombre: "",
+    cron_expression: "0 2 * * *",
+    portal: "fotocasa",
+    ubicacion: "murcia",
+    scraping_mode: "single" as "single" | "all"
+  });
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -108,6 +116,41 @@ const Scraper = () => {
       loadCronJobs();
     } catch (error: any) {
       toast.error("Error al eliminar trigger");
+    }
+  };
+
+  const createTrigger = async () => {
+    if (!newTrigger.nombre || !newTrigger.cron_expression) {
+      toast.error("Completa todos los campos");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("scraping_triggers")
+        .insert({
+          nombre: newTrigger.nombre,
+          cron_expression: newTrigger.cron_expression,
+          portal: newTrigger.portal,
+          ubicacion: newTrigger.scraping_mode === "all" ? null : newTrigger.ubicacion,
+          scraping_mode: newTrigger.scraping_mode,
+          activo: true
+        });
+
+      if (error) throw error;
+      
+      toast.success("Trigger creado exitosamente");
+      setDialogOpen(false);
+      setNewTrigger({
+        nombre: "",
+        cron_expression: "0 2 * * *",
+        portal: "fotocasa",
+        ubicacion: "murcia",
+        scraping_mode: "single"
+      });
+      loadCronJobs();
+    } catch (error: any) {
+      toast.error("Error al crear trigger");
     }
   };
 
@@ -466,7 +509,7 @@ const Scraper = () => {
                     <Clock className="h-5 w-5 text-primary" />
                     <CardTitle>Triggers Automáticos</CardTitle>
                   </div>
-                  <Dialog>
+                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
                       <Button size="sm" className="gap-2">
                         <Plus className="h-4 w-4" />
@@ -483,23 +526,86 @@ const Scraper = () => {
                       <div className="space-y-4">
                         <div>
                           <Label>Nombre del Trigger</Label>
-                          <Input placeholder="Ej: Scraping diario Murcia" />
+                          <Input 
+                            placeholder="Ej: Scraping diario Murcia"
+                            value={newTrigger.nombre}
+                            onChange={(e) => setNewTrigger({...newTrigger, nombre: e.target.value})}
+                          />
                         </div>
+                        
                         <div>
                           <Label>Expresión Cron</Label>
-                          <Input placeholder="0 2 * * * (Diario a las 2am)" />
+                          <Input 
+                            placeholder="0 2 * * * (Diario a las 2am)"
+                            value={newTrigger.cron_expression}
+                            onChange={(e) => setNewTrigger({...newTrigger, cron_expression: e.target.value})}
+                          />
                           <p className="text-xs text-muted-foreground mt-1">
                             <a href="https://crontab.guru/" target="_blank" rel="noopener noreferrer" className="underline">
                               Ayuda con expresiones cron
                             </a>
                           </p>
                         </div>
-                        <Button className="w-full" disabled>
-                          Crear Trigger (Próximamente)
+
+                        <div>
+                          <Label>Portal</Label>
+                          <Select
+                            value={newTrigger.portal}
+                            onValueChange={(value) => setNewTrigger({...newTrigger, portal: value})}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="fotocasa">Fotocasa</SelectItem>
+                              <SelectItem value="pisos">Pisos.com</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div>
+                          <Label>Modo de Scraping</Label>
+                          <Select
+                            value={newTrigger.scraping_mode}
+                            onValueChange={(value: "single" | "all") => setNewTrigger({...newTrigger, scraping_mode: value})}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="single">Ciudad Individual</SelectItem>
+                              <SelectItem value="all">🌍 Toda España</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        {newTrigger.scraping_mode === "single" && (
+                          <div>
+                            <Label>Ciudad</Label>
+                            <Select
+                              value={newTrigger.ubicacion}
+                              onValueChange={(value) => setNewTrigger({...newTrigger, ubicacion: value})}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="murcia">Murcia</SelectItem>
+                                <SelectItem value="madrid">Madrid</SelectItem>
+                                <SelectItem value="barcelona">Barcelona</SelectItem>
+                                <SelectItem value="valencia">Valencia</SelectItem>
+                                <SelectItem value="sevilla">Sevilla</SelectItem>
+                                <SelectItem value="malaga">Málaga</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
+                        
+                        <Button className="w-full" onClick={createTrigger}>
+                          Crear Trigger
                         </Button>
                         <p className="text-xs text-muted-foreground">
-                          Los triggers automáticos requieren configuración adicional en Supabase. 
-                          Por ahora, usa el botón de scraping manual.
+                          ⚠️ Los triggers se guardarán en la BD pero la ejecución automática requiere configurar pg_cron en Supabase
                         </p>
                       </div>
                     </DialogContent>
