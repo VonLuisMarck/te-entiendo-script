@@ -89,31 +89,15 @@ const Propiedades = () => {
         .eq("clientes.user_id", session.user.id)
         .maybeSingle();
 
-      // Buscar métricas de la zona
-      const [ciudad, distrito] = propiedad.ubicacion.split(',').map(s => s.trim());
+      // Buscar métricas de la zona (solo ciudad, sin distrito)
+      const [ciudad] = propiedad.ubicacion.split(',').map(s => s.trim());
       
-      // Intentar primero con distrito específico, luego ciudad
-      let metrica = null;
-      if (distrito) {
-        const { data } = await supabase
-          .from("metricas_barrios")
-          .select("*")
-          .eq("ciudad", ciudad)
-          .eq("distrito", distrito)
-          .maybeSingle();
-        metrica = data;
-      }
-      
-      // Si no hay métricas de distrito, buscar de ciudad
-      if (!metrica) {
-        const { data } = await supabase
-          .from("metricas_barrios")
-          .select("*")
-          .eq("ciudad", ciudad)
-          .is("distrito", null)
-          .maybeSingle();
-        metrica = data;
-      }
+      const { data: metrica } = await supabase
+        .from("metricas_barrios")
+        .select("*")
+        .eq("ciudad", ciudad)
+        .is("distrito", null)
+        .maybeSingle();
 
       // Generar PDF
       await generarPDFAnalisis({

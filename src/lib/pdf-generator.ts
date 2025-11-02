@@ -42,59 +42,148 @@ export const generarPDFAnalisis = async ({
     return false;
   };
 
-  // === HEADER ===
-  doc.setFillColor(59, 130, 246);
-  doc.rect(0, 0, pageWidth, 35, 'F');
+  // Extraer ciudad y provincia de la ubicación
+  const [ciudad, provincia] = propiedad.ubicacion.split(',').map((s: string) => s.trim());
   
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(24);
+  // === PORTADA ===
+  doc.setFillColor(240, 244, 248);
+  doc.rect(0, 0, pageWidth, pageHeight, 'F');
+  
+  // Título principal - ubicación
+  doc.setTextColor(30, 58, 138);
+  doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  doc.text('InmoFinder', margin, 18);
+  const ubicacionTitle = ciudad || propiedad.ubicacion;
+  doc.text(ubicacionTitle, pageWidth / 2, 80, { align: 'center' });
   
+  // Subtítulo con tipo de propiedad
+  doc.setTextColor(71, 85, 105);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'normal');
+  doc.text(propiedad.tipo_propiedad, pageWidth / 2, 95, { align: 'center' });
+  
+  // Precio destacado
+  doc.setTextColor(30, 58, 138);
+  doc.setFontSize(32);
+  doc.setFont('helvetica', 'bold');
+  doc.text(`${formatNumber(propiedad.precio)} €`, pageWidth / 2, 120, { align: 'center' });
+  
+  // Info adicional
+  doc.setTextColor(71, 85, 105);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
-  doc.text(`Analisis para: ${clienteNombre}`, margin, 26);
+  const infoLinea = `${propiedad.metros} m² • ${propiedad.dormitorios} dorm. • ${propiedad.banos} baños`;
+  doc.text(infoLinea, pageWidth / 2, 132, { align: 'center' });
+  
+  // Perfil del cliente
+  doc.setFontSize(10);
+  const perfilText = clientePerfil === 'reformar' ? 'Perfil: Inversor - Reformar y Vender' :
+                     clientePerfil === 'alquilar' ? 'Perfil: Inversor - Alquilar' :
+                     'Perfil: Vivienda Habitual';
+  doc.text(perfilText, pageWidth / 2, 145, { align: 'center' });
+  
+  // Preparado para
   doc.setFontSize(9);
-  const perfilText = clientePerfil === 'reformar' ? 'Inversor - Reformar y Vender' :
-                     clientePerfil === 'alquilar' ? 'Inversor - Alquilar' :
-                     'Vivienda Habitual';
-  doc.text(`Perfil: ${perfilText}`, margin, 31);
-
-  doc.setFontSize(9);
-  const fecha = new Date().toLocaleDateString('es-ES');
-  doc.text(fecha, pageWidth - margin, 28, { align: 'right' });
-
-  yPosition = 45;
+  doc.setTextColor(100, 116, 139);
+  doc.text(`Análisis preparado para: ${clienteNombre}`, pageWidth / 2, 155, { align: 'center' });
+  
+  // Footer portada
+  doc.setTextColor(148, 163, 184);
+  doc.setFontSize(8);
+  const fecha = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
+  doc.text(fecha, pageWidth / 2, pageHeight - 30, { align: 'center' });
+  doc.text('InmoFinder - Análisis Inteligente de Propiedades', pageWidth / 2, pageHeight - 25, { align: 'center' });
+  
+  // Nueva página
+  doc.addPage();
+  yPosition = 20;
   doc.setTextColor(0, 0, 0);
 
-  // === INFORMACION BASICA ===
+  // === RESUMEN EJECUTIVO ===
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, yPosition - 5, pageWidth, 10, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(59, 130, 246);
-  doc.text('Informacion de la Propiedad', margin, yPosition);
-  yPosition += 8;
-
+  doc.text('Resumen Ejecutivo', margin, yPosition + 2);
+  yPosition += 15;
+  
+  doc.setTextColor(0, 0, 0);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
+  
+  const resumenText = `La propiedad ubicada en ${propiedad.ubicacion} representa ${
+    clientePerfil === 'reformar' ? 'una oportunidad de inversión para reforma y reventa' :
+    clientePerfil === 'alquilar' ? 'una oportunidad de inversión para alquiler' :
+    'una opción para vivienda habitual'
+  }. Con ${propiedad.metros}m² construidos, distribuidos en ${propiedad.dormitorios} dormitorios y ${propiedad.banos} baños.`;
+  
+  const splitResumen = doc.splitTextToSize(resumenText, pageWidth - 2 * margin);
+  doc.text(splitResumen, margin, yPosition);
+  yPosition += splitResumen.length * 5 + 10;
 
-  const infoProp = [
-    ['Ubicacion', propiedad.ubicacion],
-    ['Tipo', propiedad.tipo_propiedad],
-    ['Precio', `${formatNumber(propiedad.precio)} EUR`],
-    ['Precio/m2', `${formatNumber(propiedad.precio_m2)} EUR/m2`],
-    ['Superficie', `${propiedad.metros} m2`],
-    ['Dormitorios', propiedad.dormitorios || 'N/A'],
-    ['Banos', propiedad.banos || 'N/A'],
-    ['Estado', propiedad.condition || 'No aparece'],
-    ['Ascensor', propiedad.tiene_ascensor === true ? 'Si' : propiedad.tiene_ascensor === false ? 'No' : 'No aparece'],
-    ['Parking', propiedad.tiene_parking === true ? 'Si' : propiedad.tiene_parking === false ? 'No' : 'No aparece'],
+  // === DATOS CLAVE ===
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(30, 58, 138);
+  doc.text('Datos Clave', margin, yPosition);
+  yPosition += 8;
+
+  const datosClaveData = [
+    ['Precio de venta', `${formatNumber(propiedad.precio)} €`],
+    ['Precio por m²', `${formatNumber(propiedad.precio_m2)} €/m²`],
+    ['Superficie', `${propiedad.metros} m²`],
+    ['Dormitorios', `${propiedad.dormitorios}`],
+    ['Baños', `${propiedad.banos}`],
+  ];
+
+  if (matching?.score) {
+    datosClaveData.push(['Score de compatibilidad', `${Math.round(matching.score)}/100`]);
+  }
+
+  autoTable(doc, {
+    startY: yPosition,
+    body: datosClaveData,
+    theme: 'plain',
+    styles: { 
+      fontSize: 10,
+      cellPadding: 4,
+      font: 'helvetica'
+    },
+    columnStyles: {
+      0: { fontStyle: 'bold', cellWidth: 70, textColor: [71, 85, 105] },
+      1: { cellWidth: 'auto', fontStyle: 'bold', textColor: [30, 58, 138], fontSize: 11 }
+    },
+    margin: { left: margin, right: margin }
+  });
+
+  yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+  // === CARACTERÍSTICAS DE LA PROPIEDAD ===
+  checkNewPage(60);
+  
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, yPosition - 5, pageWidth, 10, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Características de la Propiedad', margin, yPosition + 2);
+  yPosition += 15;
+
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+
+  const caracteristicas = [
+    ['Estado', propiedad.condition || 'No especificado'],
+    ['Ascensor', propiedad.tiene_ascensor === true ? 'Sí' : propiedad.tiene_ascensor === false ? 'No' : 'No especificado'],
+    ['Parking', propiedad.tiene_parking === true ? 'Sí' : propiedad.tiene_parking === false ? 'No' : 'No especificado'],
+    ['Año construcción', propiedad.ano_construccion || 'No especificado'],
   ];
 
   autoTable(doc, {
     startY: yPosition,
-    head: [],
-    body: infoProp,
+    body: caracteristicas,
     theme: 'striped',
     styles: { 
       fontSize: 9,
@@ -102,27 +191,27 @@ export const generarPDFAnalisis = async ({
       font: 'helvetica'
     },
     columnStyles: {
-      0: { fontStyle: 'bold', cellWidth: 45, fillColor: [249, 250, 251] },
+      0: { fontStyle: 'bold', cellWidth: 50, fillColor: [249, 250, 251] },
       1: { cellWidth: 'auto' }
     },
     margin: { left: margin, right: margin }
   });
 
-  yPosition = (doc as any).lastAutoTable.finalY + 12;
+  yPosition = (doc as any).lastAutoTable.finalY + 15;
 
-  // === DESCRIPCION DEL ANUNCIO ===
+  // === DESCRIPCION ===
   if (propiedad.descripcion) {
     checkNewPage(50);
     
-    doc.setFontSize(14);
+    doc.setFontSize(12);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(59, 130, 246);
-    doc.text('Descripcion del Anuncio', margin, yPosition);
+    doc.setTextColor(30, 58, 138);
+    doc.text('Descripción', margin, yPosition);
     yPosition += 8;
 
     doc.setFontSize(9);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
+    doc.setTextColor(71, 85, 105);
 
     const descripcionText = doc.splitTextToSize(propiedad.descripcion, pageWidth - 2 * margin - 10);
     const descripcionHeight = descripcionText.length * 4 + 10;
@@ -137,16 +226,21 @@ export const generarPDFAnalisis = async ({
     yPosition += descripcionHeight + 6;
   }
 
-  // === ANALISIS DE MERCADO ===
+  // === ANÁLISIS DE MERCADO ===
+  checkNewPage(80);
+  
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, yPosition - 5, pageWidth, 10, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Análisis de Mercado', margin, yPosition + 2);
+  yPosition += 15;
+  
+  doc.setTextColor(0, 0, 0);
+
   if (matching?.analisis_mercado?.disponible) {
-    checkNewPage(60);
     const analisis = matching.analisis_mercado;
-    
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(59, 130, 246);
-    doc.text('Analisis Comparativo de Mercado', margin, yPosition);
-    yPosition += 8;
 
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
@@ -187,11 +281,10 @@ export const generarPDFAnalisis = async ({
     doc.setFontSize(10);
 
     const mercadoData = [
-      ['Precio/m2 Propiedad', `${formatNumber(analisis.precio_m2_propiedad)} EUR/m2`],
-      ['Precio/m2 Mercado', `${formatNumber(analisis.precio_m2_mercado)} EUR/m2`],
-      ['Desviacion', `${desviacion > 0 ? '+' : ''}${desviacion.toFixed(1)}%`],
-      ['Comparado con', analisis.metricas_usadas === 'barrio' ? 'Barrio especifico' : 'Ciudad completa'],
-      ['Propiedades analizadas', `${analisis.total_propiedades_comparadas} propiedades`],
+      ['Precio/m² de esta propiedad', `${formatNumber(analisis.precio_m2_propiedad)} €/m²`],
+      ['Precio/m² promedio en ' + ciudad, `${formatNumber(analisis.precio_m2_mercado)} €/m²`],
+      ['Desviación respecto al mercado', `${desviacion > 0 ? '+' : ''}${desviacion.toFixed(1)}%`],
+      ['Propiedades comparadas', `${analisis.total_propiedades_comparadas} propiedades`],
     ];
 
     autoTable(doc, {
@@ -210,38 +303,104 @@ export const generarPDFAnalisis = async ({
       margin: { left: margin, right: margin }
     });
 
-    yPosition = (doc as any).lastAutoTable.finalY + 12;
-  }
-
-  // === PROYECCION DE REVALORIZACION ===
-  if (metrica) {
-    checkNewPage(60);
-
-    doc.setFontSize(14);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(59, 130, 246);
-    doc.text('Proyeccion de Revalorizacion', margin, yPosition);
-    yPosition += 8;
-
+    yPosition = (doc as any).lastAutoTable.finalY + 15;
+  } else {
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text('No hay datos de mercado disponibles para esta zona.', margin, yPosition);
+    yPosition += 15;
+  }
+
+  // === INFORMACIÓN DE LA ZONA ===
+  if (metrica) {
+    checkNewPage(80);
+
+    doc.setFillColor(30, 58, 138);
+    doc.rect(0, yPosition - 5, pageWidth, 10, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text(`Sobre ${ciudad}${provincia ? ', ' + provincia : ''}`, margin, yPosition + 2);
+    yPosition += 15;
+
     doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
 
-    const proyData = [];
+    // Descripción de la zona
+    const descripcionZona = `${ciudad} es una zona que actualmente cuenta con ${metrica.total_propiedades || 0} propiedades activas en el mercado. El precio medio por m² en la zona es de ${formatNumber(metrica.precio_m2_medio)} €/m².`;
+    const splitDescZona = doc.splitTextToSize(descripcionZona, pageWidth - 2 * margin);
+    doc.text(splitDescZona, margin, yPosition);
+    yPosition += splitDescZona.length * 5 + 10;
 
+    // Datos del mercado en la zona
+    const datosZona = [
+      ['Precio medio en la zona', `${formatNumber(metrica.precio_medio)} €`],
+      ['Precio medio por m²', `${formatNumber(metrica.precio_m2_medio)} €/m²`],
+      ['Rango de precios por m²', `${formatNumber(metrica.precio_m2_min)} - ${formatNumber(metrica.precio_m2_max)} €/m²`],
+      ['Total de propiedades', `${metrica.total_propiedades} propiedades`],
+    ];
+
+    if (metrica.total_pisos > 0) {
+      datosZona.push(['Pisos en venta', `${metrica.total_pisos} (${formatNumber(metrica.precio_medio_piso)} € media)`]);
+    }
+    if (metrica.total_chalets > 0) {
+      datosZona.push(['Chalets en venta', `${metrica.total_chalets} (${formatNumber(metrica.precio_medio_chalet)} € media)`]);
+    }
+
+    autoTable(doc, {
+      startY: yPosition,
+      body: datosZona,
+      theme: 'striped',
+      styles: { 
+        fontSize: 9, 
+        cellPadding: 3,
+        font: 'helvetica'
+      },
+      columnStyles: {
+        0: { fontStyle: 'bold', cellWidth: 60, fillColor: [249, 250, 251] },
+        1: { cellWidth: 'auto' }
+      },
+      margin: { left: margin, right: margin }
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+    // Proyección de revalorización
     if (metrica.proyeccion_revalorizacion_anual !== null && metrica.meses_datos_historicos >= 3) {
+      checkNewPage(50);
+      
       const proy = metrica.proyeccion_revalorizacion_anual;
       let estadoProy = '';
+      let colorProy = [71, 85, 105];
       
-      if (proy >= 5) estadoProy = 'Zona en fuerte crecimiento';
-      else if (proy >= 2) estadoProy = 'Zona en crecimiento moderado';
-      else if (proy > 0) estadoProy = 'Zona con crecimiento leve';
-      else if (proy >= -2) estadoProy = 'Zona estable';
-      else estadoProy = 'Zona en descenso';
+      if (proy >= 5) {
+        estadoProy = 'Zona en fuerte crecimiento';
+        colorProy = [34, 197, 94];
+      } else if (proy >= 2) {
+        estadoProy = 'Zona en crecimiento moderado';
+        colorProy = [59, 130, 246];
+      } else if (proy > 0) {
+        estadoProy = 'Zona con crecimiento leve';
+        colorProy = [234, 179, 8];
+      } else if (proy >= -2) {
+        estadoProy = 'Zona estable';
+        colorProy = [107, 114, 128];
+      } else {
+        estadoProy = 'Zona en descenso';
+        colorProy = [239, 68, 68];
+      }
+
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 58, 138);
+      doc.text('Proyección de Revalorización', margin, yPosition);
+      yPosition += 8;
 
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(proy >= 2 ? 34 : proy >= 0 ? 59 : 239, proy >= 2 ? 197 : proy >= 0 ? 130 : 68, proy >= 2 ? 94 : proy >= 0 ? 246 : 68);
+      doc.setTextColor(colorProy[0], colorProy[1], colorProy[2]);
       doc.text(estadoProy, margin, yPosition);
       yPosition += 8;
 
@@ -249,39 +408,13 @@ export const generarPDFAnalisis = async ({
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(10);
 
-      proyData.push(
-        ['Proyeccion anual', `${proy > 0 ? '+' : ''}${proy.toFixed(1)}%`],
-        ['Basado en', `${metrica.meses_datos_historicos} meses de datos historicos`],
-        ['Valor estimado en 1 ano', `${formatNumber(Math.round(propiedad.precio * (1 + proy / 100)))} EUR`],
-        ['Plusvalia potencial', `${formatNumber(Math.round(propiedad.precio * (proy / 100)))} EUR`]
-      );
-    } else if (metrica.indice_dinamismo !== null) {
-      const dinamismo = metrica.indice_dinamismo;
-      let estadoDin = '';
-      
-      if (dinamismo >= 80) estadoDin = 'Mercado muy activo';
-      else if (dinamismo >= 60) estadoDin = 'Mercado activo';
-      else if (dinamismo >= 40) estadoDin = 'Mercado moderado';
-      else estadoDin = 'Mercado tranquilo';
+      const proyData = [
+        ['Proyección anual estimada', `${proy > 0 ? '+' : ''}${proy.toFixed(1)}%`],
+        ['Basado en', `${metrica.meses_datos_historicos} meses de histórico`],
+        ['Valor estimado en 1 año', `${formatNumber(Math.round(propiedad.precio * (1 + proy / 100)))} €`],
+        ['Plusvalía potencial', `${formatNumber(Math.round(propiedad.precio * (proy / 100)))} €`]
+      ];
 
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(dinamismo >= 60 ? 34 : 107, dinamismo >= 60 ? 197 : 114, dinamismo >= 60 ? 94 : 128);
-      doc.text(estadoDin, margin, yPosition);
-      yPosition += 8;
-
-      doc.setTextColor(0, 0, 0);
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-
-      proyData.push(
-        ['Indice de dinamismo', `${Math.round(dinamismo)}/100`],
-        ['Estado', 'Acumulando datos historicos...'],
-        ['Proyeccion disponible en', `${Math.max(0, 3 - (metrica.meses_datos_historicos || 0))} meses`]
-      );
-    }
-
-    if (proyData.length > 0) {
       autoTable(doc, {
         startY: yPosition,
         body: proyData,
@@ -298,19 +431,27 @@ export const generarPDFAnalisis = async ({
         margin: { left: margin, right: margin }
       });
 
-      yPosition = (doc as any).lastAutoTable.finalY + 12;
+      yPosition = (doc as any).lastAutoTable.finalY + 15;
+    } else if (metrica.indice_dinamismo !== null) {
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(100, 116, 139);
+      doc.text(`Índice de dinamismo: ${Math.round(metrica.indice_dinamismo)}/100. Acumulando datos para proyección de revalorización.`, margin, yPosition);
+      yPosition += 10;
     }
   }
 
-  // === SCORE Y COMPATIBILIDAD ===
+  // === COMPATIBILIDAD CON SU PERFIL ===
   if (matching) {
     checkNewPage(70);
 
+    doc.setFillColor(30, 58, 138);
+    doc.rect(0, yPosition - 5, pageWidth, 10, 'F');
+    doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(59, 130, 246);
-    doc.text('Analisis de Compatibilidad', margin, yPosition);
-    yPosition += 10;
+    doc.text('Compatibilidad con su Perfil', margin, yPosition + 2);
+    yPosition += 15;
 
     // Score badge
     const score = matching.score;
@@ -376,13 +517,15 @@ export const generarPDFAnalisis = async ({
   }
 
   // === CONCLUSIONES ===
-  checkNewPage(50);
+  checkNewPage(60);
 
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, yPosition - 5, pageWidth, 10, 'F');
+  doc.setTextColor(255, 255, 255);
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(59, 130, 246);
-  doc.text('Conclusiones InmoFinder', margin, yPosition);
-  yPosition += 8;
+  doc.text('Conclusiones y Recomendaciones', margin, yPosition + 2);
+  yPosition += 15;
 
   doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
