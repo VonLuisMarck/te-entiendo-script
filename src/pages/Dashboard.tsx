@@ -15,6 +15,7 @@ const Dashboard = () => {
     propiedades: 0,
     clientes: 0,
     matchings: 0,
+    historico: 0,
   });
   const navigate = useNavigate();
 
@@ -43,16 +44,18 @@ const Dashboard = () => {
 
   const loadStats = async () => {
     try {
-      const [propiedadesRes, clientesRes, matchingsRes] = await Promise.all([
+      const [propiedadesRes, clientesRes, matchingsRes, historicoRes] = await Promise.all([
         supabase.from("propiedades").select("id", { count: "exact", head: true }),
         supabase.from("clientes").select("id", { count: "exact", head: true }),
         supabase.from("matchings").select("id", { count: "exact", head: true }),
+        supabase.from("propiedades_historico").select("id", { count: "exact", head: true }),
       ]);
 
       setStats({
         propiedades: propiedadesRes.count || 0,
         clientes: clientesRes.count || 0,
         matchings: matchingsRes.count || 0,
+        historico: historicoRes.count || 0,
       });
     } catch (error) {
       console.error("Error loading stats:", error);
@@ -191,6 +194,21 @@ const Dashboard = () => {
           </Card>
         </div>
 
+        <div className="mb-8">
+          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 border-t-4 border-t-muted">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Histórico Propiedades</CardTitle>
+              <div className="p-2 rounded-lg bg-muted/50">
+                <Archive className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold text-muted-foreground">{stats.historico.toLocaleString()}</div>
+              <p className="text-xs text-muted-foreground mt-1">Propiedades archivadas totales</p>
+            </CardContent>
+          </Card>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/propiedades")}>
             <CardHeader>
@@ -272,20 +290,6 @@ const Dashboard = () => {
               </CardTitle>
               <CardDescription className="text-sm">
                 Análisis del mercado inmobiliario por ciudades
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/historico")}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-muted transition-colors">
-                  <Archive className="h-6 w-6 text-muted-foreground" />
-                </div>
-                Histórico de Propiedades
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Propiedades archivadas y análisis histórico
               </CardDescription>
             </CardHeader>
           </Card>
