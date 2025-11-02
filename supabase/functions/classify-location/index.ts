@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import ubicacionesData from "./ubicaciones.json" with { type: "json" };
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -35,33 +36,40 @@ serve(async (req) => {
       );
     }
 
+    // Construir lista de ubicaciones válidas para el prompt
+    const ubicacionesValidas = Object.entries(ubicacionesData).map(([key, data]: [string, any]) => {
+      const ciudadesStr = Object.entries(data.ciudades).map(([ciudad, distritos]: [string, any]) => {
+        if (distritos.length > 0) {
+          return `  - ${ciudad} (distritos: ${distritos.join(', ')})`;
+        }
+        return `  - ${ciudad}`;
+      }).join('\n');
+      return `${data.provincia}:\n${ciudadesStr}`;
+    }).join('\n\n');
+
     const systemPrompt = `Eres un experto en geografía española y clasificación de ubicaciones inmobiliarias.
-Tu tarea es extraer información de ubicación de títulos y descripciones de propiedades.
+Tu tarea es extraer información de ubicación de títulos y descripciones de propiedades y clasificarlas según un catálogo ESTRICTO predefinido.
+
+UBICACIONES VÁLIDAS (USAR SOLO ESTAS):
+${ubicacionesValidas}
 
 Reglas CRÍTICAS:
-1. Provincia: región/provincia española (Madrid, Barcelona, Murcia, etc)
-2. Ciudad: municipio o ciudad oficial (Madrid, Pozuelo de Alarcón, Getafe, Cartagena, etc)
-3. Distrito: SOLO grandes zonas/distritos administrativos DENTRO de ciudades grandes (Centro, Norte, Sur, Este, Oeste, etc)
+1. SOLO puedes usar provincias, ciudades y distritos que aparecen en la lista de arriba
+2. Debes elegir la ubicación MÁS CERCANA de la lista predefinida
+3. Si una ciudad tiene distritos disponibles, intenta identificar cuál corresponde
+4. Si no estás seguro del distrito, déjalo vacío (string vacío "")
+5. NUNCA inventes ubicaciones que no estén en la lista
+6. Si no encuentras coincidencia clara, usa la ubicación más genérica (provincia > ciudad sin distrito)
 
-IMPORTANTE sobre DISTRITOS:
-- Los distritos deben ser AMPLIOS, no micro-barrios
-- Madrid: Centro, Salamanca-Retiro, Chamberí-Tetuán, Norte, Sur, Este, Oeste
-- Barcelona: Ciutat Vella, Eixample, Gràcia, Sarrià-Sant Gervasi, Horta-Guinardó, etc.
-- Murcia: Centro, Norte, Sur, Este, Oeste, Pedanías
-- NUNCA usar barrios pequeños como "Malasaña" o "Lavapiés", agrúpalos en "Centro"
-- Si NO es una ciudad grande o no se especifica zona: distrito VACÍO
+Ejemplos:
+- "Piso en Malasaña, Madrid" → provincia: "Madrid", ciudad: "Madrid", distrito: "Centro"
+- "Chalet en Pozuelo" → provincia: "Madrid", ciudad: "Pozuelo de Alarcón", distrito: ""
+- "Apartamento en Eixample, Barcelona" → provincia: "Barcelona", ciudad: "Barcelona", distrito: "Eixample"
+- "Casa en Las Rozas" → provincia: "Madrid", ciudad: "Las Rozas", distrito: ""
 
-Casos especiales de la Comunidad de Madrid:
-- Ciudalcampo, La Moraleja, El Soto: son urbanizaciones en San Sebastián de los Reyes → distrito vacío
-- Montealina: urbanización en Pozuelo de Alarcón → distrito vacío
-- Las Lomas, El Olivar: urbanizaciones en Boadilla del Monte → distrito vacío
-- Villafranca del Castillo: urbanización en Villanueva de la Cañada → distrito vacío
-- Si mencionan "Madrid Capital" → ciudad = "Madrid"
-- Municipios metropolitanos (Pozuelo, Alcobendas, Las Rozas, Majadahonda, etc) son CIUDADES → distrito vacío
-
-Formato de salida:
-- Distrito VACÍO si es un municipio pequeño/medio o no hay información de zona
-- Solo usar distrito para ciudades grandes (Madrid, Barcelona, Valencia, Sevilla, Murcia, Málaga, etc)
+FORMATO DE SALIDA:
+- Usa EXACTAMENTE los nombres que aparecen en la lista de ubicaciones válidas
+- Si no hay distrito en la lista para esa ciudad, distrito debe ser string vacío ""
 - NUNCA incluir caracteres extraños, solo texto limpio en español`;
 
     const userPrompt = `Analiza esta propiedad y extrae la ubicación:

@@ -1,0 +1,111 @@
+{
+  "Madrid": {
+    "provincia": "Madrid",
+    "ciudades": {
+      "Madrid": ["Centro", "Norte", "Sur", "Este", "Oeste", "Salamanca-Retiro", "Chamberí-Tetuán"],
+      "Alcalá de Henares": [],
+      "Alcobendas": [],
+      "Alcorcón": [],
+      "Boadilla del Monte": [],
+      "Getafe": [],
+      "Las Rozas": [],
+      "Leganés": [],
+      "Majadahorca": [],
+      "Móstoles": [],
+      "Parla": [],
+      "Pozuelo de Alarcón": [],
+      "San Sebastián de los Reyes": [],
+      "Torrejón de Ardoz": [],
+      "Villanueva de la Cañada": []
+    }
+  },
+  "Barcelona": {
+    "provincia": "Barcelona",
+    "ciudades": {
+      "Barcelona": ["Ciutat Vella", "Eixample", "Gràcia", "Sarrià-Sant Gervasi", "Horta-Guinardó", "Nou Barris", "Sant Andreu", "Sant Martí", "Les Corts", "Sants-Montjuïc"],
+      "Badalona": [],
+      "Hospitalet de Llobregat": [],
+      "Sabadell": [],
+      "Terrassa": [],
+      "Mataró": [],
+      "Santa Coloma de Gramenet": [],
+      "Cornellà de Llobregat": []
+    }
+  },
+  "Valencia": {
+    "provincia": "Valencia",
+    "ciudades": {
+      "Valencia": ["Centro", "Norte", "Sur", "Este", "Oeste"],
+      "Torrent": [],
+      "Gandía": [],
+      "Paterna": [],
+      "Sagunto": []
+    }
+  },
+  "Sevilla": {
+    "provincia": "Sevilla",
+    "ciudades": {
+      "Sevilla": ["Centro", "Norte", "Sur", "Este", "Oeste", "Casco Antiguo", "Triana"],
+      "Dos Hermanas": [],
+      "Alcalá de Guadaíra": [],
+      "Utrera": []
+    }
+  },
+  "Murcia": {
+    "provincia": "Murcia",
+    "ciudades": {
+      "Murcia": ["Centro", "Norte", "Sur", "Este", "Oeste", "Pedanías"],
+      "Cartagena": ["Centro", "Norte", "Sur"],
+      "Lorca": [],
+      "Molina de Segura": [],
+      "Alcantarilla": []
+    }
+  },
+  "Málaga": {
+    "provincia": "Málaga",
+    "ciudades": {
+      "Málaga": ["Centro", "Este", "Oeste"],
+      "Marbella": [],
+      "Mijas": [],
+      "Vélez-Málaga": [],
+      "Fuengirola": [],
+      "Torremolinos": []
+    }
+  },
+  "Alicante": {
+    "provincia": "Alicante",
+    "ciudades": {
+      "Alicante": ["Centro", "Norte", "Sur"],
+      "Elche": [],
+      "Torrevieja": [],
+      "Orihuela": [],
+      "Benidorm": [],
+      "Alcoy": []
+    }
+  },
+  "Zaragoza": {
+    "provincia": "Zaragoza",
+    "ciudades": {
+      "Zaragoza": ["Centro", "Norte", "Sur", "Este", "Oeste"],
+      "Calatayud": [],
+      "Utebo": []
+    }
+  },
+  "Bilbao": {
+    "provincia": "Vizcaya",
+    "ciudades": {
+      "Bilbao": ["Centro", "Norte", "Sur"],
+      "Barakaldo": [],
+      "Getxo": [],
+      "Portugalete": []
+    }
+  },
+  "A Coruña": {
+    "provincia": "A Coruña",
+    "ciudades": {
+      "A Coruña": ["Centro", "Norte", "Sur"],
+      "Santiago de Compostela": [],
+      "Ferrol": []
+    }
+  }
+}
