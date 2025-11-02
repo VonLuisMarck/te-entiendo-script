@@ -19,9 +19,18 @@ const Ubicaciones = () => {
 
   const loadCurrentJson = async () => {
     try {
-      const response = await fetch('https://mtjomlpwpiuhflwmgctk.supabase.co/functions/v1/ubicaciones');
-      const data = await response.json();
-      setJsonContent(JSON.stringify(data, null, 2));
+      const { data, error } = await supabase
+        .from('ubicaciones_config')
+        .select('contenido')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+      
+      if (data) {
+        setJsonContent(JSON.stringify(data.contenido, null, 2));
+      }
     } catch (error) {
       console.error("Error cargando JSON:", error);
       toast.error("Error al cargar el JSON actual");
@@ -59,12 +68,42 @@ const Ubicaciones = () => {
     toast.success("JSON descargado");
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     try {
-      JSON.parse(jsonContent);
-      toast.info("⚠️ Nota: Para aplicar los cambios, necesitas actualizar manualmente los archivos en supabase/functions/classify-location/ubicaciones.json y supabase/functions/ubicaciones/ubicaciones.json");
+      const parsed = JSON.parse(jsonContent);
+      setIsLoading(true);
+
+      // Obtener versión actual
+      const { data: current } = await supabase
+        .from('ubicaciones_config')
+        .select('version')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      const newVersion = (current?.version || 0) + 1;
+
+      // Guardar nueva versión
+      const { error } = await supabase
+        .from('ubicaciones_config')
+        .insert({
+          contenido: parsed,
+          version: newVersion
+        });
+
+      if (error) throw error;
+
+      toast.success("✅ Ubicaciones actualizadas correctamente (v" + newVersion + ")");
+      loadCurrentJson();
     } catch (error) {
-      toast.error("Error: JSON inválido. Revisa la sintaxis.");
+      if (error instanceof SyntaxError) {
+        toast.error("Error: JSON inválido. Revisa la sintaxis.");
+      } else {
+        console.error("Error guardando:", error);
+        toast.error("Error al guardar las ubicaciones");
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -119,9 +158,9 @@ const Ubicaciones = () => {
                 Descargar JSON
               </Button>
 
-              <Button onClick={handleSave}>
+              <Button onClick={handleSave} disabled={isLoading}>
                 <Save className="h-4 w-4 mr-2" />
-                Validar JSON
+                {isLoading ? "Guardando..." : "Guardar Cambios"}
               </Button>
             </div>
 

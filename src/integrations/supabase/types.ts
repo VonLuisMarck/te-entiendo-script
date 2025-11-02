@@ -666,6 +666,30 @@ export type Database = {
         }
         Relationships: []
       }
+      ubicaciones_config: {
+        Row: {
+          contenido: Json
+          created_at: string | null
+          id: string
+          updated_at: string | null
+          version: number
+        }
+        Insert: {
+          contenido: Json
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          version?: number
+        }
+        Update: {
+          contenido?: Json
+          created_at?: string | null
+          id?: string
+          updated_at?: string | null
+          version?: number
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null

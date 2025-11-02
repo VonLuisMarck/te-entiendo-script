@@ -1,10 +1,48 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import ubicacionesData from "./ubicaciones.json" with { type: "json" };
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Cache para ubicaciones
+let ubicacionesCache: any = null;
+let cacheTime = 0;
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hora
+
+async function getUbicaciones() {
+  const now = Date.now();
+  
+  // Usar cache si está vigente
+  if (ubicacionesCache && (now - cacheTime) < CACHE_DURATION) {
+    return ubicacionesCache;
+  }
+  
+  // Cargar desde Supabase
+  const supabase = createClient(
+    Deno.env.get('SUPABASE_URL') ?? '',
+    Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+  );
+  
+  const { data, error } = await supabase
+    .from('ubicaciones_config')
+    .select('contenido')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  
+  if (error || !data) {
+    console.error('Error cargando ubicaciones:', error);
+    // Fallback al JSON estático si falla
+    const ubicacionesData = await import("./ubicaciones.json", { with: { type: "json" } });
+    return ubicacionesData.default;
+  }
+  
+  ubicacionesCache = data.contenido;
+  cacheTime = now;
+  return data.contenido;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -36,6 +74,9 @@ serve(async (req) => {
       );
     }
 
+    // Obtener ubicaciones desde la base de datos
+    const ubicacionesData = await getUbicaciones();
+    
     // Construir lista de ubicaciones válidas para el prompt
     const ubicacionesValidas = Object.entries(ubicacionesData).map(([key, data]: [string, any]) => {
       const ciudadesStr = Object.entries(data.ciudades).map(([ciudad, distritos]: [string, any]) => {
