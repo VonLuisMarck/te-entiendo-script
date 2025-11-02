@@ -68,6 +68,16 @@ const Ubicaciones = () => {
     toast.success("JSON descargado");
   };
 
+  const handleValidate = () => {
+    try {
+      const parsed = JSON.parse(jsonContent);
+      setJsonContent(JSON.stringify(parsed, null, 2));
+      toast.success("✅ JSON válido y formateado correctamente");
+    } catch (error) {
+      toast.error("❌ Error: JSON inválido. Revisa la sintaxis.");
+    }
+  };
+
   const handleSave = async () => {
     try {
       const parsed = JSON.parse(jsonContent);
@@ -156,6 +166,10 @@ const Ubicaciones = () => {
               <Button variant="outline" onClick={handleDownload}>
                 <Download className="h-4 w-4 mr-2" />
                 Descargar JSON
+              </Button>
+
+              <Button variant="outline" onClick={handleValidate}>
+                Validar y Formatear
               </Button>
 
               <Button onClick={handleSave} disabled={isLoading}>
