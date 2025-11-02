@@ -188,28 +188,30 @@ function calcularScore(cliente: any, criterios: any, propiedad: any): number {
       propiedad.precio <= (cliente.presupuesto_max || Infinity)) {
     
     // Estar dentro del presupuesto ya no da el máximo automáticamente
-    // Depende de qué tan cerca del límite superior estés
+    // Depende de qué tan cerca del límite inferior estés (más bajo = mejor)
     const presupuestoMax = cliente.presupuesto_max || propiedad.precio;
     const presupuestoMin = cliente.presupuesto_min || 0;
     const rangoPresupuesto = presupuestoMax - presupuestoMin;
     
     if (rangoPresupuesto > 0) {
-      // Cuanto más cerca del mínimo, mejor score
+      // Cuanto más cerca del mínimo, mejor score (escala mucho más exigente)
       const posicionEnRango = (propiedad.precio - presupuestoMin) / rangoPresupuesto;
       
-      if (posicionEnRango <= 0.3) {
-        score += 25; // En el 30% más bajo del rango
-      } else if (posicionEnRango <= 0.5) {
-        score += 22; // En el 50% más bajo
-      } else if (posicionEnRango <= 0.7) {
-        score += 19; // Rango medio
-      } else if (posicionEnRango <= 0.9) {
-        score += 16; // Cerca del límite
+      if (posicionEnRango <= 0.15) {
+        score += 25; // Solo el 15% más bajo obtiene puntuación perfecta
+      } else if (posicionEnRango <= 0.30) {
+        score += 21; // Hasta el 30% más bajo
+      } else if (posicionEnRango <= 0.50) {
+        score += 17; // Hasta la mitad del rango
+      } else if (posicionEnRango <= 0.70) {
+        score += 12; // Rango medio-alto
+      } else if (posicionEnRango <= 0.85) {
+        score += 8; // Cerca del límite superior
       } else {
-        score += 13; // Muy cerca del máximo
+        score += 4; // Muy cerca del máximo (casi penalización)
       }
     } else {
-      score += 20; // Sin rango definido
+      score += 15; // Sin rango definido, puntuación media-baja
     }
   } else {
     // Fuera del presupuesto: penalización significativa
