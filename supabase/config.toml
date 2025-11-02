@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.generate-city-image]
 verify_jwt = true
+
+[functions.execute-all-scrapers]
+verify_jwt = false
