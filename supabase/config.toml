@@ -47,3 +47,6 @@ verify_jwt = true
 
 [functions.execute-all-scrapers]
 verify_jwt = false
+
+[functions.ubicaciones]
+verify_jwt = false
