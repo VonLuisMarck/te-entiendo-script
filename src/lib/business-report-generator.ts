@@ -1,5 +1,5 @@
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 
 export const generateBusinessReport = () => {
   const doc = new jsPDF();
@@ -274,7 +274,7 @@ export const generateBusinessReport = () => {
   doc.setTextColor(0, 0, 0);
   
   // Tabla de costes
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: 35,
     head: [['Componente', 'Inicial', 'Medio', 'Alto', 'Notas']],
     body: [
@@ -304,7 +304,7 @@ export const generateBusinessReport = () => {
   });
   
   // Desglose por etapa
-  yPos = (doc as any).lastAutoTable.finalY + 15;
+  yPos = (doc as any).autoTable.previous.finalY + 15;
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
@@ -368,7 +368,7 @@ export const generateBusinessReport = () => {
   doc.text('Modelo de Suscripción', 20, 35);
   
   // Planes
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: 40,
     head: [['Plan', 'Precio', 'Matchings', 'Características']],
     body: [
@@ -382,7 +382,7 @@ export const generateBusinessReport = () => {
     styles: { fontSize: 10 }
   });
   
-  yPos = (doc as any).lastAutoTable.finalY + 15;
+  yPos = (doc as any).autoTable.previous.finalY + 15;
   
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
@@ -398,7 +398,7 @@ export const generateBusinessReport = () => {
     { scenario: 'Rentabilidad Alta', clients: '50 clientes (60% conversión)', revenue: '€2,185/mes', cost: '$1,100', margin: '+€1,085' }
   ];
   
-  (doc as any).autoTable({
+  autoTable(doc, {
     startY: yPos,
     head: [['Escenario', 'Clientes', 'Ingresos', 'Costes', 'Margen']],
     body: breakeven.map(b => [b.scenario, b.clients, b.revenue, b.cost, b.margin]),
@@ -410,7 +410,7 @@ export const generateBusinessReport = () => {
     }
   });
   
-  yPos = (doc as any).lastAutoTable.finalY + 15;
+  yPos = (doc as any).autoTable.previous.finalY + 15;
   
   // KPIs clave
   doc.setFillColor(232, 245, 233);
