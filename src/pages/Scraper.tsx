@@ -30,8 +30,11 @@ const Scraper = () => {
   const [formData, setFormData] = useState({
     portal: "fotocasa",
     ubicacion: "murcia",
-    maxPages: null as number | null  // null = sin límite
+    maxPages: null as number | null,  // null = sin límite
+    scrapingMode: "single" as "single" | "all"  // single ciudad o toda españa
   });
+  const [cronJobs, setCronJobs] = useState<any[]>([]);
+  const [loadingCron, setLoadingCron] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -67,24 +70,46 @@ const Scraper = () => {
     setScraping(true);
     
     try {
-      const { data, error } = await supabase.functions.invoke('scraping-service', {
-        body: {
-          portal: formData.portal,
-          ubicacion: formData.ubicacion,
-          max_pages: formData.maxPages  // null = sin límite
-        }
-      });
-
-      if (error) throw error;
-      
-      if (data.success) {
-        toast.success(`✅ Scraping iniciado en Fly.io (Job ID: ${data.job_id.substring(0, 8)}...)`);
-        toast.info('Los resultados aparecerán en el historial cuando el scraping termine', { duration: 5000 });
+      if (formData.scrapingMode === "all") {
+        // Scraping masivo de toda España
+        const ciudades = ['murcia', 'madrid', 'barcelona', 'valencia', 'sevilla', 'malaga'];
+        toast.info(`🚀 Lanzando scraping masivo en ${ciudades.length} ciudades...`);
         
-        // Recargar logs después de unos segundos para ver si ya hay resultados
+        for (const ciudad of ciudades) {
+          const { data, error } = await supabase.functions.invoke('scraping-service', {
+            body: {
+              portal: formData.portal,
+              ubicacion: ciudad,
+              max_pages: formData.maxPages
+            }
+          });
+
+          if (data?.success) {
+            console.log(`✅ ${ciudad} scraping iniciado: ${data.job_id}`);
+          }
+        }
+        
+        toast.success(`✅ ${ciudades.length} scrapers lanzados en paralelo`);
         setTimeout(() => loadLogs(), 10000);
       } else {
-        toast.error(data.message || "Error al iniciar scraping");
+        // Scraping de ciudad individual
+        const { data, error } = await supabase.functions.invoke('scraping-service', {
+          body: {
+            portal: formData.portal,
+            ubicacion: formData.ubicacion,
+            max_pages: formData.maxPages
+          }
+        });
+
+        if (error) throw error;
+        
+        if (data.success) {
+          toast.success(`✅ Scraping iniciado en Fly.io (Job ID: ${data.job_id.substring(0, 8)}...)`);
+          toast.info('Los resultados aparecerán en el historial cuando el scraping termine', { duration: 5000 });
+          setTimeout(() => loadLogs(), 10000);
+        } else {
+          toast.error(data.message || "Error al iniciar scraping");
+        }
       }
       
       loadLogs();
@@ -190,24 +215,42 @@ const Scraper = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="ubicacion">Ciudad</Label>
+                    <Label htmlFor="scrapingMode">Modo de Scraping</Label>
                     <Select
-                      value={formData.ubicacion}
-                      onValueChange={(value) => setFormData({ ...formData, ubicacion: value })}
+                      value={formData.scrapingMode}
+                      onValueChange={(value: "single" | "all") => setFormData({ ...formData, scrapingMode: value })}
                     >
-                      <SelectTrigger id="ubicacion">
+                      <SelectTrigger id="scrapingMode">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="murcia">Murcia</SelectItem>
-                        <SelectItem value="madrid">Madrid</SelectItem>
-                        <SelectItem value="barcelona">Barcelona</SelectItem>
-                        <SelectItem value="valencia">Valencia</SelectItem>
-                        <SelectItem value="sevilla">Sevilla</SelectItem>
-                        <SelectItem value="malaga">Málaga</SelectItem>
+                        <SelectItem value="single">Ciudad Individual</SelectItem>
+                        <SelectItem value="all">🌍 Toda España (6 ciudades)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {formData.scrapingMode === "single" && (
+                    <div className="space-y-2">
+                      <Label htmlFor="ubicacion">Ciudad</Label>
+                      <Select
+                        value={formData.ubicacion}
+                        onValueChange={(value) => setFormData({ ...formData, ubicacion: value })}
+                      >
+                        <SelectTrigger id="ubicacion">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="murcia">Murcia</SelectItem>
+                          <SelectItem value="madrid">Madrid</SelectItem>
+                          <SelectItem value="barcelona">Barcelona</SelectItem>
+                          <SelectItem value="valencia">Valencia</SelectItem>
+                          <SelectItem value="sevilla">Sevilla</SelectItem>
+                          <SelectItem value="malaga">Málaga</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <Label htmlFor="maxPages">Límite de páginas</Label>
@@ -233,8 +276,14 @@ const Scraper = () => {
                     disabled={scraping}
                   >
                     <Play className={`h-4 w-4 mr-2 ${scraping ? 'animate-spin' : ''}`} />
-                    {scraping ? 'Scrapeando...' : 'Ejecutar Scraping'}
+                    {scraping ? 'Scrapeando...' : formData.scrapingMode === "all" ? '🚀 Lanzar Scraping Masivo' : 'Ejecutar Scraping'}
                   </Button>
+
+                  {formData.scrapingMode === "all" && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      Se lanzarán 6 scrapers en paralelo (Murcia, Madrid, Barcelona, Valencia, Sevilla, Málaga)
+                    </p>
+                  )}
                 </form>
 
                 <div className="mt-6 pt-6 border-t space-y-4">
