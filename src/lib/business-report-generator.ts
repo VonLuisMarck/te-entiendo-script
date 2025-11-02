@@ -1,7 +1,36 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-export const generateBusinessReport = () => {
+interface SystemMetrics {
+  propiedades: {
+    total: number;
+    activas: number;
+    nuevasSemana: number;
+    precioMedio: number;
+    precioM2Medio: number;
+  };
+  clientes: {
+    total: number;
+    free: number;
+    basic: number;
+    investor: number;
+    activos: number;
+  };
+  matchings: {
+    total: number;
+    semana: number;
+    scorePromedio: number | null;
+    notificados: number;
+  };
+  scraping: {
+    logsTotal: number;
+    totalScraped: number;
+    totalNuevas: number;
+    duracionMedia: number;
+  };
+}
+
+export const generateBusinessReport = (metrics: SystemMetrics) => {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
@@ -37,11 +66,12 @@ export const generateBusinessReport = () => {
   
   doc.setFontSize(12);
   const index = [
-    '1. Arquitectura Global del Sistema ...................... 3',
-    '2. Flujo de Caso de Uso: Clientes ....................... 4',
-    '3. Flujo de Caso de Uso: Empleados .................. 5',
-    '4. Análisis de Costes y Escalabilidad ................... 6',
-    '5. Métricas de ROI y Break-even ........................ 7'
+    '1. Resumen Ejecutivo y Métricas Operacionales .... 3',
+    '2. Arquitectura Global del Sistema ............................ 4',
+    '3. Flujo de Caso de Uso: Clientes .............................. 5',
+    '4. Flujo de Caso de Uso: Empleados ........................ 6',
+    '5. Análisis de Costes y Escalabilidad ........................ 7',
+    '6. Métricas de ROI y Break-even ............................... 8'
   ];
   
   yPos = 50;
@@ -50,11 +80,116 @@ export const generateBusinessReport = () => {
     yPos += 10;
   });
 
-  // Página 3: Arquitectura Global
+  // Página 3: Métricas Operacionales
   doc.addPage();
   doc.setFontSize(20);
   doc.setTextColor(41, 128, 185);
-  doc.text('1. Arquitectura Global del Sistema', 20, 20);
+  doc.text('1. Resumen Ejecutivo y Métricas', 20, 20);
+  
+  doc.setFontSize(11);
+  doc.setTextColor(0, 0, 0);
+  doc.setFont('helvetica', 'normal');
+  const fechaActual = new Date().toLocaleDateString('es-ES', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  doc.text(`Informe generado: ${fechaActual}`, 20, 30);
+  
+  // Métricas en cards
+  const metricCards = [
+    {
+      title: '📊 PROPIEDADES',
+      data: [
+        `Total activas: ${metrics.propiedades.activas.toLocaleString()}`,
+        `Nuevas (7d): ${metrics.propiedades.nuevasSemana.toLocaleString()}`,
+        `Precio medio: €${Math.round(metrics.propiedades.precioMedio).toLocaleString()}`,
+        `Precio/m²: €${Math.round(metrics.propiedades.precioM2Medio).toLocaleString()}`
+      ],
+      y: 45
+    },
+    {
+      title: '👥 CLIENTES',
+      data: [
+        `Total: ${metrics.clientes.total}`,
+        `Free: ${metrics.clientes.free} | Basic: ${metrics.clientes.basic}`,
+        `Investor: ${metrics.clientes.investor}`,
+        `Tasa conversión: ${metrics.clientes.total > 0 ? Math.round(((metrics.clientes.basic + metrics.clientes.investor) / metrics.clientes.total) * 100) : 0}%`
+      ],
+      y: 95
+    },
+    {
+      title: '🎯 MATCHINGS',
+      data: [
+        `Total generados: ${metrics.matchings.total.toLocaleString()}`,
+        `Esta semana: ${metrics.matchings.semana}`,
+        `Score promedio: ${metrics.matchings.scorePromedio?.toFixed(1) || 'N/A'}`,
+        `Notificados: ${metrics.matchings.notificados}`
+      ],
+      y: 145
+    },
+    {
+      title: '🔄 SCRAPING (30 días)',
+      data: [
+        `Ejecuciones: ${metrics.scraping.logsTotal}`,
+        `Props. extraídas: ${metrics.scraping.totalScraped.toLocaleString()}`,
+        `Nuevas: ${metrics.scraping.totalNuevas.toLocaleString()}`,
+        `Duración media: ${metrics.scraping.duracionMedia.toFixed(1)}s`
+      ],
+      y: 195
+    }
+  ];
+  
+  metricCards.forEach(card => {
+    doc.setFillColor(240, 248, 255);
+    doc.rect(20, card.y, 170, 40, 'F');
+    doc.setDrawColor(41, 128, 185);
+    doc.setLineWidth(0.5);
+    doc.rect(20, card.y, 170, 40);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(41, 128, 185);
+    doc.text(card.title, 25, card.y + 8);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    let dataY = card.y + 18;
+    card.data.forEach(line => {
+      doc.text(line, 25, dataY);
+      dataY += 6;
+    });
+  });
+  
+  // Insights clave
+  doc.setFillColor(255, 248, 225);
+  doc.rect(20, 245, 170, 30, 'F');
+  doc.setDrawColor(255, 193, 7);
+  doc.rect(20, 245, 170, 30);
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('💡 Insights Clave:', 25, 255);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  const tasaConv = metrics.clientes.total > 0 ? Math.round(((metrics.clientes.basic + metrics.clientes.investor) / metrics.clientes.total) * 100) : 0;
+  const insights = [
+    `• Ratio scraping: ${metrics.scraping.logsTotal > 0 ? Math.round(metrics.scraping.totalNuevas / metrics.scraping.logsTotal) : 0} propiedades nuevas/scraping`,
+    `• Base datos creciendo: ${metrics.propiedades.activas} propiedades activas disponibles`,
+    `• Oportunidad conversión: ${metrics.clientes.free} clientes free pueden convertirse (${tasaConv}% actual)`
+  ];
+  let insY = 264;
+  insights.forEach(insight => {
+    doc.text(insight, 25, insY);
+    insY += 5;
+  });
+
+  // Página 4: Arquitectura Global (resto del código igual)
+  doc.addPage();
+  doc.setFontSize(20);
+  doc.setTextColor(41, 128, 185);
+  doc.text('2. Arquitectura Global del Sistema', 20, 20);
   
   doc.setFontSize(11);
   doc.setTextColor(0, 0, 0);
@@ -130,11 +265,11 @@ export const generateBusinessReport = () => {
     yPos += 7;
   });
 
-  // Página 4: Flujo Clientes
+  // Página 5: Flujo Clientes
   doc.addPage();
   doc.setFontSize(20);
   doc.setTextColor(41, 128, 185);
-  doc.text('2. Flujo de Caso de Uso: Clientes', 20, 20);
+  doc.text('3. Flujo de Caso de Uso: Clientes', 20, 20);
   
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
@@ -188,11 +323,11 @@ export const generateBusinessReport = () => {
   doc.text('• Notificaciones proactivas: cliente no busca, recibe alertas', 25, 246);
   doc.text('• Upsell natural: dashboard IA solo visible con plan Investor', 25, 254);
 
-  // Página 5: Flujo Empleados
+  // Página 6: Flujo Empleados
   doc.addPage();
   doc.setFontSize(20);
   doc.setTextColor(41, 128, 185);
-  doc.text('3. Flujo de Caso de Uso: Empleados', 20, 20);
+  doc.text('4. Flujo de Caso de Uso: Empleados', 20, 20);
   
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
@@ -264,11 +399,11 @@ export const generateBusinessReport = () => {
     });
   });
 
-  // Página 6: Costes y Escalabilidad
+  // Página 7: Costes y Escalabilidad
   doc.addPage();
   doc.setFontSize(20);
   doc.setTextColor(41, 128, 185);
-  doc.text('4. Análisis de Costes y Escalabilidad', 20, 20);
+  doc.text('5. Análisis de Costes y Escalabilidad', 20, 20);
   
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
@@ -356,11 +491,11 @@ export const generateBusinessReport = () => {
     yPos += 3;
   });
 
-  // Página 7: ROI
+  // Página 8: ROI
   doc.addPage();
   doc.setFontSize(20);
   doc.setTextColor(41, 128, 185);
-  doc.text('5. Métricas de ROI y Break-even', 20, 20);
+  doc.text('6. Métricas de ROI y Break-even', 20, 20);
   
   doc.setFontSize(12);
   doc.setTextColor(0, 0, 0);
