@@ -407,6 +407,7 @@ export type Database = {
           fecha_scraping: string | null
           id: string
           imagenes: string[] | null
+          last_seen: string | null
           metros: number | null
           portal_origen: string
           precio: number
@@ -432,6 +433,7 @@ export type Database = {
           fecha_scraping?: string | null
           id?: string
           imagenes?: string[] | null
+          last_seen?: string | null
           metros?: number | null
           portal_origen: string
           precio: number
@@ -457,6 +459,7 @@ export type Database = {
           fecha_scraping?: string | null
           id?: string
           imagenes?: string[] | null
+          last_seen?: string | null
           metros?: number | null
           portal_origen?: string
           precio?: number
@@ -815,6 +818,17 @@ export type Database = {
     Functions: {
       archivar_propiedades_inactivas: { Args: never; Returns: number }
       assign_admin_role: { Args: { user_email: string }; Returns: Json }
+      desactivar_propiedades_no_vistas: {
+        Args: {
+          p_dias_limite?: number
+          p_portal?: string
+          p_ubicacion?: string
+        }
+        Returns: {
+          propiedades_archivadas: number
+          propiedades_desactivadas: number
+        }[]
+      }
       get_matchings_limit: {
         Args: { tier: Database["public"]["Enums"]["subscription_tier"] }
         Returns: number
