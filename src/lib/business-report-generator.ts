@@ -295,11 +295,11 @@ export const generateBusinessReport = () => {
     footStyles: { fillColor: [76, 175, 80], fontStyle: 'bold', fontSize: 9 },
     styles: { fontSize: 8, cellPadding: 2 },
     columnStyles: {
-      0: { cellWidth: 40 },
-      1: { cellWidth: 30, halign: 'right' },
-      2: { cellWidth: 30, halign: 'right' },
-      3: { cellWidth: 30, halign: 'right' },
-      4: { cellWidth: 40 }
+      0: { cellWidth: 32 },
+      1: { cellWidth: 24, halign: 'right' },
+      2: { cellWidth: 24, halign: 'right' },
+      3: { cellWidth: 24, halign: 'right' },
+      4: { cellWidth: 32 }
     }
   });
   
