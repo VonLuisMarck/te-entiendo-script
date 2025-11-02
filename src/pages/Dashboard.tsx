@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Building2, Users, Search, TrendingUp, LogOut, BarChart3, Settings, MapPin, FileText } from "lucide-react";
+import { Building2, Users, Search, TrendingUp, LogOut, BarChart3, Settings, MapPin, FileText, Archive } from "lucide-react";
 import { generateBusinessReport } from "@/lib/business-report-generator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -272,6 +272,20 @@ const Dashboard = () => {
               </CardTitle>
               <CardDescription className="text-sm">
                 Análisis del mercado inmobiliario por ciudades
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/historico")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-lg">
+                <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-muted transition-colors">
+                  <Archive className="h-6 w-6 text-muted-foreground" />
+                </div>
+                Histórico de Propiedades
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Propiedades archivadas y análisis histórico
               </CardDescription>
             </CardHeader>
           </Card>

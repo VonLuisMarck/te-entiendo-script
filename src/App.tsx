@@ -22,6 +22,7 @@ import ClienteSettings from "./pages/ClienteSettings";
 import ClienteMetricas from "./pages/ClienteMetricas";
 import LlamadasIA from "./pages/LlamadasIA";
 import MercadoCiudades from "./pages/MercadoCiudades";
+import Historico from "./pages/Historico";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/scraper" element={<AdminProtectedRoute><Scraper /></AdminProtectedRoute>} />
             <Route path="/metricas" element={<AdminProtectedRoute><Metricas /></AdminProtectedRoute>} />
             <Route path="/mercado-ciudades" element={<AdminProtectedRoute><MercadoCiudades /></AdminProtectedRoute>} />
+            <Route path="/historico" element={<AdminProtectedRoute><Historico /></AdminProtectedRoute>} />
             <Route path="/settings" element={<AdminProtectedRoute><Settings /></AdminProtectedRoute>} />
             <Route path="/llamadas-ia" element={<AdminProtectedRoute><LlamadasIA /></AdminProtectedRoute>} />
             <Route path="/cliente/dashboard" element={<ClienteDashboard />} />
