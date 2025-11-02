@@ -39,12 +39,22 @@ const Scraper = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTrigger, setNewTrigger] = useState({
     nombre: "",
-    cron_expression: "0 2 * * *",
+    intervalo: "24h" as "1h" | "6h" | "12h" | "24h",
     portal: "fotocasa",
     ubicacion: "murcia",
     scraping_mode: "single" as "single" | "all"
   });
   const navigate = useNavigate();
+
+  const intervalToCron = (intervalo: string) => {
+    switch(intervalo) {
+      case "1h": return "0 * * * *";      // Cada hora
+      case "6h": return "0 */6 * * *";    // Cada 6 horas
+      case "12h": return "0 */12 * * *";  // Cada 12 horas
+      case "24h": return "0 2 * * *";     // Diario a las 2am
+      default: return "0 2 * * *";
+    }
+  };
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -120,8 +130,8 @@ const Scraper = () => {
   };
 
   const createTrigger = async () => {
-    if (!newTrigger.nombre || !newTrigger.cron_expression) {
-      toast.error("Completa todos los campos");
+    if (!newTrigger.nombre) {
+      toast.error("Ingresa un nombre para el trigger");
       return;
     }
 
@@ -130,7 +140,7 @@ const Scraper = () => {
         .from("scraping_triggers")
         .insert({
           nombre: newTrigger.nombre,
-          cron_expression: newTrigger.cron_expression,
+          cron_expression: intervalToCron(newTrigger.intervalo),
           portal: newTrigger.portal,
           ubicacion: newTrigger.scraping_mode === "all" ? null : newTrigger.ubicacion,
           scraping_mode: newTrigger.scraping_mode,
@@ -139,11 +149,11 @@ const Scraper = () => {
 
       if (error) throw error;
       
-      toast.success("Trigger creado exitosamente");
+      toast.success("✅ Trigger creado exitosamente");
       setDialogOpen(false);
       setNewTrigger({
         nombre: "",
-        cron_expression: "0 2 * * *",
+        intervalo: "24h",
         portal: "fotocasa",
         ubicacion: "murcia",
         scraping_mode: "single"
@@ -384,6 +394,11 @@ const Scraper = () => {
                   <div className="flex items-center gap-2">
                     <Clock className="h-5 w-5 text-primary" />
                     <CardTitle>Triggers Automáticos</CardTitle>
+                    {cronJobs.length > 0 && (
+                      <Badge variant="secondary" className="ml-2">
+                        {cronJobs.filter(j => j.activo).length} activos
+                      </Badge>
+                    )}
                   </div>
                   <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                     <DialogTrigger asChild>
@@ -410,17 +425,21 @@ const Scraper = () => {
                         </div>
                         
                         <div>
-                          <Label>Expresión Cron</Label>
-                          <Input 
-                            placeholder="0 2 * * * (Diario a las 2am)"
-                            value={newTrigger.cron_expression}
-                            onChange={(e) => setNewTrigger({...newTrigger, cron_expression: e.target.value})}
-                          />
-                          <p className="text-xs text-muted-foreground mt-1">
-                            <a href="https://crontab.guru/" target="_blank" rel="noopener noreferrer" className="underline">
-                              Ayuda con expresiones cron
-                            </a>
-                          </p>
+                          <Label>Frecuencia</Label>
+                          <Select
+                            value={newTrigger.intervalo}
+                            onValueChange={(value: "1h" | "6h" | "12h" | "24h") => setNewTrigger({...newTrigger, intervalo: value})}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="1h">⏱️ Cada hora</SelectItem>
+                              <SelectItem value="6h">🕕 Cada 6 horas</SelectItem>
+                              <SelectItem value="12h">🕛 Cada 12 horas</SelectItem>
+                              <SelectItem value="24h">📅 Cada 24 horas (2am)</SelectItem>
+                            </SelectContent>
+                          </Select>
                         </div>
 
                         <div>
@@ -478,67 +497,86 @@ const Scraper = () => {
                         )}
                         
                         <Button className="w-full" onClick={createTrigger}>
-                          Crear Trigger
+                          ✨ Crear Trigger
                         </Button>
-                        <p className="text-xs text-muted-foreground">
-                          ⚠️ Los triggers se guardarán en la BD pero la ejecución automática requiere configurar pg_cron en Supabase
-                        </p>
+                        <div className="p-3 bg-accent/10 rounded-lg border border-accent/20">
+                          <p className="text-xs text-muted-foreground">
+                            ℹ️ Los triggers se guardarán y podrás activarlos/desactivarlos. La ejecución automática requiere configurar pg_cron.
+                          </p>
+                        </div>
                       </div>
                     </DialogContent>
                   </Dialog>
                 </div>
                 <CardDescription>
-                  Scrapers programados automáticamente
+                  Configura scrapers para que se ejecuten automáticamente
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {cronJobs.length > 0 ? (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {cronJobs.map((job) => (
-                      <div key={job.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1">
-                            <h4 className="font-semibold text-sm">{job.nombre}</h4>
-                            <p className="text-xs text-muted-foreground">
-                              {job.portal} - {job.scraping_mode === 'all' ? 'Toda España' : job.ubicacion}
-                            </p>
+                    {cronJobs.map((job) => {
+                      const getFrecuencia = (cron: string) => {
+                        if (cron === "0 * * * *") return "⏱️ Cada hora";
+                        if (cron === "0 */6 * * *") return "🕕 Cada 6 horas";
+                        if (cron === "0 */12 * * *") return "🕛 Cada 12 horas";
+                        if (cron === "0 2 * * *") return "📅 Cada 24h (2am)";
+                        return `📅 ${cron}`;
+                      };
+
+                      return (
+                        <div key={job.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow bg-card">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1 min-w-0">
+                              <h4 className="font-semibold text-sm truncate">{job.nombre}</h4>
+                              <p className="text-xs text-muted-foreground">
+                                {job.portal} • {job.scraping_mode === 'all' ? '🌍 Toda España' : job.ubicacion}
+                              </p>
+                            </div>
+                            <div className="flex gap-1 ml-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 flex-shrink-0"
+                                onClick={() => toggleCronJob(job.id, job.activo)}
+                                title={job.activo ? "Desactivar" : "Activar"}
+                              >
+                                {job.activo ? (
+                                  <Power className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <PowerOff className="h-4 w-4 text-muted-foreground" />
+                                )}
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 flex-shrink-0 hover:bg-destructive/10"
+                                onClick={() => {
+                                  if (confirm(`¿Eliminar el trigger "${job.nombre}"?`)) {
+                                    deleteCronJob(job.id);
+                                  }
+                                }}
+                                title="Eliminar"
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex gap-1">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => toggleCronJob(job.id, job.activo)}
-                            >
-                              {job.activo ? (
-                                <Power className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <PowerOff className="h-4 w-4 text-muted-foreground" />
-                              )}
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => deleteCronJob(job.id)}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
+                          <div className="flex items-center gap-2 text-xs">
+                            <span className="text-muted-foreground">{getFrecuencia(job.cron_expression)}</span>
+                            <Badge variant={job.activo ? "default" : "outline"} className="text-xs">
+                              {job.activo ? "🟢 Activo" : "⚪ Inactivo"}
+                            </Badge>
                           </div>
                         </div>
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>📅 {job.cron_expression}</span>
-                          <Badge variant={job.activo ? "default" : "outline"} className="text-xs">
-                            {job.activo ? "Activo" : "Inactivo"}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <div className="text-center py-6">
                     <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
                     <p className="text-sm text-muted-foreground">No hay triggers configurados</p>
+                    <p className="text-xs text-muted-foreground mt-1">Crea tu primer trigger para automatizar el scraping</p>
                   </div>
                 )}
               </CardContent>
