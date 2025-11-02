@@ -374,135 +374,11 @@ const Scraper = () => {
                     </p>
                   )}
                 </form>
-
-                <div className="mt-6 pt-6 border-t space-y-4">
-                  <Button 
-                    variant="outline" 
-                    className="w-full border-dashed hover:border-solid hover:bg-accent/10 transition-all"
-                    onClick={handleGenerateFakeData}
-                    disabled={generatingFake}
-                  >
-                    <Activity className={`h-4 w-4 mr-2 ${generatingFake ? 'animate-pulse' : ''}`} />
-                    {generatingFake ? 'Generando...' : '✨ Generar Datos Fake'}
-                  </Button>
-
-                  <div className="p-4 bg-gradient-to-br from-accent/5 to-accent/10 rounded-lg border border-accent/20">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
-                      <Activity className="h-4 w-4 text-accent" />
-                      Datos de Prueba
-                    </h4>
-                    <p className="text-xs text-muted-foreground leading-relaxed">
-                      Genera 50 propiedades fake realistas en varias ciudades para probar el sistema sin necesidad del scraper real.
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="lg:col-span-2">
-            <Card className="shadow-lg border-primary/20">
-              <CardHeader className="pb-4 space-y-1">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Clock className="h-5 w-5 text-primary" />
-                    <CardTitle>Historial de Scraping</CardTitle>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={loadLogs}
-                    className="hover:bg-primary/10"
-                  >
-                    <RefreshCw className="h-4 w-4" />
-                  </Button>
-                </div>
-                <CardDescription>Últimas ejecuciones del scraper</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <p className="text-center text-muted-foreground py-8">Cargando historial...</p>
-                ) : (
-                  <div className="space-y-3">
-                    {logs.map((log) => (
-                      <div 
-                        key={log.id} 
-                        className="border rounded-xl p-4 hover:shadow-md transition-all bg-gradient-to-br from-card to-muted/20 group"
-                      >
-                        <div className="flex justify-between items-start mb-3">
-                          <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                              <Database className="h-4 w-4 text-primary" />
-                            </div>
-                            <div>
-                              <Badge 
-                                variant="outline" 
-                                className="mb-2 bg-background/50"
-                              >
-                                {log.portal}
-                              </Badge>
-                              <h4 className="font-semibold text-base">
-                                {log.ubicacion || 'Toda España'}
-                              </h4>
-                            </div>
-                          </div>
-                          <Badge 
-                            variant={log.status === 'success' ? 'default' : 'destructive'}
-                            className="gap-1"
-                          >
-                            {log.status === 'success' ? (
-                              <CheckCircle2 className="h-3 w-3" />
-                            ) : (
-                              <AlertCircle className="h-3 w-3" />
-                            )}
-                            {log.status}
-                          </Badge>
-                        </div>
-                        
-                        <div className="grid grid-cols-4 gap-3 mt-4 p-3 bg-background/60 rounded-lg">
-                          <div className="text-center">
-                            <p className="text-xs text-muted-foreground mb-1">Encontradas</p>
-                            <p className="text-lg font-bold">{log.propiedades_encontradas}</p>
-                          </div>
-                          <div className="text-center border-l">
-                            <p className="text-xs text-muted-foreground mb-1">Nuevas</p>
-                            <p className="text-lg font-bold text-success">{log.propiedades_nuevas}</p>
-                          </div>
-                          <div className="text-center border-l">
-                            <p className="text-xs text-muted-foreground mb-1">Actualizadas</p>
-                            <p className="text-lg font-bold text-primary">{log.propiedades_actualizadas}</p>
-                          </div>
-                          <div className="text-center border-l">
-                            <p className="text-xs text-muted-foreground mb-1">Duración</p>
-                            <p className="text-lg font-bold">{log.duracion_segundos}s</p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 mt-3 pt-3 border-t">
-                          <Clock className="h-3 w-3 text-muted-foreground" />
-                          <p className="text-xs text-muted-foreground">
-                            {new Date(log.created_at).toLocaleString('es-ES')}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {!loading && logs.length === 0 && (
-                  <div className="text-center py-12">
-                    <div className="inline-flex p-4 rounded-full bg-muted/50 mb-4">
-                      <Activity className="h-12 w-12 text-muted-foreground" />
-                    </div>
-                    <p className="text-muted-foreground text-lg font-medium">No hay historial todavía</p>
-                    <p className="text-sm text-muted-foreground mt-2">Ejecuta tu primer scraping para comenzar</p>
-                  </div>
-                )}
               </CardContent>
             </Card>
 
             {/* Sección de Triggers Automáticos */}
-            <Card className="shadow-lg border-primary/20 mt-6">
+            <Card className="shadow-lg border-primary/20">
               <CardHeader className="pb-4 space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -513,7 +389,7 @@ const Scraper = () => {
                     <DialogTrigger asChild>
                       <Button size="sm" className="gap-2">
                         <Plus className="h-4 w-4" />
-                        Nuevo Trigger
+                        Nuevo
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -612,25 +488,26 @@ const Scraper = () => {
                   </Dialog>
                 </div>
                 <CardDescription>
-                  Configura scrapers que se ejecuten automáticamente en horarios específicos
+                  Scrapers programados automáticamente
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {cronJobs.length > 0 ? (
-                  <div className="space-y-3">
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
                     {cronJobs.map((job) => (
-                      <div key={job.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                      <div key={job.id} className="border rounded-lg p-3 hover:shadow-md transition-shadow">
                         <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h4 className="font-semibold">{job.nombre}</h4>
-                            <p className="text-sm text-muted-foreground">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-sm">{job.nombre}</h4>
+                            <p className="text-xs text-muted-foreground">
                               {job.portal} - {job.scraping_mode === 'all' ? 'Toda España' : job.ubicacion}
                             </p>
                           </div>
-                          <div className="flex gap-2">
+                          <div className="flex gap-1">
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-8 w-8"
                               onClick={() => toggleCronJob(job.id, job.activo)}
                             >
                               {job.activo ? (
@@ -642,18 +519,16 @@ const Scraper = () => {
                             <Button
                               variant="ghost"
                               size="icon"
+                              className="h-8 w-8"
                               onClick={() => deleteCronJob(job.id)}
                             >
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </div>
                         </div>
-                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
                           <span>📅 {job.cron_expression}</span>
-                          {job.ultima_ejecucion && (
-                            <span>Última: {new Date(job.ultima_ejecucion).toLocaleString('es-ES')}</span>
-                          )}
-                          <Badge variant={job.activo ? "default" : "outline"}>
+                          <Badge variant={job.activo ? "default" : "outline"} className="text-xs">
                             {job.activo ? "Activo" : "Inactivo"}
                           </Badge>
                         </div>
@@ -661,12 +536,137 @@ const Scraper = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8">
-                    <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No hay triggers configurados</p>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Crea tu primer trigger automático para scraping programado
+                  <div className="text-center py-6">
+                    <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground">No hay triggers configurados</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-lg hover:shadow-xl transition-shadow border-primary/20">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <Button
+                    variant="outline" 
+                    className="w-full border-dashed hover:border-solid hover:bg-accent/10 transition-all"
+                    onClick={handleGenerateFakeData}
+                    disabled={generatingFake}
+                  >
+                    <Activity className={`h-4 w-4 mr-2 ${generatingFake ? 'animate-pulse' : ''}`} />
+                    {generatingFake ? 'Generando...' : '✨ Generar Datos Fake'}
+                  </Button>
+
+                  <div className="p-4 bg-gradient-to-br from-accent/5 to-accent/10 rounded-lg border border-accent/20">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                      <Activity className="h-4 w-4 text-accent" />
+                      Datos de Prueba
+                    </h4>
+                    <p className="text-xs text-muted-foreground leading-relaxed">
+                      Genera 50 propiedades fake realistas en varias ciudades para probar el sistema sin necesidad del scraper real.
                     </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="lg:col-span-2">
+            <Card className="shadow-lg border-primary/20 h-[calc(100vh-12rem)]">
+              <CardHeader className="pb-4 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <CardTitle>Historial de Scraping</CardTitle>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={loadLogs}
+                    className="hover:bg-primary/10"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+                <CardDescription>Últimas ejecuciones del scraper</CardDescription>
+              </CardHeader>
+              <CardContent className="h-[calc(100%-5rem)] overflow-y-auto">
+                {loading ? (
+                  <p className="text-center text-muted-foreground py-8">Cargando historial...</p>
+                ) : (
+                  <div className="space-y-3 pr-2">
+                    {logs.map((log) => (
+                      <div 
+                        key={log.id} 
+                        className="border rounded-xl p-4 hover:shadow-md transition-all bg-gradient-to-br from-card to-muted/20 group"
+                      >
+                        <div className="flex justify-between items-start mb-3">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                              <Database className="h-4 w-4 text-primary" />
+                            </div>
+                            <div>
+                              <Badge 
+                                variant="outline" 
+                                className="mb-2 bg-background/50"
+                              >
+                                {log.portal}
+                              </Badge>
+                              <h4 className="font-semibold text-base">
+                                {log.ubicacion || 'Toda España'}
+                              </h4>
+                            </div>
+                          </div>
+                          <Badge 
+                            variant={log.status === 'success' ? 'default' : 'destructive'}
+                            className="gap-1"
+                          >
+                            {log.status === 'success' ? (
+                              <CheckCircle2 className="h-3 w-3" />
+                            ) : (
+                              <AlertCircle className="h-3 w-3" />
+                            )}
+                            {log.status}
+                          </Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-4 gap-3 mt-4 p-3 bg-background/60 rounded-lg">
+                          <div className="text-center">
+                            <p className="text-xs text-muted-foreground mb-1">Encontradas</p>
+                            <p className="text-lg font-bold">{log.propiedades_encontradas}</p>
+                          </div>
+                          <div className="text-center border-l">
+                            <p className="text-xs text-muted-foreground mb-1">Nuevas</p>
+                            <p className="text-lg font-bold text-success">{log.propiedades_nuevas}</p>
+                          </div>
+                          <div className="text-center border-l">
+                            <p className="text-xs text-muted-foreground mb-1">Actualizadas</p>
+                            <p className="text-lg font-bold text-primary">{log.propiedades_actualizadas}</p>
+                          </div>
+                          <div className="text-center border-l">
+                            <p className="text-xs text-muted-foreground mb-1">Duración</p>
+                            <p className="text-lg font-bold">{log.duracion_segundos}s</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 mt-3 pt-3 border-t">
+                          <Clock className="h-3 w-3 text-muted-foreground" />
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(log.created_at).toLocaleString('es-ES')}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {!loading && logs.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="inline-flex p-4 rounded-full bg-muted/50 mb-4">
+                      <Activity className="h-12 w-12 text-muted-foreground" />
+                    </div>
+                    <p className="text-muted-foreground text-lg font-medium">No hay historial todavía</p>
+                    <p className="text-sm text-muted-foreground mt-2">Ejecuta tu primer scraping para comenzar</p>
                   </div>
                 )}
               </CardContent>
