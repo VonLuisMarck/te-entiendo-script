@@ -56,19 +56,32 @@ const Historico = () => {
   const loadHistorico = async () => {
     try {
       setLoading(true);
+      
+      // Primero obtener el conteo total
+      const { count: totalCount } = await supabase
+        .from("propiedades_historico")
+        .select("*", { count: "exact", head: true });
+
+      // Luego obtener las primeras 100 para la tabla
       const { data, error } = await supabase
         .from("propiedades_historico")
         .select("*")
-        .order("fecha_archivado", { ascending: false });
+        .order("fecha_archivado", { ascending: false })
+        .limit(100);
 
       if (error) throw error;
 
       setPropiedades(data || []);
       
+      // Obtener stats reales
+      const { data: statsData } = await supabase
+        .from("propiedades_historico")
+        .select("motivo_archivado");
+      
       setStats({
-        total: data?.length || 0,
-        desactivadas: data?.filter(p => p.motivo_archivado === 'desactivado').length || 0,
-        borradas: data?.filter(p => p.motivo_archivado === 'borrado').length || 0,
+        total: totalCount || 0,
+        desactivadas: statsData?.filter(p => p.motivo_archivado === 'desactivado').length || 0,
+        borradas: statsData?.filter(p => p.motivo_archivado === 'borrado').length || 0,
       });
     } catch (error) {
       console.error("Error cargando histórico:", error);
@@ -139,7 +152,7 @@ const Historico = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              Propiedades Archivadas
+              Propiedades Archivadas (mostrando las 100 más recientes)
             </CardTitle>
           </CardHeader>
           <CardContent>
