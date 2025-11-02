@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { TrendingUp, Home, LogOut, Play, Activity, Search, Database, RefreshCw, Clock, CheckCircle2, AlertCircle, Trash2, Power, PowerOff, Plus } from "lucide-react";
+import { TrendingUp, Home, LogOut, Play, Activity, Search, Database, RefreshCw, Clock, CheckCircle2, AlertCircle, Trash2, Power, PowerOff, Plus, FileText } from "lucide-react";
+import { generateBusinessReport } from "@/lib/business-report-generator";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -273,14 +274,24 @@ const Scraper = () => {
               </div>
             </div>
           </div>
-          <Button 
-            variant="outline" 
-            onClick={handleLogout}
-            className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-all"
-          >
-            <LogOut className="h-4 w-4 mr-2" />
-            Cerrar Sesión
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={generateBusinessReport}
+              className="hover:bg-primary/10 hover:border-primary/50 transition-all"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Descargar Informe
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={handleLogout}
+              className="hover:bg-destructive/10 hover:text-destructive hover:border-destructive/50 transition-all"
+            >
+              <LogOut className="h-4 w-4 mr-2" />
+              Cerrar Sesión
+            </Button>
+          </div>
         </div>
       </header>
 
