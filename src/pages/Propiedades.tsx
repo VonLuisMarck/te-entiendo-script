@@ -90,27 +90,27 @@ const Propiedades = () => {
         .maybeSingle();
 
       // Buscar métricas de la zona
-      const [ciudad, barrio] = propiedad.ubicacion.split(',').map(s => s.trim());
+      const [ciudad, distrito] = propiedad.ubicacion.split(',').map(s => s.trim());
       
-      // Intentar primero con barrio específico, luego ciudad
+      // Intentar primero con distrito específico, luego ciudad
       let metrica = null;
-      if (barrio) {
+      if (distrito) {
         const { data } = await supabase
           .from("metricas_barrios")
           .select("*")
           .eq("ciudad", ciudad)
-          .eq("barrio", barrio)
+          .eq("distrito", distrito)
           .maybeSingle();
         metrica = data;
       }
       
-      // Si no hay métricas de barrio, buscar de ciudad
+      // Si no hay métricas de distrito, buscar de ciudad
       if (!metrica) {
         const { data } = await supabase
           .from("metricas_barrios")
           .select("*")
           .eq("ciudad", ciudad)
-          .is("barrio", null)
+          .is("distrito", null)
           .maybeSingle();
         metrica = data;
       }

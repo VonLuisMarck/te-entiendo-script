@@ -15,7 +15,7 @@ import { toast } from "sonner";
 interface Metrica {
   id: string;
   ciudad: string;
-  barrio: string | null;
+  distrito: string | null;
   precio_medio: number;
   precio_m2_medio: number;
   precio_m2_min: number;
@@ -159,14 +159,14 @@ const Metricas = () => {
     if (filtros.busquedaBarrio) {
       const busqueda = filtros.busquedaBarrio.toLowerCase();
       resultado = resultado.filter(m => 
-        m.barrio?.toLowerCase().includes(busqueda) || 
-        (!m.barrio && "total ciudad".includes(busqueda))
+        m.distrito?.toLowerCase().includes(busqueda) || 
+        (!m.distrito && "total ciudad".includes(busqueda))
       );
     }
 
     // Filtro solo barrios (excluir totales de ciudad)
     if (filtros.soloBarrios) {
-      resultado = resultado.filter(m => m.barrio !== null);
+      resultado = resultado.filter(m => m.distrito !== null);
     }
 
     // Ordenamiento
@@ -183,10 +183,10 @@ const Metricas = () => {
             return a.ciudad.localeCompare(b.ciudad);
           }
           // Dentro de la misma ciudad, los totales primero
-          if (!a.barrio && b.barrio) return -1;
-          if (a.barrio && !b.barrio) return 1;
-          if (!a.barrio && !b.barrio) return 0;
-          return (a.barrio || '').localeCompare(b.barrio || '');
+          if (!a.distrito && b.distrito) return -1;
+          if (a.distrito && !b.distrito) return 1;
+          if (!a.distrito && !b.distrito) return 0;
+          return (a.distrito || '').localeCompare(b.distrito || '');
       }
     });
 
@@ -361,8 +361,8 @@ const Metricas = () => {
                       <TableRow key={metrica.id}>
                         <TableCell className="font-medium">{metrica.ciudad}</TableCell>
                         <TableCell>
-                          {metrica.barrio ? (
-                            metrica.barrio
+                          {metrica.distrito ? (
+                            metrica.distrito
                           ) : (
                             <Badge variant="secondary" className="text-xs">
                               Total Ciudad

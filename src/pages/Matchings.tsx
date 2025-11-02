@@ -153,15 +153,15 @@ const Matchings = () => {
         .maybeSingle();
 
       // Buscar métricas de la zona
-      const [ciudad, barrio] = matching.propiedades.ubicacion.split(',').map(s => s.trim());
+      const [ciudad, distrito] = matching.propiedades.ubicacion.split(',').map(s => s.trim());
       
       let metrica = null;
-      if (barrio) {
+      if (distrito) {
         const { data } = await supabase
           .from("metricas_barrios")
           .select("*")
           .eq("ciudad", ciudad)
-          .eq("barrio", barrio)
+          .eq("distrito", distrito)
           .maybeSingle();
         metrica = data;
       }
@@ -171,7 +171,7 @@ const Matchings = () => {
           .from("metricas_barrios")
           .select("*")
           .eq("ciudad", ciudad)
-          .is("barrio", null)
+          .is("distrito", null)
           .maybeSingle();
         metrica = data;
       }
