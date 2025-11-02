@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Building2, Users, Search, TrendingUp, LogOut, BarChart3, Settings } from "lucide-react";
+import { Building2, Users, Search, TrendingUp, LogOut, BarChart3, Settings, MapPin } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -204,6 +204,20 @@ const Dashboard = () => {
               </CardTitle>
               <CardDescription className="text-sm">
                 Análisis de precios por ciudad y barrio - Detecta chollos
+              </CardDescription>
+            </CardHeader>
+          </Card>
+
+          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/mercado-ciudades")}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-3 text-lg">
+                <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                  <MapPin className="h-6 w-6 text-primary" />
+                </div>
+                Mercado por Ciudades
+              </CardTitle>
+              <CardDescription className="text-sm">
+                Análisis del mercado inmobiliario por ciudades
               </CardDescription>
             </CardHeader>
           </Card>
