@@ -356,32 +356,80 @@ export const generarPDFAnalisis = async ({
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Sobre ${ciudad}${provincia ? ', ' + provincia : ''}`, margin, yPosition + 2);
+    doc.text(`Análisis del Mercado en ${ciudad}${provincia ? ', ' + provincia : ''}`, margin, yPosition + 2);
     yPosition += 15;
 
     doc.setTextColor(0, 0, 0);
     doc.setFontSize(10);
     doc.setFont('helvetica', 'normal');
 
-    // Descripción de la zona
-    const descripcionZona = `${ciudad} es una zona que actualmente cuenta con ${metrica.total_propiedades || 0} propiedades activas en el mercado. El precio medio por m² en la zona es de ${formatNumber(metrica.precio_m2_medio)} €/m².`;
-    const splitDescZona = doc.splitTextToSize(descripcionZona, pageWidth - 2 * margin);
-    doc.text(splitDescZona, margin, yPosition);
-    yPosition += splitDescZona.length * 5 + 10;
+    // Introducción del mercado
+    let introTexto = `El mercado inmobiliario en ${ciudad} presenta características distintivas que son clave para entender el valor y potencial de esta inversión. `;
+    introTexto += `Actualmente, nuestra base de datos monitoriza ${metrica.total_propiedades || 0} propiedades activas en ${ciudad}, `;
+    introTexto += `lo que nos permite realizar un análisis preciso y actualizado del mercado local.\n\n`;
+    
+    // Análisis de precios
+    introTexto += `El precio medio de una propiedad en ${ciudad} se sitúa en ${formatNumber(metrica.precio_medio)} €, `;
+    introTexto += `con un precio medio por metro cuadrado de ${formatNumber(metrica.precio_m2_medio)} €/m². `;
+    
+    // Contexto del rango de precios
+    const rangoPrecios = metrica.precio_m2_max - metrica.precio_m2_min;
+    const porcentajeRango = ((rangoPrecios / metrica.precio_m2_medio) * 100).toFixed(0);
+    introTexto += `Los precios por m² en la zona oscilan entre ${formatNumber(metrica.precio_m2_min)} € y ${formatNumber(metrica.precio_m2_max)} €, `;
+    introTexto += `mostrando una variabilidad del ${porcentajeRango}% que refleja la diversidad de tipologías y zonas dentro de ${ciudad}.\n\n`;
 
-    // Datos del mercado en la zona
+    // Composición del mercado
+    if (metrica.total_pisos > 0 || metrica.total_chalets > 0) {
+      introTexto += `En cuanto a la composición del mercado, `;
+      if (metrica.total_pisos > 0) {
+        const porcentajePisos = ((metrica.total_pisos / metrica.total_propiedades) * 100).toFixed(0);
+        introTexto += `los pisos representan el ${porcentajePisos}% del mercado con un precio medio de ${formatNumber(metrica.precio_medio_piso)} €`;
+        if (metrica.metros_medio_piso) {
+          introTexto += ` (${formatNumber(metrica.precio_medio_piso / metrica.metros_medio_piso)} €/m²)`;
+        }
+        introTexto += `. `;
+      }
+      if (metrica.total_chalets > 0) {
+        const porcentajeChalets = ((metrica.total_chalets / metrica.total_propiedades) * 100).toFixed(0);
+        introTexto += `Los chalets y viviendas unifamiliares representan el ${porcentajeChalets}% con un precio medio de ${formatNumber(metrica.precio_medio_chalet)} €`;
+        if (metrica.metros_medio_chalet) {
+          introTexto += ` (${formatNumber(metrica.precio_medio_chalet / metrica.metros_medio_chalet)} €/m²)`;
+        }
+        introTexto += `.`;
+      }
+    }
+
+    const splitIntro = doc.splitTextToSize(introTexto, pageWidth - 2 * margin);
+    doc.text(splitIntro, margin, yPosition);
+    yPosition += splitIntro.length * 5 + 10;
+
+    // Tabla resumen con datos clave
+    checkNewPage(60);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 58, 138);
+    doc.text('Datos Clave del Mercado', margin, yPosition);
+    yPosition += 8;
+
     const datosZona = [
       ['Precio medio en la zona', `${formatNumber(metrica.precio_medio)} €`],
       ['Precio medio por m²', `${formatNumber(metrica.precio_m2_medio)} €/m²`],
       ['Rango de precios por m²', `${formatNumber(metrica.precio_m2_min)} - ${formatNumber(metrica.precio_m2_max)} €/m²`],
-      ['Total de propiedades', `${metrica.total_propiedades} propiedades`],
+      ['Total de propiedades activas', `${metrica.total_propiedades} propiedades`],
     ];
 
     if (metrica.total_pisos > 0) {
-      datosZona.push(['Pisos en venta', `${metrica.total_pisos} (${formatNumber(metrica.precio_medio_piso)} € media)`]);
+      datosZona.push(['Pisos disponibles', `${metrica.total_pisos} unidades`]);
+      if (metrica.precio_medio_piso) {
+        datosZona.push(['Precio medio pisos', `${formatNumber(metrica.precio_medio_piso)} €`]);
+      }
     }
     if (metrica.total_chalets > 0) {
-      datosZona.push(['Chalets en venta', `${metrica.total_chalets} (${formatNumber(metrica.precio_medio_chalet)} € media)`]);
+      datosZona.push(['Chalets disponibles', `${metrica.total_chalets} unidades`]);
+      if (metrica.precio_medio_chalet) {
+        datosZona.push(['Precio medio chalets', `${formatNumber(metrica.precio_medio_chalet)} €`]);
+      }
     }
 
     autoTable(doc, {
@@ -394,85 +442,215 @@ export const generarPDFAnalisis = async ({
         font: 'helvetica'
       },
       columnStyles: {
-        0: { fontStyle: 'bold', cellWidth: 60, fillColor: [249, 250, 251] },
-        1: { cellWidth: 'auto' }
+        0: { fontStyle: 'bold', cellWidth: 70, fillColor: [249, 250, 251] },
+        1: { cellWidth: 'auto', fontStyle: 'bold', textColor: [30, 58, 138] }
       },
       margin: { left: margin, right: margin }
     });
 
     yPosition = (doc as any).lastAutoTable.finalY + 15;
 
-    // Proyección de revalorización
+    // Tendencias y proyección de mercado
+    checkNewPage(80);
+    
+    doc.setFillColor(240, 244, 248);
+    doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, 8, 2, 2, 'F');
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(30, 58, 138);
+    doc.text('Tendencias y Proyección del Mercado', margin + 5, yPosition + 5.5);
+    yPosition += 13;
+
+    doc.setTextColor(0, 0, 0);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+
     if (metrica.proyeccion_revalorizacion_anual !== null && metrica.meses_datos_historicos >= 3) {
-      checkNewPage(50);
-      
       const proy = metrica.proyeccion_revalorizacion_anual;
-      let estadoProy = '';
+      let analisisProyeccion = '';
       let colorProy = [71, 85, 105];
       
       if (proy >= 5) {
-        estadoProy = 'Zona en fuerte crecimiento';
         colorProy = [34, 197, 94];
+        analisisProyeccion = `${ciudad} está experimentando un crecimiento excepcional del ${proy.toFixed(1)}% anual. Este ritmo de revalorización indica una zona en plena expansión, `;
+        analisisProyeccion += `con alta demanda y desarrollo activo. Las propiedades en esta zona han mostrado una apreciación consistente, `;
+        analisisProyeccion += `lo que sugiere un mercado robusto con excelentes perspectivas de inversión. `;
+        
+        if (clientePerfil === 'reformar') {
+          analisisProyeccion += `Para inversores enfocados en reformar y vender, esto significa que además del margen de la reforma, `;
+          analisisProyeccion += `podrán beneficiarse de una revalorización natural del inmueble durante el período de obra y comercialización. `;
+        } else if (clientePerfil === 'alquilar') {
+          analisisProyeccion += `Para inversores en alquiler, esta revalorización garantiza no solo ingresos recurrentes sino también una apreciación significativa del capital. `;
+        }
+        
+        analisisProyeccion += `\n\nProyectando esta tendencia, una propiedad de ${formatNumber(propiedad.precio)} € podría alcanzar un valor de ${formatNumber(Math.round(propiedad.precio * (1 + proy / 100)))} € en un año, `;
+        analisisProyeccion += `representando una plusvalía de ${formatNumber(Math.round(propiedad.precio * (proy / 100)))} €. `;
+        analisisProyeccion += `En un horizonte de 3 años, manteniendo esta tendencia, la revalorización acumulada podría ser de aproximadamente ${((Math.pow(1 + proy / 100, 3) - 1) * 100).toFixed(1)}%, `;
+        analisisProyeccion += `elevando el valor a ${formatNumber(Math.round(propiedad.precio * Math.pow(1 + proy / 100, 3)))} €.`;
+        
       } else if (proy >= 2) {
-        estadoProy = 'Zona en crecimiento moderado';
         colorProy = [59, 130, 246];
+        analisisProyeccion = `El mercado en ${ciudad} muestra un crecimiento moderado y sostenible del ${proy.toFixed(1)}% anual. `;
+        analisisProyeccion += `Esta tasa de revalorización indica un mercado maduro y estable, con demanda constante y precios que evolucionan de forma saludable. `;
+        analisisProyeccion += `Este tipo de crecimiento es característico de zonas consolidadas donde la demanda está bien establecida.\n\n`;
+        
+        analisisProyeccion += `Basándonos en ${metrica.meses_datos_historicos} meses de datos históricos, proyectamos que esta propiedad `;
+        analisisProyeccion += `podría alcanzar un valor de ${formatNumber(Math.round(propiedad.precio * (1 + proy / 100)))} € en un año, `;
+        analisisProyeccion += `generando una plusvalía de ${formatNumber(Math.round(propiedad.precio * (proy / 100)))} €. `;
+        
+        if (clientePerfil === 'vivir') {
+          analisisProyeccion += `Para vivienda habitual, esto garantiza que su inversión se mantendrá protegida de la inflación y crecerá en valor con el tiempo.`;
+        }
+        
       } else if (proy > 0) {
-        estadoProy = 'Zona con crecimiento leve';
         colorProy = [234, 179, 8];
+        analisisProyeccion = `${ciudad} presenta un crecimiento leve del ${proy.toFixed(1)}% anual. El mercado se encuentra estable, `;
+        analisisProyeccion += `con precios que crecen de forma conservadora. Esta estabilidad puede ser positiva para inversores que buscan seguridad, `;
+        analisisProyeccion += `aunque las oportunidades de revalorización rápida son limitadas. `;
+        
+        analisisProyeccion += `\n\nEn un año, se estima que esta propiedad podría valer ${formatNumber(Math.round(propiedad.precio * (1 + proy / 100)))} €. `;
+        
+        if (clientePerfil === 'reformar' || clientePerfil === 'alquilar') {
+          analisisProyeccion += `Para inversores, el retorno principal deberá provenir de la operación (reforma/alquiler) más que de la revalorización del activo.`;
+        }
+        
       } else if (proy >= -2) {
-        estadoProy = 'Zona estable';
         colorProy = [107, 114, 128];
+        analisisProyeccion = `El mercado en ${ciudad} se mantiene estable sin cambios significativos en los precios. `;
+        analisisProyeccion += `Esto puede indicar un equilibrio entre oferta y demanda, o un momento de consolidación tras períodos de crecimiento previo. `;
+        analisisProyeccion += `En mercados estables, la estrategia debe enfocarse en encontrar oportunidades individuales con descuento sobre el precio medio.`;
+        
       } else {
-        estadoProy = 'Zona en descenso';
         colorProy = [239, 68, 68];
+        analisisProyeccion = `ATENCIÓN: El mercado en ${ciudad} está experimentando una corrección del ${Math.abs(proy).toFixed(1)}% anual. `;
+        analisisProyeccion += `Esta tendencia a la baja puede deberse a diversos factores económicos o de oferta excesiva. `;
+        analisisProyeccion += `Es crucial analizar las causas específicas de esta tendencia antes de invertir. `;
+        
+        if (clientePerfil === 'alquilar') {
+          analisisProyeccion += `\n\nPara inversión en alquiler, evalúe si la rentabilidad por rentas puede compensar la depreciación del activo. `;
+          analisisProyeccion += `Una propiedad de ${formatNumber(propiedad.precio)} € podría valer ${formatNumber(Math.round(propiedad.precio * (1 + proy / 100)))} € en un año.`;
+        } else if (clientePerfil === 'reformar') {
+          analisisProyeccion += `\n\nPara reformar y vender, considere que tendrá que vender en un mercado a la baja, lo que puede reducir significativamente los márgenes proyectados.`;
+        }
       }
 
-      doc.setFontSize(12);
+      // Badge con estado
+      const estadoBadgeWidth = 60;
+      const estadoBadgeHeight = 8;
+      doc.setFillColor(colorProy[0], colorProy[1], colorProy[2]);
+      doc.roundedRect(margin, yPosition, estadoBadgeWidth, estadoBadgeHeight, 2, 2, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(9);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(30, 58, 138);
-      doc.text('Proyección de Revalorización', margin, yPosition);
-      yPosition += 8;
-
-      doc.setFontSize(11);
-      doc.setFont('helvetica', 'bold');
+      const estadoTexto = proy >= 5 ? 'Fuerte Crecimiento' :
+                         proy >= 2 ? 'Crecimiento Moderado' :
+                         proy > 0 ? 'Crecimiento Leve' :
+                         proy >= -2 ? 'Estable' : 'En Descenso';
+      doc.text(estadoTexto, margin + estadoBadgeWidth / 2, yPosition + 5.5, { align: 'center' });
+      
       doc.setTextColor(colorProy[0], colorProy[1], colorProy[2]);
-      doc.text(estadoProy, margin, yPosition);
-      yPosition += 8;
+      doc.setFontSize(11);
+      doc.text(`${proy > 0 ? '+' : ''}${proy.toFixed(1)}% anual`, margin + estadoBadgeWidth + 5, yPosition + 5.5);
+      yPosition += 13;
 
       doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
+      doc.setFontSize(9);
+      const splitAnalisis = doc.splitTextToSize(analisisProyeccion, pageWidth - 2 * margin);
+      doc.text(splitAnalisis, margin, yPosition);
+      yPosition += splitAnalisis.length * 4 + 12;
 
+      // Tabla con proyecciones
+      checkNewPage(40);
       const proyData = [
-        ['Proyección anual estimada', `${proy > 0 ? '+' : ''}${proy.toFixed(1)}%`],
-        ['Basado en', `${metrica.meses_datos_historicos} meses de histórico`],
-        ['Valor estimado en 1 año', `${formatNumber(Math.round(propiedad.precio * (1 + proy / 100)))} €`],
-        ['Plusvalía potencial', `${formatNumber(Math.round(propiedad.precio * (proy / 100)))} €`]
+        ['Proyección a 1 año', `${formatNumber(Math.round(propiedad.precio * (1 + proy / 100)))} €`, `${proy > 0 ? '+' : ''}${formatNumber(Math.round(propiedad.precio * (proy / 100)))} €`],
+        ['Proyección a 3 años', `${formatNumber(Math.round(propiedad.precio * Math.pow(1 + proy / 100, 3)))} €`, `${proy > 0 ? '+' : ''}${formatNumber(Math.round(propiedad.precio * (Math.pow(1 + proy / 100, 3) - 1)))} €`],
+        ['Proyección a 5 años', `${formatNumber(Math.round(propiedad.precio * Math.pow(1 + proy / 100, 5)))} €`, `${proy > 0 ? '+' : ''}${formatNumber(Math.round(propiedad.precio * (Math.pow(1 + proy / 100, 5) - 1)))} €`],
       ];
 
       autoTable(doc, {
         startY: yPosition,
+        head: [['Horizonte', 'Valor Estimado', 'Plusvalía']],
         body: proyData,
         theme: 'striped',
+        headStyles: {
+          fillColor: [30, 58, 138],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9
+        },
         styles: { 
           fontSize: 9, 
           cellPadding: 3,
           font: 'helvetica'
         },
         columnStyles: {
-          0: { fontStyle: 'bold', cellWidth: 60, fillColor: [249, 250, 251] },
-          1: { cellWidth: 'auto' }
+          0: { fontStyle: 'bold', cellWidth: 50 },
+          1: { cellWidth: 'auto', fontStyle: 'bold', textColor: [30, 58, 138] },
+          2: { cellWidth: 'auto', fontStyle: 'bold', textColor: proy >= 0 ? [34, 197, 94] : [239, 68, 68] }
         },
         margin: { left: margin, right: margin }
       });
 
-      yPosition = (doc as any).lastAutoTable.finalY + 15;
-    } else if (metrica.indice_dinamismo !== null) {
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
+      yPosition = (doc as any).lastAutoTable.finalY + 12;
+
+      // Nota sobre la proyección
+      doc.setFontSize(8);
       doc.setTextColor(100, 116, 139);
-      doc.text(`Índice de dinamismo: ${Math.round(metrica.indice_dinamismo)}/100. Acumulando datos para proyección de revalorización.`, margin, yPosition);
-      yPosition += 10;
+      const notaTexto = `* Proyecciones basadas en ${metrica.meses_datos_historicos} meses de datos históricos. Los valores futuros son estimaciones y pueden variar según condiciones macroeconómicas y del mercado local.`;
+      const splitNota = doc.splitTextToSize(notaTexto, pageWidth - 2 * margin);
+      doc.text(splitNota, margin, yPosition);
+      yPosition += splitNota.length * 4 + 10;
+
+    } else if (metrica.indice_dinamismo !== null) {
+      const dinamismo = metrica.indice_dinamismo;
+      let textoDinamismo = `El índice de dinamismo del mercado en ${ciudad} es de ${Math.round(dinamismo)}/100. `;
+      
+      if (dinamismo >= 80) {
+        textoDinamismo += `Esto indica un mercado muy activo con alto volumen de transacciones y rotación de propiedades. `;
+      } else if (dinamismo >= 60) {
+        textoDinamismo += `Esto refleja un mercado activo con buen nivel de transacciones. `;
+      } else if (dinamismo >= 40) {
+        textoDinamismo += `Esto indica un mercado moderado con actividad transaccional estándar. `;
+      } else {
+        textoDinamismo += `Esto sugiere un mercado tranquilo con menor volumen de transacciones. `;
+      }
+      
+      textoDinamismo += `\n\nActualmente estamos acumulando datos históricos para ofrecer proyecciones de revalorización precisas. `;
+      textoDinamismo += `Se necesitan al menos 3 meses de datos para calcular tendencias fiables. `;
+      textoDinamismo += `Dispondremos de proyecciones de revalorización en aproximadamente ${Math.max(0, 3 - (metrica.meses_datos_historicos || 0))} meses.`;
+
+      const splitDinamismo = doc.splitTextToSize(textoDinamismo, pageWidth - 2 * margin);
+      doc.text(splitDinamismo, margin, yPosition);
+      yPosition += splitDinamismo.length * 4 + 10;
+    }
+
+    // Variación mensual si existe
+    if (metrica.variacion_mensual !== null) {
+      checkNewPage(30);
+      
+      doc.setFillColor(240, 244, 248);
+      doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, 8, 2, 2, 'F');
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(30, 58, 138);
+      doc.text('Variación Mensual Reciente', margin + 5, yPosition + 5.5);
+      yPosition += 13;
+
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(0, 0, 0);
+      
+      const varTexto = `En el último mes, los precios en ${ciudad} han experimentado una variación del ${metrica.variacion_mensual > 0 ? '+' : ''}${metrica.variacion_mensual.toFixed(2)}%. `;
+      const varTexto2 = metrica.variacion_mensual > 0.5 
+        ? 'Esta subida mensual refuerza la tendencia alcista del mercado.' 
+        : metrica.variacion_mensual < -0.5 
+        ? 'Esta bajada mensual puede indicar una corrección temporal o el inicio de una tendencia a la baja.'
+        : 'Esta estabilidad mensual confirma un mercado sin volatilidad significativa.';
+      
+      const splitVar = doc.splitTextToSize(varTexto + varTexto2, pageWidth - 2 * margin);
+      doc.text(splitVar, margin, yPosition);
+      yPosition += splitVar.length * 4 + 10;
     }
   }
 
