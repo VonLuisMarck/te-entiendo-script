@@ -71,7 +71,7 @@ serve(async (req) => {
         const metricasMap = new Map();
         if (todasMetricas) {
           todasMetricas.forEach((metrica: any) => {
-            const key = `${metrica.ciudad}|${metrica.barrio || 'ciudad'}`;
+            const key = `${metrica.ciudad}|${metrica.distrito || 'ciudad'}`;
             metricasMap.set(key, metrica);
           });
         }
@@ -96,7 +96,7 @@ serve(async (req) => {
             // Score final
             const score = Math.min(100, scoreBase + bonusMercado);
             
-            if (score >= 50) {
+            if (score >= 60) {
               const criteriosCumplidos = evaluarCriterios(cliente, criterios, propiedad);
               
               matchingsToUpsert.push({
@@ -180,88 +180,129 @@ serve(async (req) => {
 function calcularScore(cliente: any, criterios: any, propiedad: any): number {
   let score = 0;
   let maxScore = 0;
+  let penalizaciones = 0;
 
-  // Presupuesto (peso: 20 puntos base)
-  maxScore += 20;
+  // Presupuesto (peso: 25 puntos base - CRÍTICO)
+  maxScore += 25;
   if (propiedad.precio >= (cliente.presupuesto_min || 0) && 
       propiedad.precio <= (cliente.presupuesto_max || Infinity)) {
-    score += 20;
+    
+    // Estar dentro del presupuesto ya no da el máximo automáticamente
+    // Depende de qué tan cerca del límite superior estés
+    const presupuestoMax = cliente.presupuesto_max || propiedad.precio;
+    const presupuestoMin = cliente.presupuesto_min || 0;
+    const rangoPresupuesto = presupuestoMax - presupuestoMin;
+    
+    if (rangoPresupuesto > 0) {
+      // Cuanto más cerca del mínimo, mejor score
+      const posicionEnRango = (propiedad.precio - presupuestoMin) / rangoPresupuesto;
+      
+      if (posicionEnRango <= 0.3) {
+        score += 25; // En el 30% más bajo del rango
+      } else if (posicionEnRango <= 0.5) {
+        score += 22; // En el 50% más bajo
+      } else if (posicionEnRango <= 0.7) {
+        score += 19; // Rango medio
+      } else if (posicionEnRango <= 0.9) {
+        score += 16; // Cerca del límite
+      } else {
+        score += 13; // Muy cerca del máximo
+      }
+    } else {
+      score += 20; // Sin rango definido
+    }
   } else {
+    // Fuera del presupuesto: penalización significativa
     const desviacion = Math.min(
       Math.abs(propiedad.precio - (cliente.presupuesto_min || 0)),
       Math.abs(propiedad.precio - (cliente.presupuesto_max || Infinity))
     );
-    const penalizacion = Math.min(20, (desviacion / 10000) * 5);
-    score += Math.max(0, 20 - penalizacion);
+    const penalizacion = Math.min(25, (desviacion / 5000) * 5);
+    score += Math.max(0, 25 - penalizacion);
+    penalizaciones += 15; // Penalización adicional por estar fuera
   }
 
-  // NUEVO: Bonus por ahorro dentro del presupuesto (peso: 10 puntos)
-  // Cuanto más barato dentro del rango, mejor
-  maxScore += 10;
-  if (propiedad.precio <= (cliente.presupuesto_max || Infinity)) {
-    const presupuestoMax = cliente.presupuesto_max || propiedad.precio;
-    const porcentajeAhorro = ((presupuestoMax - propiedad.precio) / presupuestoMax) * 100;
-    
-    // Bonus escalonado:
-    // 0-5% ahorro: 2 puntos
-    // 5-10% ahorro: 4 puntos
-    // 10-20% ahorro: 6 puntos
-    // 20-30% ahorro: 8 puntos
-    // >30% ahorro: 10 puntos
-    if (porcentajeAhorro >= 30) {
-      score += 10;
-    } else if (porcentajeAhorro >= 20) {
-      score += 8;
-    } else if (porcentajeAhorro >= 10) {
-      score += 6;
-    } else if (porcentajeAhorro >= 5) {
-      score += 4;
-    } else if (porcentajeAhorro > 0) {
-      score += 2;
-    }
-  }
+  if (!criterios) return Math.max(0, (score / maxScore) * 100 - penalizaciones);
 
-  if (!criterios) return (score / maxScore) * 100;
-
-  // Ubicación (peso: 20 puntos) - Matching inteligente
-  maxScore += 20;
+  // Ubicación (peso: 25 puntos) - MUY IMPORTANTE
+  maxScore += 25;
   if (criterios.ubicaciones && matchUbicacion(criterios.ubicaciones, propiedad.ubicacion)) {
-    score += 20;
+    score += 25;
+  } else {
+    penalizaciones += 20; // No estar en la ubicación deseada es muy grave
   }
 
   // Tipo de propiedad (peso: 15 puntos)
   maxScore += 15;
   if (criterios.tipo_propiedad?.includes(propiedad.tipo_propiedad)) {
     score += 15;
+  } else {
+    penalizaciones += 10; // Tipo incorrecto es importante
   }
 
-  // Dormitorios (peso: 10 puntos)
-  maxScore += 10;
+  // Dormitorios (peso: 12 puntos)
+  maxScore += 12;
   if (!criterios.dormitorios_min || propiedad.dormitorios >= criterios.dormitorios_min) {
-    score += 10;
+    // Ajustar puntos según qué tan por encima está
+    const exceso = propiedad.dormitorios - (criterios.dormitorios_min || 0);
+    if (exceso === 0 || exceso === 1) {
+      score += 12; // Perfecto o 1 más
+    } else if (exceso === 2) {
+      score += 10; // 2 dormitorios extra puede ser excesivo
+    } else if (exceso > 2) {
+      score += 7; // Demasiados dormitorios no siempre es bueno
+    }
+  } else {
+    penalizaciones += 8; // Menos dormitorios de lo necesario
   }
 
-  // Metros (peso: 10 puntos)
-  maxScore += 10;
+  // Metros (peso: 12 puntos)
+  maxScore += 12;
   if ((!criterios.metros_min || propiedad.metros >= criterios.metros_min) &&
       (!criterios.metros_max || propiedad.metros <= criterios.metros_max)) {
-    score += 10;
+    score += 12;
+  } else {
+    // Penalización por desviación de metros
+    const desviacionMetros = criterios.metros_min && propiedad.metros < criterios.metros_min
+      ? criterios.metros_min - propiedad.metros
+      : criterios.metros_max && propiedad.metros > criterios.metros_max
+      ? propiedad.metros - criterios.metros_max
+      : 0;
+    
+    const penalizacionMetros = Math.min(8, (desviacionMetros / 10) * 2);
+    penalizaciones += penalizacionMetros;
+    score += Math.max(4, 12 - penalizacionMetros);
   }
 
-  // Estado (peso: 5 puntos)
-  maxScore += 5;
+  // Estado (peso: 6 puntos) - Más importante de lo que era
+  maxScore += 6;
   if (!criterios.condition || criterios.condition.includes(propiedad.condition)) {
-    score += 5;
+    score += 6;
+  } else {
+    penalizaciones += 4; // Estado incorrecto puede ser problemático
   }
 
-  // Extras (peso: 5 puntos)
+  // Extras (peso: 5 puntos) - Menos importante pero suma
   maxScore += 5;
   let extrasScore = 0;
-  if (criterios.tiene_ascensor === propiedad.tiene_ascensor) extrasScore += 2.5;
-  if (criterios.tiene_parking === propiedad.tiene_parking) extrasScore += 2.5;
+  if (!criterios.tiene_ascensor || criterios.tiene_ascensor === propiedad.tiene_ascensor) {
+    extrasScore += 2.5;
+  } else {
+    penalizaciones += 2;
+  }
+  
+  if (!criterios.tiene_parking || criterios.tiene_parking === propiedad.tiene_parking) {
+    extrasScore += 2.5;
+  } else {
+    penalizaciones += 2;
+  }
   score += extrasScore;
 
-  return Math.round((score / maxScore) * 100);
+  // Calcular score final con penalizaciones
+  const scoreBase = Math.round((score / maxScore) * 100);
+  const scoreFinal = Math.max(0, Math.min(100, scoreBase - penalizaciones));
+  
+  return scoreFinal;
 }
 
 function matchUbicacion(ubicacionesCriterios: string[], ubicacionPropiedad: string): boolean {
@@ -327,13 +368,13 @@ function analizarPrecioMercadoEnMemoria(propiedad: any, metricasMap: Map<string,
     return { disponible: false };
   }
 
-  // Extraer ciudad y barrio
+  // Extraer ciudad y distrito
   const partes = propiedad.ubicacion.split(',').map((p: string) => p.trim());
   const ciudad = partes[0];
-  const barrio = partes[1] || null;
+  const distrito = partes[1] || null;
 
-  // Buscar en el Map primero por barrio, luego por ciudad
-  let metricasUsadas = metricasMap.get(`${ciudad}|${barrio}`);
+  // Buscar en el Map primero por distrito, luego por ciudad
+  let metricasUsadas = metricasMap.get(`${ciudad}|${distrito}`);
   if (!metricasUsadas) {
     metricasUsadas = metricasMap.get(`${ciudad}|ciudad`);
   }
@@ -372,7 +413,7 @@ function analizarPrecioMercadoEnMemoria(propiedad: any, metricasMap: Map<string,
     desviacion_porcentaje: Math.round(desviacionPorcentaje * 10) / 10,
     nivel_oportunidad: nivelOportunidad,
     es_chollo: esChollo,
-    metricas_usadas: barrio ? 'barrio' : 'ciudad',
+    metricas_usadas: distrito ? 'distrito' : 'ciudad',
     total_propiedades_comparadas: metricasUsadas.total_propiedades,
   };
 }
@@ -382,34 +423,39 @@ function calcularBonusPerfil(perfil: string, analisisMercado: any): number {
 
   const desviacion = analisisMercado.desviacion_porcentaje;
 
-  // ACTUALIZADO: Incrementado peso del análisis de mercado (max 20 puntos vs 15 previos)
+  // AJUSTADO: Bonus más realista (max 15 puntos vs 20 previos)
+  // Solo para oportunidades reales
   switch (perfil) {
     case 'reformar':
-      // Flippers: Solo interesa si es chollo significativo
-      if (desviacion <= -30) return 20; // Super chollazo: bonus máximo
-      if (desviacion <= -20) return 17; // Chollazo: bonus grande
-      if (desviacion <= -15) return 13;
-      if (desviacion <= -10) return 8;
-      if (desviacion <= -5) return 3;
-      return 0;
+      // Flippers: Solo interesa si es chollo MUY significativo
+      if (desviacion <= -30) return 15; // Súper chollazo excepcional
+      if (desviacion <= -25) return 12;
+      if (desviacion <= -20) return 10;
+      if (desviacion <= -15) return 7;
+      if (desviacion <= -10) return 4;
+      return 0; // Si no es chollo claro, no suma
 
     case 'alquilar':
-      // Landlords: Precio medio está bien, pero valoran chollos moderados
-      if (desviacion <= -25) return 17; // Super chollo
-      if (desviacion <= -15) return 13; // Buen chollo
-      if (desviacion <= -10) return 10;
-      if (desviacion <= -5) return 5;
-      if (Math.abs(desviacion) <= 5) return 3; // Precio justo también vale
+      // Landlords: Valoran chollos pero también aceptan precio justo
+      if (desviacion <= -30) return 13;
+      if (desviacion <= -25) return 11;
+      if (desviacion <= -20) return 9;
+      if (desviacion <= -15) return 7;
+      if (desviacion <= -10) return 5;
+      if (desviacion <= -5) return 3;
+      if (Math.abs(desviacion) <= 5) return 2; // Precio justo vale poco
       return 0;
 
     case 'vivir':
     default:
-      // End users: Valoran chollos pero también aceptan precio justo
-      if (desviacion <= -25) return 15;
-      if (desviacion <= -15) return 11;
-      if (desviacion <= -10) return 8;
-      if (desviacion <= -5) return 5;
-      if (desviacion <= 0) return 2; // Cualquier descuento mínimo vale
+      // End users: Menos exigentes pero valoran descuentos
+      if (desviacion <= -30) return 12;
+      if (desviacion <= -25) return 10;
+      if (desviacion <= -20) return 8;
+      if (desviacion <= -15) return 6;
+      if (desviacion <= -10) return 5;
+      if (desviacion <= -5) return 3;
+      if (desviacion <= 0) return 1; // Cualquier descuento mínimo
       return 0;
   }
 }
