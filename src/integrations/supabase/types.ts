@@ -471,6 +471,81 @@ export type Database = {
         }
         Relationships: []
       }
+      propiedades_historico: {
+        Row: {
+          ano_construccion: number | null
+          banos: number | null
+          ciudad: string | null
+          condition: string | null
+          created_at: string | null
+          distrito: string | null
+          dormitorios: number | null
+          external_id: string | null
+          fecha_archivado: string | null
+          fecha_propiedad: string
+          id: string
+          metros: number | null
+          motivo_archivado: string | null
+          portal_origen: string
+          precio: number
+          precio_m2: number | null
+          propiedad_id: string | null
+          provincia: string | null
+          tiene_ascensor: boolean | null
+          tiene_parking: boolean | null
+          tipo_propiedad: string
+          ubicacion: string
+        }
+        Insert: {
+          ano_construccion?: number | null
+          banos?: number | null
+          ciudad?: string | null
+          condition?: string | null
+          created_at?: string | null
+          distrito?: string | null
+          dormitorios?: number | null
+          external_id?: string | null
+          fecha_archivado?: string | null
+          fecha_propiedad: string
+          id?: string
+          metros?: number | null
+          motivo_archivado?: string | null
+          portal_origen: string
+          precio: number
+          precio_m2?: number | null
+          propiedad_id?: string | null
+          provincia?: string | null
+          tiene_ascensor?: boolean | null
+          tiene_parking?: boolean | null
+          tipo_propiedad: string
+          ubicacion: string
+        }
+        Update: {
+          ano_construccion?: number | null
+          banos?: number | null
+          ciudad?: string | null
+          condition?: string | null
+          created_at?: string | null
+          distrito?: string | null
+          dormitorios?: number | null
+          external_id?: string | null
+          fecha_archivado?: string | null
+          fecha_propiedad?: string
+          id?: string
+          metros?: number | null
+          motivo_archivado?: string | null
+          portal_origen?: string
+          precio?: number
+          precio_m2?: number | null
+          propiedad_id?: string | null
+          provincia?: string | null
+          tiene_ascensor?: boolean | null
+          tiene_parking?: boolean | null
+          tipo_propiedad?: string
+          ubicacion?: string
+        }
+        Relationships: []
+      }
       scraping_logs: {
         Row: {
           created_at: string | null
@@ -693,6 +768,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archivar_propiedades_inactivas: { Args: never; Returns: number }
       assign_admin_role: { Args: { user_email: string }; Returns: Json }
       get_matchings_limit: {
         Args: { tier: Database["public"]["Enums"]["subscription_tier"] }
