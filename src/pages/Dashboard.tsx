@@ -296,17 +296,17 @@ const Dashboard = () => {
 
           <Card 
             className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" 
-            onClick={() => window.open('https://mtjomlpwpiuhflwmgctk.supabase.co/functions/v1/ubicaciones', '_blank')}
+            onClick={() => navigate("/ubicaciones")}
           >
             <CardHeader>
               <CardTitle className="flex items-center gap-3 text-lg">
                 <div className="p-2 rounded-lg bg-accent/10 group-hover:bg-accent/20 transition-colors">
                   <MapPin className="h-6 w-6 text-accent" />
                 </div>
-                Ubicaciones Disponibles
+                Gestionar Ubicaciones
               </CardTitle>
               <CardDescription className="text-sm">
-                Ver catálogo de provincias, ciudades y distritos
+                Editar catálogo de provincias, ciudades y distritos
               </CardDescription>
             </CardHeader>
           </Card>
