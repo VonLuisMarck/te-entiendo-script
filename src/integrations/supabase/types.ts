@@ -585,6 +585,51 @@ export type Database = {
         }
         Relationships: []
       }
+      scraping_triggers: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          cron_expression: string
+          id: string
+          max_pages: number | null
+          nombre: string
+          portal: string
+          proxima_ejecucion: string | null
+          scraping_mode: string
+          ubicacion: string | null
+          ultima_ejecucion: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          cron_expression: string
+          id?: string
+          max_pages?: number | null
+          nombre: string
+          portal: string
+          proxima_ejecucion?: string | null
+          scraping_mode?: string
+          ubicacion?: string | null
+          ultima_ejecucion?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          cron_expression?: string
+          id?: string
+          max_pages?: number | null
+          nombre?: string
+          portal?: string
+          proxima_ejecucion?: string | null
+          scraping_mode?: string
+          ubicacion?: string | null
+          ultima_ejecucion?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       stripe_customers: {
         Row: {
           created_at: string

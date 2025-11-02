@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { TrendingUp, Home, LogOut, Play, Activity, Search, Database, RefreshCw, Clock, CheckCircle2, AlertCircle } from "lucide-react";
+import { TrendingUp, Home, LogOut, Play, Activity, Search, Database, RefreshCw, Clock, CheckCircle2, AlertCircle, Trash2, Power, PowerOff, Plus } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 interface ScrapingLog {
@@ -43,6 +44,7 @@ const Scraper = () => {
         navigate("/auth");
       } else {
         loadLogs();
+        loadCronJobs();
       }
     });
   }, [navigate]);
@@ -62,6 +64,50 @@ const Scraper = () => {
       toast.error("Error al cargar logs");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadCronJobs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("scraping_triggers")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      setCronJobs(data || []);
+    } catch (error) {
+      console.error("Error loading cron jobs:", error);
+    }
+  };
+
+  const toggleCronJob = async (id: string, activo: boolean) => {
+    try {
+      const { error } = await supabase
+        .from("scraping_triggers")
+        .update({ activo: !activo })
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success(activo ? "Trigger desactivado" : "Trigger activado");
+      loadCronJobs();
+    } catch (error: any) {
+      toast.error("Error al actualizar trigger");
+    }
+  };
+
+  const deleteCronJob = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("scraping_triggers")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success("Trigger eliminado");
+      loadCronJobs();
+    } catch (error: any) {
+      toast.error("Error al eliminar trigger");
     }
   };
 
@@ -407,6 +453,114 @@ const Scraper = () => {
                     </div>
                     <p className="text-muted-foreground text-lg font-medium">No hay historial todavía</p>
                     <p className="text-sm text-muted-foreground mt-2">Ejecuta tu primer scraping para comenzar</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Sección de Triggers Automáticos */}
+            <Card className="shadow-lg border-primary/20 mt-6">
+              <CardHeader className="pb-4 space-y-1">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-primary" />
+                    <CardTitle>Triggers Automáticos</CardTitle>
+                  </div>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="gap-2">
+                        <Plus className="h-4 w-4" />
+                        Nuevo Trigger
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Crear Trigger Automático</DialogTitle>
+                        <DialogDescription>
+                          Configura un scraping que se ejecute automáticamente
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div>
+                          <Label>Nombre del Trigger</Label>
+                          <Input placeholder="Ej: Scraping diario Murcia" />
+                        </div>
+                        <div>
+                          <Label>Expresión Cron</Label>
+                          <Input placeholder="0 2 * * * (Diario a las 2am)" />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            <a href="https://crontab.guru/" target="_blank" rel="noopener noreferrer" className="underline">
+                              Ayuda con expresiones cron
+                            </a>
+                          </p>
+                        </div>
+                        <Button className="w-full" disabled>
+                          Crear Trigger (Próximamente)
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          Los triggers automáticos requieren configuración adicional en Supabase. 
+                          Por ahora, usa el botón de scraping manual.
+                        </p>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                <CardDescription>
+                  Configura scrapers que se ejecuten automáticamente en horarios específicos
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {cronJobs.length > 0 ? (
+                  <div className="space-y-3">
+                    {cronJobs.map((job) => (
+                      <div key={job.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className="font-semibold">{job.nombre}</h4>
+                            <p className="text-sm text-muted-foreground">
+                              {job.portal} - {job.scraping_mode === 'all' ? 'Toda España' : job.ubicacion}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => toggleCronJob(job.id, job.activo)}
+                            >
+                              {job.activo ? (
+                                <Power className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <PowerOff className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => deleteCronJob(job.id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                          <span>📅 {job.cron_expression}</span>
+                          {job.ultima_ejecucion && (
+                            <span>Última: {new Date(job.ultima_ejecucion).toLocaleString('es-ES')}</span>
+                          )}
+                          <Badge variant={job.activo ? "default" : "outline"}>
+                            {job.activo ? "Activo" : "Inactivo"}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No hay triggers configurados</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Crea tu primer trigger automático para scraping programado
+                    </p>
                   </div>
                 )}
               </CardContent>
