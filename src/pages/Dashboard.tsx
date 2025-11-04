@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Building2, Users, Search, TrendingUp, LogOut, BarChart3, Settings, MapPin, FileText, Archive } from "lucide-react";
+import { Building2, Users, TrendingUp, FileText } from "lucide-react";
 import { generateBusinessReport } from "@/lib/business-report-generator";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import homelyLogo from "@/assets/homely-logo.png";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/AppSidebar";
+import { SpainHeatmap } from "@/components/SpainHeatmap";
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -118,202 +120,96 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            <img src={homelyLogo} alt="Homely" className="h-10 w-10 object-contain" />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-              Homely
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="outline" onClick={handleGenerateReport}>
-              <FileText className="h-4 w-4 mr-2" />
-              Descargar Informe
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}>
-              <Settings className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Cerrar Sesión
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
-          <p className="text-muted-foreground">
-            Bienvenido de vuelta, {user?.user_metadata?.nombre || user?.email}
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 border-t-4 border-t-primary">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Propiedades</CardTitle>
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Building2 className="h-5 w-5 text-primary" />
+    <SidebarProvider>
+      <div className="min-h-screen flex w-full bg-gradient-to-br from-background via-muted/20 to-background">
+        <AppSidebar />
+        
+        <div className="flex-1 flex flex-col w-full">
+          <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+            <div className="px-6 py-4 flex justify-between items-center">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger />
+                <h2 className="text-2xl font-bold">Dashboard</h2>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-                {stats.propiedades}
+              <div className="flex items-center gap-2">
+                <ThemeToggle />
+                <Button variant="outline" onClick={handleGenerateReport}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Informe
+                </Button>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Total en base de datos</p>
-            </CardContent>
-          </Card>
+            </div>
+          </header>
 
-          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 border-t-4 border-t-success">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Clientes</CardTitle>
-              <div className="p-2 rounded-lg bg-success/10">
-                <Users className="h-5 w-5 text-success" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-success">{stats.clientes}</div>
-              <p className="text-xs text-muted-foreground mt-1">Clientes activos</p>
-            </CardContent>
-          </Card>
+          <main className="flex-1 p-6 overflow-auto">
+            <div className="mb-6">
+              <p className="text-muted-foreground">
+                Bienvenido, {user?.user_metadata?.nombre || user?.email}
+              </p>
+            </div>
 
-          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 border-t-4 border-t-warning">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Matchings</CardTitle>
-              <div className="p-2 rounded-lg bg-warning/10">
-                <TrendingUp className="h-5 w-5 text-warning" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-warning">{stats.matchings}</div>
-              <p className="text-xs text-muted-foreground mt-1">Total de coincidencias</p>
-            </CardContent>
-          </Card>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Propiedades</CardTitle>
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Building2 className="h-4 w-4 text-primary" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.propiedades}</div>
+                  <p className="text-xs text-muted-foreground">Total activas</p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Clientes</CardTitle>
+                  <div className="p-2 rounded-lg bg-success/10">
+                    <Users className="h-4 w-4 text-success" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.clientes}</div>
+                  <p className="text-xs text-muted-foreground">Activos</p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Matchings</CardTitle>
+                  <div className="p-2 rounded-lg bg-warning/10">
+                    <TrendingUp className="h-4 w-4 text-warning" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.matchings}</div>
+                  <p className="text-xs text-muted-foreground">Coincidencias</p>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-elegant hover:shadow-glow transition-all duration-300">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Histórico</CardTitle>
+                  <div className="p-2 rounded-lg bg-muted/50">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{stats.historico.toLocaleString()}</div>
+                  <p className="text-xs text-muted-foreground">Archivadas</p>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold mb-4">Mapa de Propiedades Activas</h3>
+              <SpainHeatmap />
+            </div>
+          </main>
         </div>
-
-        <div className="mb-8">
-          <Card className="shadow-elegant hover:shadow-glow transition-all duration-300 border-t-4 border-t-muted">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Histórico Propiedades</CardTitle>
-              <div className="p-2 rounded-lg bg-muted/50">
-                <Archive className="h-5 w-5 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-bold text-muted-foreground">{stats.historico.toLocaleString()}</div>
-              <p className="text-xs text-muted-foreground mt-1">Propiedades archivadas totales</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/propiedades")}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <Building2 className="h-6 w-6 text-primary" />
-                </div>
-                Propiedades
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Gestiona y visualiza todas las propiedades scrapeadas
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/clientes")}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <div className="p-2 rounded-lg bg-success/10 group-hover:bg-success/20 transition-colors">
-                  <Users className="h-6 w-6 text-success" />
-                </div>
-                Clientes
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Administra tus clientes y sus criterios de búsqueda
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/matchings")}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <div className="p-2 rounded-lg bg-warning/10 group-hover:bg-warning/20 transition-colors">
-                  <Search className="h-6 w-6 text-warning" />
-                </div>
-                Matchings
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Revisa las coincidencias entre clientes y propiedades
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/scraper")}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <TrendingUp className="h-6 w-6 text-primary" />
-                </div>
-                Scraper
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Configura y ejecuta scrapers de portales inmobiliarios
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/metricas")}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <div className="p-2 rounded-lg bg-accent/10 group-hover:bg-accent/20 transition-colors">
-                  <BarChart3 className="h-6 w-6 text-accent" />
-                </div>
-                Métricas de Mercado
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Análisis de precios por ciudad y barrio - Detecta chollos
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/mercado-ciudades")}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                  <MapPin className="h-6 w-6 text-primary" />
-                </div>
-                Mercado por Ciudades
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Análisis del mercado inmobiliario por ciudades
-              </CardDescription>
-            </CardHeader>
-          </Card>
-
-          <Card 
-            className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" 
-            onClick={() => navigate("/ubicaciones")}
-          >
-            <CardHeader>
-              <CardTitle className="flex items-center gap-3 text-lg">
-                <div className="p-2 rounded-lg bg-accent/10 group-hover:bg-accent/20 transition-colors">
-                  <MapPin className="h-6 w-6 text-accent" />
-                </div>
-                Gestionar Ubicaciones
-              </CardTitle>
-              <CardDescription className="text-sm">
-                Editar catálogo de provincias, ciudades y distritos
-              </CardDescription>
-            </CardHeader>
-          </Card>
-        </div>
-      </main>
-    </div>
+      </div>
+    </SidebarProvider>
   );
 };
 
