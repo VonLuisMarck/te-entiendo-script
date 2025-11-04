@@ -38,7 +38,25 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Llamar a check-subscription para validar con Stripe
+      // Primero consultar la tabla clientes
+      const { data: clienteData, error: clienteError } = await supabase
+        .from('clientes')
+        .select('tipo_suscripcion')
+        .eq('user_id', session.user.id)
+        .single();
+
+      if (!clienteError && clienteData?.tipo_suscripcion) {
+        // Si hay suscripción en la tabla clientes, usar esa
+        const subscriptionTier = clienteData.tipo_suscripcion as SubscriptionTier;
+        setSubscribed(subscriptionTier !== 'free');
+        setTier(subscriptionTier);
+        setProductId(null);
+        setSubscriptionEnd(null);
+        console.log('Subscription loaded from database:', subscriptionTier);
+        return;
+      }
+
+      // Si no hay en clientes, verificar con Stripe
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
       if (error || !data) {
@@ -54,6 +72,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       setTier(data.tier || 'free');
       setProductId(data.product_id || null);
       setSubscriptionEnd(data.subscription_end || null);
+      console.log('Subscription loaded from Stripe:', data.tier);
     } catch (error) {
       console.error('Error in checkSubscription:', error);
       setSubscribed(false);
