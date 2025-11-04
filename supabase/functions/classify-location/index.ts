@@ -51,16 +51,19 @@ serve(async (req) => {
 
   try {
     const requestBody = await req.json();
-    let { titulo, descripcion } = requestBody;
+    const { raw_data, portal_origen } = requestBody;
     
-    // Limpiar y normalizar texto para evitar problemas de encoding
-    titulo = titulo?.normalize('NFC').trim() || '';
-    descripcion = descripcion?.normalize('NFC').trim() || '';
-    
-    // Requerir al menos título O descripción
-    if (!titulo && !descripcion) {
+    // Validar que venga el raw data
+    if (!raw_data || typeof raw_data !== 'string') {
       return new Response(
-        JSON.stringify({ error: 'Se requiere título o descripción' }),
+        JSON.stringify({ error: 'Se requiere raw_data (HTML o JSON de la propiedad)' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (!portal_origen) {
+      return new Response(
+        JSON.stringify({ error: 'Se requiere portal_origen (fotocasa, pisos.com, etc.)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -88,35 +91,60 @@ serve(async (req) => {
       return `${data.provincia}:\n${ciudadesStr}`;
     }).join('\n\n');
 
-    const systemPrompt = `Eres un experto en geografía española y clasificación de ubicaciones inmobiliarias.
-Tu tarea es extraer información de ubicación de títulos y descripciones de propiedades y clasificarlas según un catálogo ESTRICTO predefinido.
+    const systemPrompt = `Eres un experto en extracción de datos de propiedades inmobiliarias de diferentes portales web españoles (Fotocasa, Pisos.com, Idealista, etc).
+
+Tu tarea es extraer TODA la información estructurada de una propiedad a partir del HTML/JSON raw de la página del portal.
 
 UBICACIONES VÁLIDAS (USAR SOLO ESTAS):
 ${ubicacionesValidas}
 
-Reglas CRÍTICAS:
-1. SOLO puedes usar provincias, ciudades y distritos que aparecen en la lista de arriba
-2. Debes elegir la ubicación MÁS CERCANA de la lista predefinida
-3. Si una ciudad tiene distritos disponibles, intenta identificar cuál corresponde
-4. Si no estás seguro del distrito, déjalo vacío (string vacío "")
-5. NUNCA inventes ubicaciones que no estén en la lista
-6. Si no encuentras coincidencia clara, usa la ubicación más genérica (provincia > ciudad sin distrito)
+INSTRUCCIONES CRÍTICAS:
 
-Ejemplos:
-- "Piso en Malasaña, Madrid" → provincia: "Madrid", ciudad: "Madrid", distrito: "Centro"
-- "Chalet en Pozuelo" → provincia: "Madrid", ciudad: "Pozuelo de Alarcón", distrito: ""
-- "Apartamento en Eixample, Barcelona" → provincia: "Barcelona", ciudad: "Barcelona", distrito: "Eixample"
-- "Casa en Las Rozas" → provincia: "Madrid", ciudad: "Las Rozas", distrito: ""
+1. **UBICACIÓN**: SOLO usa provincias, ciudades y distritos de la lista de arriba. Si no encuentras coincidencia exacta, usa la más cercana.
 
-FORMATO DE SALIDA:
-- Usa EXACTAMENTE los nombres que aparecen en la lista de ubicaciones válidas
-- Si no hay distrito en la lista para esa ciudad, distrito debe ser string vacío ""
-- NUNCA incluir caracteres extraños, solo texto limpio en español`;
+2. **TIPO DE PROPIEDAD**: Normaliza a uno de estos valores:
+   - "Piso" (apartamentos, pisos, estudios)
+   - "Chalet" (casas, chalets, villas, adosados)
+   - "Ático" 
+   - "Dúplex"
+   - "Local Comercial"
+   - "Oficina"
+   - "Garaje"
+   - "Terreno"
+   - "Otro"
 
-    const userPrompt = `Analiza esta propiedad y extrae la ubicación:
-${titulo ? `Título: ${titulo}` : ''}
-${descripcion ? `Descripción: ${descripcion}` : ''}`;
+3. **CONDICIÓN**: Normaliza a:
+   - "Obra nueva"
+   - "Segunda mano - buen estado"
+   - "Segunda mano - a reformar"
+   - "En construcción"
+   - null (si no hay información)
 
+4. **NÚMEROS**: Extrae valores numéricos limpios (sin símbolos, sin texto)
+   - Precio: en euros (ejemplo: 350000)
+   - Metros: en m² (ejemplo: 85.5)
+   - Dormitorios/Baños: números enteros
+   - Año construcción: año de 4 dígitos
+
+5. **BOOLEANOS**: 
+   - tiene_ascensor: true/false/null
+   - tiene_parking: true/false/null
+
+6. **TEXTOS**:
+   - Título: extraer el título principal de la propiedad
+   - Descripción: la descripción completa (máximo 2000 caracteres)
+   - URL: la URL completa de la propiedad
+   - Imágenes: array de URLs de imágenes (máximo 10)
+
+7. **CÁLCULOS AUTOMÁTICOS**:
+   - Si tienes precio y metros, calcula precio_m2 = precio / metros
+   - Si falta algún dato, devuelve null (NO inventes valores)`;
+
+    const userPrompt = `Portal origen: ${portal_origen}
+
+Extrae TODOS los datos de esta propiedad del HTML/JSON raw:
+
+${raw_data.substring(0, 15000)}`; // Limitar a 15k caracteres para no exceder tokens
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -125,7 +153,7 @@ ${descripcion ? `Descripción: ${descripcion}` : ''}`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'google/gemini-2.5-flash-lite', // Modelo más barato
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
@@ -134,31 +162,50 @@ ${descripcion ? `Descripción: ${descripcion}` : ''}`;
           {
             type: 'function',
             function: {
-              name: 'extract_location',
-              description: 'Extrae provincia, ciudad y distrito de una propiedad inmobiliaria',
+              name: 'extract_property_data',
+              description: 'Extrae todos los datos estructurados de una propiedad inmobiliaria',
               parameters: {
                 type: 'object',
                 properties: {
-                  provincia: {
-                    type: 'string',
-                    description: 'Provincia o región española (ej: Madrid, Barcelona, Murcia)'
-                  },
-                  ciudad: {
-                    type: 'string',
-                    description: 'Municipio o ciudad (ej: Madrid, Pozuelo de Alarcón, Getafe, Cartagena). Si es Madrid Capital, usar "Madrid"'
-                  },
-                  distrito: {
-                    type: 'string',
-                    description: 'SOLO distrito AMPLIO dentro de ciudades grandes (ej: Centro, Norte, Salamanca-Retiro). Vacío si es municipio pequeño o no aplica'
+                  // Ubicación
+                  provincia: { type: 'string', description: 'Provincia (de la lista válida)' },
+                  ciudad: { type: 'string', description: 'Ciudad o municipio (de la lista válida)' },
+                  distrito: { type: 'string', description: 'Distrito (de la lista válida, vacío si no aplica)' },
+                  ubicacion: { type: 'string', description: 'Ubicación completa como texto legible (ej: "Madrid, Centro")' },
+                  
+                  // Información básica
+                  titulo: { type: 'string', description: 'Título de la propiedad' },
+                  descripcion: { type: 'string', description: 'Descripción completa (max 2000 chars)' },
+                  tipo_propiedad: { type: 'string', description: 'Tipo normalizado (Piso, Chalet, Ático, etc.)' },
+                  condition: { type: 'string', description: 'Estado: Obra nueva, Segunda mano - buen estado, etc.' },
+                  
+                  // Datos numéricos
+                  precio: { type: 'number', description: 'Precio en euros (número limpio)' },
+                  metros: { type: 'number', description: 'Metros cuadrados' },
+                  precio_m2: { type: 'number', description: 'Precio por m2 (calcular si tienes precio y metros)' },
+                  dormitorios: { type: 'integer', description: 'Número de dormitorios' },
+                  banos: { type: 'integer', description: 'Número de baños' },
+                  ano_construccion: { type: 'integer', description: 'Año de construcción (4 dígitos)' },
+                  
+                  // Características
+                  tiene_ascensor: { type: 'boolean', description: 'true/false/null' },
+                  tiene_parking: { type: 'boolean', description: 'true/false/null' },
+                  
+                  // URLs y medios
+                  url: { type: 'string', description: 'URL completa de la propiedad' },
+                  imagenes: { 
+                    type: 'array', 
+                    items: { type: 'string' },
+                    description: 'Array de URLs de imágenes (máximo 10)' 
                   }
                 },
-                required: ['provincia', 'ciudad'],
+                required: ['titulo', 'precio', 'ubicacion', 'tipo_propiedad', 'provincia', 'ciudad', 'url'],
                 additionalProperties: false
               }
             }
           }
         ],
-        tool_choice: { type: 'function', function: { name: 'extract_location' } }
+        tool_choice: { type: 'function', function: { name: 'extract_property_data' } }
       })
     });
 
@@ -197,18 +244,55 @@ ${descripcion ? `Descripción: ${descripcion}` : ''}`;
       );
     }
 
-    const location = JSON.parse(toolCall.function.arguments);
+    const propertyData = JSON.parse(toolCall.function.arguments);
     
-    // Normalizar y limpiar el texto de salida
+    // Limpiar y normalizar textos
     const cleanText = (text: string) => text?.normalize('NFC').trim().replace(/[^\w\sáéíóúñÁÉÍÓÚÑüÜ,.-]/g, '') || '';
     
+    // Calcular precio_m2 si no viene y tenemos datos
+    let precio_m2 = propertyData.precio_m2;
+    if (!precio_m2 && propertyData.precio && propertyData.metros && propertyData.metros > 0) {
+      precio_m2 = Math.round((propertyData.precio / propertyData.metros) * 100) / 100;
+    }
+    
     const result = {
-      provincia: cleanText(location.provincia) || 'Desconocida',
-      ciudad: cleanText(location.ciudad || location.provincia) || 'Desconocida',
-      distrito: cleanText(location.distrito) || ''
+      // Ubicación
+      provincia: cleanText(propertyData.provincia) || 'Desconocida',
+      ciudad: cleanText(propertyData.ciudad) || 'Desconocida',
+      distrito: cleanText(propertyData.distrito) || '',
+      ubicacion: cleanText(propertyData.ubicacion) || '',
+      
+      // Básicos
+      titulo: cleanText(propertyData.titulo) || 'Sin título',
+      descripcion: propertyData.descripcion?.substring(0, 2000) || null,
+      tipo_propiedad: cleanText(propertyData.tipo_propiedad) || 'Otro',
+      condition: cleanText(propertyData.condition) || null,
+      
+      // Numéricos
+      precio: propertyData.precio || null,
+      metros: propertyData.metros || null,
+      precio_m2: precio_m2 || null,
+      dormitorios: propertyData.dormitorios || null,
+      banos: propertyData.banos || null,
+      ano_construccion: propertyData.ano_construccion || null,
+      
+      // Booleanos
+      tiene_ascensor: propertyData.tiene_ascensor ?? null,
+      tiene_parking: propertyData.tiene_parking ?? null,
+      
+      // URLs
+      url: propertyData.url || '',
+      imagenes: Array.isArray(propertyData.imagenes) 
+        ? propertyData.imagenes.slice(0, 10) 
+        : []
     };
     
-    console.log('Ubicación clasificada:', result);
+    console.log('Propiedad extraída:', {
+      titulo: result.titulo,
+      ubicacion: `${result.provincia} > ${result.ciudad} > ${result.distrito}`,
+      precio: result.precio,
+      tipo: result.tipo_propiedad
+    });
 
     return new Response(
       JSON.stringify(result),
