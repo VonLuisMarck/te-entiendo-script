@@ -63,9 +63,9 @@ function getTierLimits(tier: string) {
       max_ciudades_acceso: null,
       dias_historico_acceso: null,
       puede_descargar_datos: true,
-      formatos_descarga: ['pdf', 'excel', 'csv', 'api'],
+      formatos_descarga: ['pdf', 'excel', 'csv'],
       tiene_acceso_ine: true,
-      tiene_api_access: true,
+      tiene_api_access: false,
       periodicidad_alertas: 'inmediata',
       max_ubicaciones_alerta: null,
       estimaciones_reforma_mes: null

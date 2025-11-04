@@ -4,6 +4,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useSubscription } from '@/contexts/SubscriptionContext';
+import { SubscriptionGate } from '@/components/SubscriptionGate';
+import { ReportDownload } from '@/components/ReportDownload';
+import { useSubscriptionAccess } from '@/hooks/useSubscriptionAccess';
 import { Loader2, ArrowLeft, TrendingUp, Home, Euro, BarChart3, Lock, Activity, Info } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, Legend, Area, AreaChart } from 'recharts';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,13 +29,16 @@ interface MetricasBarrio {
 const ClienteMetricas = () => {
   const navigate = useNavigate();
   const { tier, loading: subLoading } = useSubscription();
+  const { canAccess } = useSubscriptionAccess();
   const [loading, setLoading] = useState(true);
   const [metricas, setMetricas] = useState<MetricasBarrio[]>([]);
   const [ciudades, setCiudades] = useState<string[]>([]);
   const [ciudadSeleccionada, setCiudadSeleccionada] = useState<string>('todas');
 
   // Check if user has access to metrics
-  const hasAccess = tier === 'investor' || tier === 'investor_platino';
+  const hasAccess = canAccess('dashboard_provincia');
+  const hasINEAccess = canAccess('ine_data');
+  const canDownload = canAccess('download_reports');
 
   useEffect(() => {
     const checkAuthAndLoad = async () => {
@@ -104,14 +110,9 @@ const ClienteMetricas = () => {
 
           <Card className="border-dashed">
             <CardContent className="flex flex-col items-center justify-center py-16">
-              <Lock className="h-16 w-16 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">Contenido Premium</h3>
-              <p className="text-muted-foreground text-center mb-6 max-w-md">
-                Las métricas del mercado están disponibles solo para suscriptores de los planes Inversor e Inversor Premium.
-              </p>
-              <Button onClick={() => navigate('/cliente/dashboard')}>
-                Ver Planes Disponibles
-              </Button>
+              <SubscriptionGate feature="dashboard_provincia" blur={false}>
+                <></>
+              </SubscriptionGate>
             </CardContent>
           </Card>
         </div>
@@ -171,22 +172,32 @@ const ClienteMetricas = () => {
               </div>
             </div>
             
-            {ciudades.length > 1 && (
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">Ciudad:</span>
-                <Select value={ciudadSeleccionada} onValueChange={setCiudadSeleccionada}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Selecciona ciudad" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todas">Todas las ciudades</SelectItem>
-                    {ciudades.map(ciudad => (
-                      <SelectItem key={ciudad} value={ciudad}>{ciudad}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
+            <div className="flex items-center gap-4">
+              {ciudades.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Ciudad:</span>
+                  <Select value={ciudadSeleccionada} onValueChange={setCiudadSeleccionada}>
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Selecciona ciudad" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="todas">Todas las ciudades</SelectItem>
+                      {ciudades.map(ciudad => (
+                        <SelectItem key={ciudad} value={ciudad}>{ciudad}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              
+              {canDownload && ciudadSeleccionada !== 'todas' && (
+                <ReportDownload 
+                  type="provincia"
+                  ubicacion={ciudadSeleccionada}
+                  provincia={ciudadSeleccionada}
+                />
+              )}
+            </div>
           </div>
 
           {metricasFiltradas.length === 0 ? (

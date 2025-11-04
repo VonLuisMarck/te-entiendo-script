@@ -15,7 +15,8 @@ export const SUBSCRIPTION_TIERS = {
       alertas: false,
       analisisReforma: 0,
       dashboard: 'nacional',
-      descargas: false
+      descargas: false,
+      accesoINE: false
     }
   },
   basic: {
@@ -36,7 +37,8 @@ export const SUBSCRIPTION_TIERS = {
       maxUbicaciones: 1,
       analisisReforma: 3,
       dashboard: 'nacional',
-      descargas: false
+      descargas: false,
+      accesoINE: false
     }
   },
   investor: {
@@ -76,8 +78,8 @@ export const SUBSCRIPTION_TIERS = {
       'Dashboard por distrito',
       'Heatmaps €/m² distrito',
       'Predicción IA zonas emergentes',
-      'API REST (100 calls/día)',
       'Histórico completo (2+ años)',
+      'Webhooks personalizados',
       'Soporte prioritario WhatsApp',
       'Asesoría inversión 1h/mes'
     ],
@@ -89,9 +91,8 @@ export const SUBSCRIPTION_TIERS = {
       analisisReforma: null,
       dashboard: 'distrito',
       descargas: true,
-      formatosDescarga: ['pdf', 'excel', 'csv', 'api'],
+      formatosDescarga: ['pdf', 'excel', 'csv'],
       accesoINE: true,
-      apiAccess: true,
       soportePrioritario: true
     }
   }
