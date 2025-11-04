@@ -1,30 +1,30 @@
-
+{
   "Madrid": {
     "provincia": "Madrid",
     "ciudades": {
-      "Madrid": [
-        "Centro",
-        "Arganzuela",
-        "Retiro",
-        "Salamanca",
-        "Chamartín",
-        "Tetuán",
-        "Chamberí",
-        "Fuencarral-El Pardo",
-        "Moncloa-Aravaca",
-        "Latina",
-        "Carabanchel",
-        "Usera",
-        "Puente de Vallecas",
-        "Moratalaz",
-        "Ciudad Lineal",
-        "Hortaleza",
-        "Villaverde",
-        "Villa de Vallecas",
-        "Vicálvaro",
-        "San Blas-Canillejas",
-        "Barajas"
-      ],
+      "Madrid": {
+        "Centro": ["Sol", "Palacio", "Embajadores", "Cortes", "Justicia", "Universidad"],
+        "Arganzuela": ["Imperial", "Acacias", "Chopera", "Legazpi", "Delicias", "Palos de Moguer", "Atocha"],
+        "Retiro": ["Pacífico", "Adelfas", "Estrella", "Ibiza", "Jerónimos", "Niño Jesús"],
+        "Salamanca": ["Recoletos", "Goya", "Fuente del Berro", "Guindalera", "Lista", "Castellana"],
+        "Chamartín": ["El Viso", "Prosperidad", "Ciudad Jardín", "Hispanoamérica", "Nueva España", "Castilla"],
+        "Tetuán": ["Bellas Vistas", "Cuatro Caminos", "Castillejos", "Almenara", "Valdeacederas", "Berruguete"],
+        "Chamberí": ["Gaztambide", "Arapiles", "Trafalgar", "Almagro", "Ríos Rosas", "Vallehermoso"],
+        "Fuencarral-El Pardo": ["El Pardo", "Fuentelarreina", "Peñagrande", "Barrio del Pilar", "La Paz", "Valverde", "Mirasierra", "El Goloso"],
+        "Moncloa-Aravaca": ["Casa de Campo", "Argüelles", "Ciudad Universitaria", "Valdezarza", "Valdemarín", "El Plantío", "Aravaca"],
+        "Latina": ["Los Cármenes", "Puerta del Ángel", "Lucero", "Aluche", "Las Águilas", "Campamento", "Cuatro Vientos"],
+        "Carabanchel": ["Comillas", "Opañel", "San Isidro", "Vista Alegre", "Puerta Bonita", "Buenavista", "Abrantes"],
+        "Usera": ["Orcasitas", "Orcasur", "San Fermín", "Almendrales", "Moscardó", "Zofío", "Pradolongo"],
+        "Puente de Vallecas": ["Entrevías", "San Diego", "Palomeras Bajas", "Palomeras Sureste", "Portazgo", "Numancia"],
+        "Moratalaz": ["Pavones", "Horcajo", "Marroquina", "Media Legua", "Fontarrón", "Vinateros"],
+        "Ciudad Lineal": ["Ventas", "Pueblo Nuevo", "Quintana", "Concepción", "San Pascual", "San Juan Bautista", "Colina", "Atalaya", "Costillares"],
+        "Hortaleza": ["Palomas", "Valdefuentes", "Canillas", "Pinar del Rey", "Apóstol Santiago", "Piovera"],
+        "Villaverde": ["San Cristóbal", "Butarque", "Los Rosales", "Los Ángeles", "San Andrés"],
+        "Villa de Vallecas": ["Casco Histórico de Vallecas", "Santa Eugenia", "Ensanche de Vallecas"],
+        "Vicálvaro": ["Casco Histórico de Vicálvaro", "Ambroz", "Valdebernardo"],
+        "San Blas-Canillejas": ["Simancas", "Hellín", "Amposta", "Arcos", "Rosas", "Rejas", "Canillejas", "Salvador"],
+        "Barajas": ["Alameda de Osuna", "Aeropuerto", "Casco Histórico de Barajas", "Timón", "Corralejos"]
+      },
       "Móstoles": [],
       "Alcalá de Henares": [],
       "Fuenlabrada": [],
@@ -43,28 +43,44 @@
       "Valdemoro": [],
       "Pinto": [],
       "Collado Villalba": [],
-      "Aranjuez": []
+      "Aranjuez": [],
+      "Boadilla del Monte": [],
+      "San Fernando de Henares": [],
+      "Arganda del Rey": []
     }
   },
   "Barcelona": {
     "provincia": "Barcelona",
     "ciudades": {
-      "Barcelona": [
-        "Ciutat Vella",
-        "Eixample",
-        "Sants-Montjuïc",
-        "Les Corts",
-        "Sarrià-Sant Gervasi",
-        "Gràcia",
-        "Horta-Guinardó",
-        "Nou Barris",
-        "Sant Andreu",
-        "Sant Martí"
-      ],
+      "Barcelona": {
+        "Ciutat Vella": ["El Raval", "El Gòtic", "La Barceloneta", "Sant Pere, Santa Caterina i la Ribera"],
+        "Eixample": ["Fort Pienc", "Sagrada Família", "Dreta de l'Eixample", "Antiga Esquerra de l'Eixample", "Nova Esquerra de l'Eixample", "Sant Antoni"],
+        "Sants-Montjuïc": ["Poble Sec", "Hostafrancs", "La Bordeta", "Sants", "Sants-Badal", "La Font de la Guatlla", "Marina del Prat Vermell", "Marina de Port", "La Zona Franca-Port"],
+        "Les Corts": ["Les Corts", "La Maternitat i Sant Ramon", "Pedralbes"],
+        "Sarrià-Sant Gervasi": ["Vallvidrera, el Tibidabo i les Planes", "Sarrià", "Les Tres Torres", "Sant Gervasi-Bonanova", "Sant Gervasi-Galvany", "El Putxet i el Farró"],
+        "Gràcia": ["Vallcarca i els Penitents", "El Coll", "La Salut", "Vila de Gràcia", "Camp d'en Grassot i Gràcia Nova"],
+        "Horta-Guinardó": ["Baix Guinardó", "Can Baró", "El Guinardó", "La Font d'en Fargues", "El Carmel", "La Teixonera", "Sant Genís dels Agudells", "Montbau", "La Vall d'Hebron", "La Clota", "Horta"],
+        "Nou Barris": ["Vilapicina i la Torre Llobeta", "Porta", "El Turó de la Peira", "Can Peguera", "La Guineueta", "Canyelles", "Les Roquetes", "Verdun", "La Prosperitat", "La Trinitat Nova", "Torre Baró", "Ciutat Meridiana", "Vallbona"],
+        "Sant Andreu": ["La Trinitat Vella", "Baró de Viver", "El Bon Pastor", "Sant Andreu", "La Sagrera", "El Congrés i els Indians", "Navas"],
+        "Sant Martí": ["El Camp de l'Arpa del Clot", "El Clot", "El Parc i la Llacuna del Poblenou", "La Vila Olímpica del Poblenou", "El Poblenou", "Diagonal Mar i el Front Marítim del Poblenou", "El Besòs i el Maresme", "Provençals del Poblenou", "Sant Martí de Provençals", "La Verneda i la Pau"]
+      },
       "L'Hospitalet de Llobregat": [],
       "Badalona": [],
-      "Terrassa": [],
-      "Sabadell": [],
+      "Terrassa": {
+        "Distrito 1": ["Centre", "Segle XX"],
+        "Distrito 2": ["Ca n'Anglada", "Montserrat"],
+        "Distrito 3": ["Sant Pere Nord", "Egara"],
+        "Distrito 4": ["La Maurina", "Can Palet", "Poble Nou"],
+        "Distrito 5": ["Can Roca", "Les Fonts"],
+        "Distrito 6": ["Sant Llorenç", "Vallparadís", "Torre-sana"]
+      },
+      "Sabadell": {
+        "Centre": ["Centre", "Creu Alta", "Creu de Barberà"],
+        "Nord": ["Can Puiggener", "Cifuentes", "Gràcia", "Can Llong"],
+        "Sud": ["Can Oriac", "Campoamor", "Castellarnau"],
+        "Est": ["La Plana del Pintor", "Can Feu-Gràcia", "Nostra Llar"],
+        "Oest": ["Can Roqueta", "Torre-romeu", "Can Gambús"]
+      },
       "Mataró": [],
       "Santa Coloma de Gramenet": [],
       "Cornellà de Llobregat": [],
@@ -73,115 +89,224 @@
       "Manresa": [],
       "Vilanova i la Geltrú": [],
       "Castelldefels": [],
-      "Granollers": []
+      "Granollers": [],
+      "Viladecans": [],
+      "El Prat de Llobregat": [],
+      "Cerdanyola del Vallès": [],
+      "Mollet del Vallès": [],
+      "Esplugues de Llobregat": [],
+      "Gavà": [],
+      "Sant Feliu de Llobregat": [],
+      "Igualada": [],
+      "Vic": [],
+      "Ripollet": [],
+      "Sant Adrià de Besòs": [],
+      "Barberà del Vallès": [],
+      "Sant Cugat del Vallès": [],
+      "Montcada i Reixac": [],
+      "El Vendrell": []
     }
   },
   "Valencia": {
     "provincia": "Valencia",
     "ciudades": {
-      "Valencia": [
-        "Ciutat Vella",
-        "Eixample",
-        "Extramurs",
-        "Campanar",
-        "La Saïdia",
-        "El Pla del Real",
-        "Jesús",
-        "Quatre Carreres",
-        "Poblats Marítims",
-        "Camins al Grau",
-        "Algirós",
-        "Benimaclet",
-        "Rascanya",
-        "Benicalap",
-        "Pobles del Nord",
-        "Pobles de l'Oest",
-        "Pobles del Sud",
-        "L'Olivereta",
-        "Patraix"
-      ],
+      "Valencia": {
+        "Ciutat Vella": ["La Seu", "La Xerea", "El Carme", "El Pilar", "El Mercat", "Sant Francesc"],
+        "Eixample": ["Russafa", "El Pla del Remei", "Gran Via"],
+        "Extramurs": ["El Botànic", "La Roqueta", "La Petxina", "Arrancapins"],
+        "Campanar": ["Campanar", "Les Tendetes", "El Calvari", "Sant Pau"],
+        "La Saïdia": ["Marxalenes", "Morvedre", "Trinitat", "Tormos", "Sant Antoni"],
+        "El Pla del Real": ["Exposició", "Mestalla", "Jaume Roig", "Ciutat Universitària"],
+        "Jesús": ["La Raiosa", "L'Hort de Senabre", "La Creu del Grau", "Camí Fondo", "Jesús"],
+        "Quatre Carreres": ["Monteolivete", "En Corts", "Malilla", "Font de Sant Lluís", "Na Rovella", "La Punta", "Ciutat de les Arts i les Ciències"],
+        "Poblats Marítims": ["El Grau", "El Cabanyal-El Canyamelar", "La Malva-rosa", "Beteró", "Natzaret"],
+        "Camins al Grau": ["Aiora", "Albors", "La Creu Coberta", "Sant Marcelí", "Penya-roja"],
+        "Algirós": ["L'Illa Perduda", "Ciutat Jardí", "L'Amistat", "La Bega Baixa", "La Carrasca"],
+        "Benimaclet": ["Benimaclet", "Camí de Vera"],
+        "Rascanya": ["Orriols", "Torrefiel", "Sant Llorenç"],
+        "Benicalap": ["Benicalap", "Ciutat Fallera"],
+        "Pobles del Nord": ["Benifaraig", "Poble Nou", "Carpesa", "Cases de Bàrcena", "Mahuella-Tauladella", "Borbotó"],
+        "Pobles de l'Oest": ["Benimàmet", "Beniferri"],
+        "Pobles del Sud": ["Horno de Alcedo", "El Saler", "El Palmar", "El Perellonet", "Pinedo", "Castellar-Oliveral", "Faitanar"],
+        "L'Olivereta": ["Soternes", "Tres Forques", "La Fontsanta", "La Llum", "Nou Moles"],
+        "Patraix": ["Patraix", "Favara", "Safranar", "Sant Isidre"]
+      },
       "Torrent": [],
       "Gandía": [],
       "Paterna": [],
-      "Sagunto": []
+      "Sagunto": [],
+      "Mislata": [],
+      "Burjassot": [],
+      "Alzira": [],
+      "Xirivella": [],
+      "Manises": [],
+      "Ontinyent": [],
+      "Quart de Poblet": [],
+      "Sueca": []
     }
   },
   "Sevilla": {
     "provincia": "Sevilla",
     "ciudades": {
-      "Sevilla": [
-        "Casco Antiguo",
-        "Macarena",
-        "Triana",
-        "Los Remedios",
-        "Nervión",
-        "Cerro-Amate",
-        "Sur",
-        "Este-Alcosa-Torreblanca",
-        "Bellavista-La Palmera",
-        "San Pablo-Santa Justa",
-        "Norte"
-      ],
+      "Sevilla": {
+        "Casco Antiguo": ["Santa Cruz", "Arenal", "Alfalfa", "Encarnación-Regina", "San Bartolomé", "San Lorenzo", "Feria", "San Gil", "San Julián"],
+        "Macarena": ["San Jerónimo", "León XIII", "Pino Montano", "Palmete", "Cisneo Alto", "Macarena Tres Huertas", "La Bachillera", "Doctor Marañón"],
+        "Triana": ["Triana Casco Antiguo", "Triana Este", "Los Remedios"],
+        "Los Remedios": ["Los Remedios", "Tablada"],
+        "Nervión": ["Nervión", "San Roque", "La Calzada", "Santa Catalina", "La Buhaira", "Huerta de Santa Teresa"],
+        "Cerro-Amate": ["El Cerro del Águila", "Amate", "Juan XXIII", "Rochelambert", "Palmete"],
+        "Sur": ["Bellavista", "La Plata", "Tiro de Línea", "Bami", "Elcano", "Los Bermejales", "Tabladilla", "Pineda"],
+        "Este-Alcosa-Torreblanca": ["Alcosa", "Torreblanca", "Palacio de Congresos", "Parque Alcosa"],
+        "Bellavista-La Palmera": ["Bellavista", "La Palmera", "Reina Mercedes", "Príncipe de Asturias", "Heliópolis"],
+        "San Pablo-Santa Justa": ["San Pablo", "Santa Justa", "Nervión", "La Calzada"],
+        "Norte": ["Pino Montano", "Los Carteros", "Aeropuerto Viejo", "Valdezorras", "Parque Miraflores", "San Diego"]
+      },
       "Dos Hermanas": [],
       "Alcalá de Guadaíra": [],
-      "Utrera": []
+      "Utrera": [],
+      "Mairena del Aljarafe": [],
+      "Écija": [],
+      "La Rinconada": []
     }
   },
   "Murcia": {
     "provincia": "Murcia",
     "ciudades": {
-      "Murcia": [
-        "Centro",
-        "Norte",
-        "Sur",
-        "Este",
-        "Oeste"
-      ],
-      "Cartagena": [],
+      "Murcia": {
+        "Centro": ["Catedral", "Carmen", "San Andrés", "Santa Eulalia", "San Pedro", "San Bartolomé", "Santa María de Gracia"],
+        "Norte": ["San Antón", "Vistalegre", "Infante Juan Manuel", "Santiago el Mayor", "La Fama", "Barrio del Progreso"],
+        "Sur": ["Guadalupe", "Sangonera la Verde", "El Palmar", "La Alberca", "Algezares", "Los Dolores", "Casillas", "La Ñora"],
+        "Este": ["Espinardo", "El Puntal", "Cabezo de Torres", "Monteagudo", "Beniaján", "Alquerías", "Zarandona", "Santa Cruz"],
+        "Oeste": ["La Ñora", "Churra", "El Ranero", "Puente Tocinos", "Santiago y Zaraiche", "Rincón de Seca", "Llano de Brujas"]
+      },
+      "Cartagena": {
+        "Cartagena Casco": ["Casco Histórico", "Ensanche", "Santa Lucía Centro"],
+        "Santa Lucía": ["Barriada Hispanoamérica", "Virgen de la Caridad", "Los Mateos"],
+        "Los Dolores": ["Los Dolores", "San Ginés", "Pozo Estrecho"],
+        "Barrio Peral": ["Barrio Peral", "San Antonio Abad"],
+        "San Antón": ["San Antón", "Los Barreros"],
+        "Zona Norte": ["Molinos Marfagones", "La Palma", "El Plan", "Canteras"]
+      },
       "Lorca": [],
-      "Molina de Segura": []
+      "Molina de Segura": [],
+      "Alcantarilla": [],
+      "Mazarrón": [],
+      "Cieza": [],
+      "Yecla": [],
+      "Jumilla": [],
+      "Águilas": [],
+      "Torre-Pacheco": [],
+      "San Javier": [],
+      "Totana": [],
+      "Las Torres de Cotillas": []
     }
   },
   "Málaga": {
     "provincia": "Málaga",
     "ciudades": {
-      "Málaga": [],
+      "Málaga": {
+        "Centro": ["Centro Histórico", "La Merced", "La Victoria", "Capuchinos"],
+        "Málaga-Este": ["Malagueta", "Monte Sancha", "Limonar", "Pedregalejo", "El Palo"],
+        "Ciudad Jardín": ["Ciudad Jardín", "La Paz", "Echeverría del Palo"],
+        "Bailén-Miraflores": ["Bailén", "Miraflores", "Carlinda", "Parque Clavero"],
+        "Palma-Palmilla": ["Palma", "Palmilla", "Girón", "Segalerva"],
+        "Cruz de Humilladero": ["Cruz de Humilladero", "La Luz", "Haza Cuevas", "Polígono Guadalhorce"],
+        "Carretera de Cádiz": ["Carretera de Cádiz", "Huelin", "La Misericordia", "San Andrés"],
+        "Churriana": ["Churriana", "Guadalmar"],
+        "Campanillas": ["Campanillas", "Colonia Santa Inés"],
+        "Puerto de la Torre": ["Puerto de la Torre", "Atabal", "Santa Rosalía"],
+        "Teatinos-Universidad": ["Teatinos", "Universidad", "Parque Tecnológico"]
+      },
       "Marbella": [],
       "Mijas": [],
       "Fuengirola": [],
       "Benalmádena": [],
       "Torremolinos": [],
       "Vélez-Málaga": [],
-      "Estepona": []
+      "Estepona": [],
+      "Rincón de la Victoria": [],
+      "Antequera": [],
+      "Ronda": [],
+      "Alhaurín de la Torre": []
     }
   },
   "Cantabria": {
     "provincia": "Cantabria",
     "ciudades": {
       "Santander": [],
-      "Torrelavega": []
+      "Torrelavega": [],
+      "Camargo": [],
+      "Piélagos": [],
+      "Castro-Urdiales": [],
+      "El Astillero": []
     }
   },
   "Bizkaia": {
     "provincia": "Bizkaia",
     "ciudades": {
-      "Bilbao": [],
+      "Bilbao": {
+        "Deusto": ["Deusto", "San Ignacio-Elorrieta", "Ibarrekolanda"],
+        "Uribarri": ["Uribarri", "Zurbaran-Arabella", "Castaños"],
+        "Otxarkoaga-Txurdinaga": ["Otxarkoaga", "Txurdinaga"],
+        "Begoña": ["Begoña", "Bolueta", "Santutxu"],
+        "Ibaiondo": ["San Francisco", "Bilbo La Vieja", "Solokoetxe", "Atxuri", "San Adrián", "Zabala"],
+        "Abando": ["Abando", "Indautxu"],
+        "Rekalde": ["Rekalde", "Iralabarri", "Amézola", "Errekaldeberri"],
+        "Basurto-Zorroza": ["Basurto", "Zorroza", "Olabeaga", "Altamira"]
+      },
       "Barakaldo": [],
-      "Getxo": []
+      "Getxo": [],
+      "Portugalete": [],
+      "Santurtzi": [],
+      "Basauri": [],
+      "Leioa": [],
+      "Sestao": [],
+      "Durango": []
     }
   },
   "A Coruña": {
     "provincia": "A Coruña",
     "ciudades": {
-      "A Coruña": [],
+      "A Coruña": {
+        "Ciudad Vieja": ["Ciudad Vieja", "Pescadería"],
+        "Ensanche": ["Ensanche", "Zalaeta"],
+        "Pescadería": ["Pescadería", "Parrote"],
+        "Monte Alto": ["Monte Alto", "Adormideras"],
+        "Los Rosales": ["Los Rosales", "Cuatro Caminos"],
+        "Agra del Orzán": ["Agra del Orzán", "Ventorrillo"],
+        "Labañou": ["Labañou", "Monelos"],
+        "Ventorrillo": ["Ventorrillo", "Castrillón"],
+        "Os Mallos": ["Os Mallos", "San Cristóbal"]
+      },
       "Santiago de Compostela": [],
-      "Ferrol": []
+      "Ferrol": [],
+      "Lugo": [],
+      "Ourense": [],
+      "Narón": [],
+      "Oleiros": [],
+      "Arteixo": [],
+      "Culleredo": [],
+      "Cambre": []
     }
   },
   "Valladolid": {
     "provincia": "Valladolid",
     "ciudades": {
-      "Valladolid": []
+      "Valladolid": {
+        "Centro": ["Centro", "Plaza Mayor", "San Ildefonso"],
+        "Huerta del Rey": ["Huerta del Rey", "Girón"],
+        "Parquesol": ["Parquesol I", "Parquesol II"],
+        "Covaresa": ["Covaresa", "Parque Alameda"],
+        "Circular": ["La Victoria", "Circular", "Vadillos"],
+        "Delicias": ["Delicias", "Canterac"],
+        "Pilarica": ["Pilarica", "Argales"],
+        "Pajarillos Bajos": ["Pajarillos Bajos", "Pajarillos Altos"],
+        "Rondilla": ["Rondilla", "Farola"],
+        "Belén": ["Belén", "Pilarica"],
+        "Las Flores": ["Las Flores", "Arturo Eyries"]
+      },
+      "Laguna de Duero": [],
+      "Medina del Campo": []
     }
   },
   "Palencia": {
@@ -193,27 +318,74 @@
   "Zaragoza": {
     "provincia": "Zaragoza",
     "ciudades": {
-      "Zaragoza": []
+      "Zaragoza": {
+        "Casco Histórico": ["El Tubo", "La Magdalena", "San Pablo", "La Seo"],
+        "Centro": ["Centro", "Universidad", "Romareda"],
+        "Delicias": ["Delicias", "Parque Delicias"],
+        "Universidad": ["Universidad", "San Francisco"],
+        "San José": ["San José", "Montemolín"],
+        "Las Fuentes": ["Las Fuentes", "Parque Bruil"],
+        "Almozara": ["Almozara", "Parque del Agua"],
+        "Oliver-Valdefierro": ["Oliver", "Valdefierro"],
+        "Torrero-La Paz": ["Torrero", "La Paz", "Venecia"],
+        "Margen Izquierda": ["Arrabal", "Monzalbarba", "Casetas"],
+        "Casablanca": ["Casablanca", "Valdespartera"],
+        "Actur-Rey Fernando": ["Actur", "Rey Fernando"],
+        "Santa Isabel": ["Santa Isabel", "Movera"],
+        "Miralbueno": ["Miralbueno", "Garrapinillos"],
+        "Arrabal": ["Arrabal", "Jesús"]
+      },
+      "Calatayud": [],
+      "Utebo": [],
+      "Ejea de los Caballeros": []
     }
   },
   "Tarragona": {
     "provincia": "Tarragona",
     "ciudades": {
       "Tarragona": [],
-      "Reus": []
+      "Reus": [],
+      "Tortosa": [],
+      "El Vendrell": [],
+      "Cambrils": [],
+      "Salou": [],
+      "Valls": []
     }
   },
   "Alicante": {
     "provincia": "Alicante",
     "ciudades": {
-      "Alicante": [],
-      "Elche": [],
+      "Alicante": {
+        "Centro": ["Centro", "Mercado", "Casco Antiguo"],
+        "Ensanche-Diputación": ["Ensanche", "Diputación", "Alfonso El Sabio"],
+        "Benalúa-Babel": ["Benalúa", "Babel", "Florida"],
+        "Playa de San Juan": ["Playa de San Juan", "Cabo de las Huertas"],
+        "San Blas-Santo Domingo": ["San Blas", "Santo Domingo", "Carolinas"],
+        "Carolinas Altas-Carolinas Bajas": ["Carolinas Altas", "Carolinas Bajas", "Altozano"]
+      },
+      "Elche": {
+        "Centro": ["Centro", "Raval"],
+        "Raval": ["Raval", "Filet de Fora"],
+        "Carrús": ["Carrús Este", "Carrús Oeste"],
+        "Altabix": ["Altabix", "Universidad"],
+        "Pla": ["El Pla", "Sector Quinto"],
+        "Sector V": ["Sector V", "Portes Encarnades"]
+      },
       "Torrevieja": [],
       "Orihuela": [],
       "Benidorm": [],
       "Alcoy": [],
       "San Vicente del Raspeig": [],
-      "Elda": []
+      "Elda": [],
+      "Santa Pola": [],
+      "Villena": [],
+      "Petrer": [],
+      "Denia": [],
+      "Calpe": [],
+      "Jávea": [],
+      "Altea": [],
+      "Crevillent": [],
+      "Ibi": []
     }
   },
   "Almería": {
@@ -221,7 +393,434 @@
     "ciudades": {
       "Almería": [],
       "Roquetas de Mar": [],
-      "El Ejido": []
+      "El Ejido": [],
+      "Níjar": [],
+      "Vícar": []
+    }
+  },
+  "Asturias": {
+    "provincia": "Asturias",
+    "ciudades": {
+      "Gijón": {
+        "Centro": ["Centro", "Begoña"],
+        "Este": ["La Arena", "El Bibio", "Viesques"],
+        "Llano": ["El Llano", "Pumarín"],
+        "Cimadevilla": ["Cimadevilla", "Puerto"],
+        "Laviada": ["Laviada", "La Calzada"],
+        "El Coto": ["El Coto", "La Braña"],
+        "Contrueces": ["Contrueces", "Vega"],
+        "Tremañes": ["Tremañes", "Roces"],
+        "Nuevo Gijón": ["Nuevo Gijón", "Montevil"],
+        "Calzada": ["La Calzada", "Somió"]
+      },
+      "Oviedo": {
+        "Centro": ["Centro", "Fontán"],
+        "Buenavista": ["Buenavista", "Teatinos"],
+        "La Tenderina": ["La Tenderina", "Vallobín"],
+        "Ventanielles": ["Ventanielles", "La Florida"],
+        "Teatinos": ["Teatinos", "Universidad"],
+        "Otero": ["Otero", "Pumarín"],
+        "La Florida": ["La Florida", "Colloto"],
+        "Naranco": ["Naranco", "Las Campas"]
+      },
+      "Avilés": [],
+      "Siero": [],
+      "Langreo": [],
+      "Mieres": [],
+      "Castrillón": []
+    }
+  },
+  "Gipuzkoa": {
+    "provincia": "Gipuzkoa",
+    "ciudades": {
+      "Donostia-San Sebastián": {
+        "Centro": ["Centro", "Parte Vieja"],
+        "Gros": ["Gros", "Sagüés"],
+        "Amara Berri": ["Amara Berri", "Riberas de Loiola"],
+        "Amara Zaharra": ["Amara Zaharra", "Ategorrieta"],
+        "Ategorrieta-Ulia": ["Ategorrieta", "Ulia"],
+        "Alza": ["Alza", "Herrera"],
+        "Intxaurrondo": ["Intxaurrondo Norte", "Intxaurrondo Sur"],
+        "Egia": ["Egia", "Loiola"],
+        "Antiguo": ["Antiguo", "Ondarreta"]
+      },
+      "Irun": [],
+      "Errenteria": [],
+      "Eibar": [],
+      "Zarautz": []
+    }
+  },
+  "Álava": {
+    "provincia": "Álava",
+    "ciudades": {
+      "Vitoria-Gasteiz": {
+        "Casco Viejo": ["Casco Viejo", "Campillo"],
+        "Ensanche": ["Ensanche", "Lovaina"],
+        "Lakua": ["Lakua", "Arriaga"],
+        "Salburua": ["Salburua", "Aretxabaleta"],
+        "Zabalgana": ["Zabalgana", "Arana"],
+        "Arana": ["Arana", "Judimendi"]
+      },
+      "Llodio": []
+    }
+  },
+  "Cádiz": {
+    "provincia": "Cádiz",
+    "ciudades": {
+      "Cádiz": [],
+      "Jerez de la Frontera": {
+        "Centro": ["Centro Histórico", "San Mateo", "San Lucas"],
+        "Norte": ["Norte", "Delicias", "La Granja"],
+        "Sur": ["Sur", "Blas Infante", "Icovesa"],
+        "Este": ["Este", "Guadalcacín", "Torresoto"],
+        "Oeste": ["Oeste", "La Plata", "Montealegre"],
+        "Rural": ["Rural", "Cuartillos", "Estella del Marqués"]
+      },
+      "Algeciras": [],
+      "San Fernando": [],
+      "El Puerto de Santa María": [],
+      "Chiclana de la Frontera": [],
+      "La Línea de la Concepción": [],
+      "Sanlúcar de Barrameda": [],
+      "Arcos de la Frontera": [],
+      "Puerto Real": [],
+      "Rota": [],
+      "Barbate": [],
+      "Conil de la Frontera": []
+    }
+  },
+  "Córdoba": {
+    "provincia": "Córdoba",
+    "ciudades": {
+      "Córdoba": {
+        "Centro": ["Centro", "Judería", "San Basilio"],
+        "Norte-Sierra": ["Vallehermoso", "Miralbaida", "Cañero"],
+        "Levante": ["Levante", "Vistalegre", "Zumbacón"],
+        "Sur": ["Sur", "Fátima", "Las Moreras"],
+        "Poniente": ["Poniente", "Ciudad Jardín", "Sector Sur"],
+        "Periurbano Norte": ["Alcolea", "Santa Cruz"],
+        "Periurbano Sur": ["Villarrubia", "Trassierra"]
+      },
+      "Lucena": [],
+      "Puente Genil": [],
+      "Montilla": [],
+      "Priego de Córdoba": []
+    }
+  },
+  "Granada": {
+    "provincia": "Granada",
+    "ciudades": {
+      "Granada": {
+        "Centro": ["Centro", "Realejo"],
+        "Norte": ["Norte", "Cartuja", "Almanjáyar"],
+        "Zaidín": ["Zaidín", "Vergeles"],
+        "Chana": ["Chana", "Pajaritos"],
+        "Genil": ["Genil", "Beiro"],
+        "Beiro": ["Beiro", "Camino de Ronda"],
+        "Ronda": ["Ronda", "Doctores"],
+        "Albaicín": ["Albaicín", "Sacromonte"]
+      },
+      "Motril": [],
+      "Almuñécar": [],
+      "Armilla": [],
+      "Maracena": []
+    }
+  },
+  "Huelva": {
+    "provincia": "Huelva",
+    "ciudades": {
+      "Huelva": [],
+      "Lepe": [],
+      "Almonte": [],
+      "Moguer": [],
+      "Isla Cristina": [],
+      "Ayamonte": []
+    }
+  },
+  "Jaén": {
+    "provincia": "Jaén",
+    "ciudades": {
+      "Jaén": [],
+      "Linares": [],
+      "Andújar": [],
+      "Úbeda": [],
+      "Martos": []
+    }
+  },
+  "La Rioja": {
+    "provincia": "La Rioja",
+    "ciudades": {
+      "Logroño": [],
+      "Calahorra": [],
+      "Arnedo": []
+    }
+  },
+  "Navarra": {
+    "provincia": "Navarra",
+    "ciudades": {
+      "Pamplona": [],
+      "Tudela": [],
+      "Barañáin": [],
+      "Burlada": []
+    }
+  },
+  "Badajoz": {
+    "provincia": "Badajoz",
+    "ciudades": {
+      "Badajoz": [],
+      "Mérida": [],
+      "Don Benito": [],
+      "Almendralejo": [],
+      "Villanueva de la Serena": [],
+      "Zafra": [],
+      "Montijo": [],
+      "Villafranca de los Barros": []
+    }
+  },
+  "Cáceres": {
+    "provincia": "Cáceres",
+    "ciudades": {
+      "Cáceres": [],
+      "Plasencia": [],
+      "Navalmoral de la Mata": [],
+      "Coria": []
+    }
+  },
+  "Castellón": {
+    "provincia": "Castellón",
+    "ciudades": {
+      "Castellón de la Plana": [],
+      "Vila-real": [],
+      "Burriana": [],
+      "Onda": [],
+      "Vinaròs": [],
+      "Benicarló": [],
+      "La Vall d'Uixó": []
+    }
+  },
+  "Toledo": {
+    "provincia": "Toledo",
+    "ciudades": {
+      "Toledo": [],
+      "Talavera de la Reina": [],
+      "Illescas": [],
+      "Seseña": [],
+      "Torrijos": []
+    }
+  },
+  "Ciudad Real": {
+    "provincia": "Ciudad Real",
+    "ciudades": {
+      "Ciudad Real": [],
+      "Puertollano": [],
+      "Tomelloso": [],
+      "Alcázar de San Juan": [],
+      "Valdepeñas": [],
+      "Daimiel": [],
+      "Manzanares": []
+    }
+  },
+  "Albacete": {
+    "provincia": "Albacete",
+    "ciudades": {
+      "Albacete": [],
+      "Hellín": [],
+      "Villarrobledo": [],
+      "Almansa": []
+    }
+  },
+  "Cuenca": {
+    "provincia": "Cuenca",
+    "ciudades": {
+      "Cuenca": []
+    }
+  },
+  "Guadalajara": {
+    "provincia": "Guadalajara",
+    "ciudades": {
+      "Guadalajara": [],
+      "Azuqueca de Henares": []
+    }
+  },
+  "Lleida": {
+    "provincia": "Lleida",
+    "ciudades": {
+      "Lleida": [],
+      "Balaguer": []
+    }
+  },
+  "Girona": {
+    "provincia": "Girona",
+    "ciudades": {
+      "Girona": [],
+      "Figueres": [],
+      "Blanes": [],
+      "Lloret de Mar": [],
+      "Salt": [],
+      "Olot": []
+    }
+  },
+  "Ávila": {
+    "provincia": "Ávila",
+    "ciudades": {
+      "Ávila": []
+    }
+  },
+  "Segovia": {
+    "provincia": "Segovia",
+    "ciudades": {
+      "Segovia": []
+    }
+  },
+  "Salamanca": {
+    "provincia": "Salamanca",
+    "ciudades": {
+      "Salamanca": [],
+      "Béjar": []
+    }
+  },
+  "Zamora": {
+    "provincia": "Zamora",
+    "ciudades": {
+      "Zamora": [],
+      "Benavente": []
+    }
+  },
+  "León": {
+    "provincia": "León",
+    "ciudades": {
+      "León": [],
+      "Ponferrada": [],
+      "San Andrés del Rabanedo": []
+    }
+  },
+  "Burgos": {
+    "provincia": "Burgos",
+    "ciudades": {
+      "Burgos": [],
+      "Aranda de Duero": [],
+      "Miranda de Ebro": []
+    }
+  },
+  "Soria": {
+    "provincia": "Soria",
+    "ciudades": {
+      "Soria": []
+    }
+  },
+  "Huesca": {
+    "provincia": "Huesca",
+    "ciudades": {
+      "Huesca": [],
+      "Monzón": [],
+      "Barbastro": []
+    }
+  },
+  "Teruel": {
+    "provincia": "Teruel",
+    "ciudades": {
+      "Teruel": [],
+      "Alcañiz": []
+    }
+  },
+  "Pontevedra": {
+    "provincia": "Pontevedra",
+    "ciudades": {
+      "Vigo": {
+        "Centro": ["Centro", "Casco Vello"],
+        "Casco Vello": ["Casco Vello", "Berbés"],
+        "Bouzas": ["Bouzas", "Coia"],
+        "Teis": ["Teis", "Chapela"],
+        "Calvario": ["Calvario", "Travesía"],
+        "Navia": ["Navia", "Mos"],
+        "Castrelos": ["Castrelos", "Zamáns"]
+      },
+      "Pontevedra": [],
+      "Vilagarcía de Arousa": [],
+      "Redondela": [],
+      "Cangas": [],
+      "Marín": [],
+      "Ponteareas": [],
+      "O Porriño": [],
+      "Moaña": [],
+      "Sanxenxo": []
+    }
+  },
+  "Lugo": {
+    "provincia": "Lugo",
+    "ciudades": {
+      "Lugo": []
+    }
+  },
+  "Ourense": {
+    "provincia": "Ourense",
+    "ciudades": {
+      "Ourense": []
+    }
+  },
+  "Illes Balears": {
+    "provincia": "Illes Balears",
+    "ciudades": {
+      "Palma": {
+        "Centro": ["Centro", "Calatrava", "La Missió"],
+        "Llevant": ["Llevant", "Coll d'en Rabassa", "S'Arenal"],
+        "Ponent": ["Ponent", "Son Rapinya", "Génova"],
+        "Nord": ["Nord", "Son Espanyolet", "Camp Redó"],
+        "Platja de Palma": ["Platja de Palma", "Can Pastilla", "Les Meravelles"]
+      },
+      "Calvià": [],
+      "Manacor": [],
+      "Inca": [],
+      "Llucmajor": [],
+      "Marratxí": [],
+      "Ibiza": [],
+      "Ciutadella de Menorca": [],
+      "Maó": [],
+      "Alcúdia": [],
+      "Felanitx": [],
+      "Pollença": [],
+      "Sóller": [],
+      "Sant Antoni de Portmany": []
+    }
+  },
+  "Las Palmas": {
+    "provincia": "Las Palmas",
+    "ciudades": {
+      "Las Palmas de Gran Canaria": {
+        "Vegueta-Cono Sur-Tafira": ["Vegueta", "Triana", "Tafira"],
+        "Centro": ["Centro", "Arenales"],
+        "Puerto-Canteras": ["Puerto", "La Isleta", "Canteras"],
+        "Ciudad Alta": ["Ciudad Alta", "Schamann", "Altavista"],
+        "Tamaraceite-San Lorenzo-Tenoya": ["Tamaraceite", "San Lorenzo", "Tenoya"]
+      },
+      "Telde": [],
+      "Santa Lucía de Tirajana": [],
+      "Arucas": [],
+      "Agüimes": [],
+      "Ingenio": [],
+      "San Bartolomé de Tirajana": [],
+      "Arrecife": [],
+      "Puerto del Rosario": []
+    }
+  },
+  "Santa Cruz de Tenerife": {
+    "provincia": "Santa Cruz de Tenerife",
+    "ciudades": {
+      "Santa Cruz de Tenerife": {
+        "Anaga": ["Anaga", "San Andrés"],
+        "Centro-Ifara": ["Centro", "Ifara"],
+        "La Salud-La Salle": ["La Salud", "La Salle"],
+        "Ofra-Costa Sur": ["Ofra", "Costa Sur"],
+        "Suroeste": ["Suroeste", "Añaza"]
+      },
+      "San Cristóbal de La Laguna": [],
+      "Arona": [],
+      "Adeje": [],
+      "Granadilla de Abona": [],
+      "Los Realejos": [],
+      "Puerto de la Cruz": [],
+      "Santa Cruz de La Palma": [],
+      "San Sebastián de La Gomera": []
     }
   }
 }
