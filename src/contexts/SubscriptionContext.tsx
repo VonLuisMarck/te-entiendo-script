@@ -39,11 +39,15 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Primero consultar la tabla clientes
+      console.log('Checking subscription for user:', session.user.id);
       const { data: clienteData, error: clienteError } = await supabase
         .from('clientes')
         .select('tipo_suscripcion')
         .eq('user_id', session.user.id)
         .single();
+
+      console.log('Cliente data:', clienteData);
+      console.log('Cliente error:', clienteError);
 
       if (!clienteError && clienteData?.tipo_suscripcion) {
         // Si hay suscripción en la tabla clientes, usar esa
@@ -52,7 +56,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         setTier(subscriptionTier);
         setProductId(null);
         setSubscriptionEnd(null);
-        console.log('Subscription loaded from database:', subscriptionTier);
+        console.log('✅ Subscription loaded from database:', subscriptionTier);
         return;
       }
 
