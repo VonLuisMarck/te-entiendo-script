@@ -1,45 +1,25 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
+import { SUBSCRIPTION_TIERS, SubscriptionTier } from '@/lib/subscription-tiers';
 
 interface SubscriptionContextType {
   subscribed: boolean;
-  tier: string;
+  tier: SubscriptionTier;
   productId: string | null;
   subscriptionEnd: string | null;
   loading: boolean;
   checkSubscription: () => Promise<void>;
+  upgradeUrl: (priceId: string) => Promise<string | null>;
+  manageSubscription: () => Promise<string | null>;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
-export const SUBSCRIPTION_PRODUCTS = {
-  basic: {
-    name: 'Básico',
-    price: '€9.99/mes',
-    priceId: 'price_1SNVunIZNGNvNT1eDLHxmlM2',
-    productId: 'prod_TKAF23fhblkfJU',
-    features: ['Hasta 20 matchings/mes', 'Dashboard mejorado', 'Editar criterios']
-  },
-  investor: {
-    name: 'Inversor',
-    price: '€49.99/mes',
-    priceId: 'price_1SNVvAIZNGNvNT1eZt8aW9BO',
-    productId: 'prod_TKAFdxpTBCEdel',
-    features: ['Matchings ilimitados', 'PDFs personalizados ilimitados', '20 informes WhatsApp/mes', 'Dashboard completo']
-  },
-  investor_platino: {
-    name: 'Inversor Premium',
-    price: '€149.99/mes',
-    priceId: 'price_1SNVvUIZNGNvNT1eq1p9SZ7l',
-    productId: 'prod_TKAGwOzkUFemBK',
-    features: ['Todo lo de Inversor', 'WhatsApp ilimitado', 'Alertas en tiempo real', 'Asesoramiento personalizado', 'Acceso API']
-  }
-};
 
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const [subscribed, setSubscribed] = useState(false);
-  const [tier, setTier] = useState<string>('free');
+  const [tier, setTier] = useState<SubscriptionTier>('free');
   const [productId, setProductId] = useState<string | null>(null);
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -58,15 +38,11 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Obtener datos del cliente desde la tabla clientes
-      const { data: clienteData, error: clienteError } = await supabase
-        .from('clientes')
-        .select('tipo_suscripcion')
-        .eq('user_id', session.user.id)
-        .limit(1)
-        .maybeSingle();
-
-      if (clienteError || !clienteData) {
+      // Llamar a check-subscription para validar con Stripe
+      const { data, error } = await supabase.functions.invoke('check-subscription');
+      
+      if (error || !data) {
+        console.error('Error checking subscription:', error);
         setSubscribed(false);
         setTier('free');
         setProductId(null);
@@ -74,25 +50,50 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      const tier = clienteData.tipo_suscripcion || 'free';
-      const isSubscribed = tier !== 'free';
-      
-      // Mapear tier a productId según los productos definidos
-      let productId = null;
-      if (tier === 'basic') productId = SUBSCRIPTION_PRODUCTS.basic.productId;
-      else if (tier === 'investor') productId = SUBSCRIPTION_PRODUCTS.investor.productId;
-      else if (tier === 'investor_platino') productId = SUBSCRIPTION_PRODUCTS.investor_platino.productId;
-
-      setSubscribed(isSubscribed);
-      setTier(tier);
-      setProductId(productId);
-      setSubscriptionEnd(null);
+      setSubscribed(data.subscribed || false);
+      setTier(data.tier || 'free');
+      setProductId(data.product_id || null);
+      setSubscriptionEnd(data.subscription_end || null);
     } catch (error) {
       console.error('Error in checkSubscription:', error);
       setSubscribed(false);
       setTier('free');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const upgradeUrl = async (priceId: string): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { priceId }
+      });
+      
+      if (error || !data?.url) {
+        console.error('Error creating checkout:', error);
+        return null;
+      }
+      
+      return data.url;
+    } catch (error) {
+      console.error('Error getting upgrade URL:', error);
+      return null;
+    }
+  };
+
+  const manageSubscription = async (): Promise<string | null> => {
+    try {
+      const { data, error } = await supabase.functions.invoke('customer-portal');
+      
+      if (error || !data?.url) {
+        console.error('Error creating portal session:', error);
+        return null;
+      }
+      
+      return data.url;
+    } catch (error) {
+      console.error('Error getting portal URL:', error);
+      return null;
     }
   };
 
@@ -132,7 +133,9 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         productId,
         subscriptionEnd,
         loading,
-        checkSubscription
+        checkSubscription,
+        upgradeUrl,
+        manageSubscription
       }}
     >
       {children}

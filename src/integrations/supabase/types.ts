@@ -18,16 +18,25 @@ export type Database = {
         Row: {
           activo: boolean | null
           created_at: string | null
+          dias_historico_acceso: number | null
           email: string
+          estimaciones_reforma_mes: number | null
           fecha_reset_matchings: string | null
+          formatos_descarga: string[] | null
           id: string
           limite_matchings_mes: number | null
           matchings_usados_mes: number | null
+          max_ciudades_acceso: number | null
+          max_ubicaciones_alerta: number | null
           nombre: string
           perfil: string
+          periodicidad_alertas: string | null
           presupuesto_max: number | null
           presupuesto_min: number | null
+          puede_descargar_datos: boolean | null
           telefono: string | null
+          tiene_acceso_ine: boolean | null
+          tiene_api_access: boolean | null
           tipo_suscripcion:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
@@ -37,16 +46,25 @@ export type Database = {
         Insert: {
           activo?: boolean | null
           created_at?: string | null
+          dias_historico_acceso?: number | null
           email: string
+          estimaciones_reforma_mes?: number | null
           fecha_reset_matchings?: string | null
+          formatos_descarga?: string[] | null
           id?: string
           limite_matchings_mes?: number | null
           matchings_usados_mes?: number | null
+          max_ciudades_acceso?: number | null
+          max_ubicaciones_alerta?: number | null
           nombre: string
           perfil?: string
+          periodicidad_alertas?: string | null
           presupuesto_max?: number | null
           presupuesto_min?: number | null
+          puede_descargar_datos?: boolean | null
           telefono?: string | null
+          tiene_acceso_ine?: boolean | null
+          tiene_api_access?: boolean | null
           tipo_suscripcion?:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
@@ -56,16 +74,25 @@ export type Database = {
         Update: {
           activo?: boolean | null
           created_at?: string | null
+          dias_historico_acceso?: number | null
           email?: string
+          estimaciones_reforma_mes?: number | null
           fecha_reset_matchings?: string | null
+          formatos_descarga?: string[] | null
           id?: string
           limite_matchings_mes?: number | null
           matchings_usados_mes?: number | null
+          max_ciudades_acceso?: number | null
+          max_ubicaciones_alerta?: number | null
           nombre?: string
           perfil?: string
+          periodicidad_alertas?: string | null
           presupuesto_max?: number | null
           presupuesto_min?: number | null
+          puede_descargar_datos?: boolean | null
           telefono?: string | null
+          tiene_acceso_ine?: boolean | null
+          tiene_api_access?: boolean | null
           tipo_suscripcion?:
             | Database["public"]["Enums"]["subscription_tier"]
             | null
@@ -392,6 +419,105 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      metricas_inversores: {
+        Row: {
+          alquiler_m2_medio: number | null
+          ciudad: string | null
+          created_at: string | null
+          dias_medio_venta: number | null
+          distrito: string | null
+          edad_media: number | null
+          fecha_calculo: string | null
+          fuente_datos: string[] | null
+          id: string
+          indice_dinamismo: number | null
+          poblacion: number | null
+          precio_m2_max: number | null
+          precio_m2_medio: number | null
+          precio_m2_min: number | null
+          precio_m2_percentil_25: number | null
+          precio_m2_percentil_50: number | null
+          precio_m2_percentil_75: number | null
+          provincia: string
+          proyeccion_revalorizacion_1y: number | null
+          proyeccion_revalorizacion_3y: number | null
+          ratio_demanda_oferta: number | null
+          renta_media_hogar: number | null
+          tasa_desempleo: number | null
+          total_propiedades_alquiler: number | null
+          total_propiedades_venta: number | null
+          updated_at: string | null
+          variacion_anual: number | null
+          variacion_mensual: number | null
+          yield_bruto: number | null
+          yield_neto: number | null
+        }
+        Insert: {
+          alquiler_m2_medio?: number | null
+          ciudad?: string | null
+          created_at?: string | null
+          dias_medio_venta?: number | null
+          distrito?: string | null
+          edad_media?: number | null
+          fecha_calculo?: string | null
+          fuente_datos?: string[] | null
+          id?: string
+          indice_dinamismo?: number | null
+          poblacion?: number | null
+          precio_m2_max?: number | null
+          precio_m2_medio?: number | null
+          precio_m2_min?: number | null
+          precio_m2_percentil_25?: number | null
+          precio_m2_percentil_50?: number | null
+          precio_m2_percentil_75?: number | null
+          provincia: string
+          proyeccion_revalorizacion_1y?: number | null
+          proyeccion_revalorizacion_3y?: number | null
+          ratio_demanda_oferta?: number | null
+          renta_media_hogar?: number | null
+          tasa_desempleo?: number | null
+          total_propiedades_alquiler?: number | null
+          total_propiedades_venta?: number | null
+          updated_at?: string | null
+          variacion_anual?: number | null
+          variacion_mensual?: number | null
+          yield_bruto?: number | null
+          yield_neto?: number | null
+        }
+        Update: {
+          alquiler_m2_medio?: number | null
+          ciudad?: string | null
+          created_at?: string | null
+          dias_medio_venta?: number | null
+          distrito?: string | null
+          edad_media?: number | null
+          fecha_calculo?: string | null
+          fuente_datos?: string[] | null
+          id?: string
+          indice_dinamismo?: number | null
+          poblacion?: number | null
+          precio_m2_max?: number | null
+          precio_m2_medio?: number | null
+          precio_m2_min?: number | null
+          precio_m2_percentil_25?: number | null
+          precio_m2_percentil_50?: number | null
+          precio_m2_percentil_75?: number | null
+          provincia?: string
+          proyeccion_revalorizacion_1y?: number | null
+          proyeccion_revalorizacion_3y?: number | null
+          ratio_demanda_oferta?: number | null
+          renta_media_hogar?: number | null
+          tasa_desempleo?: number | null
+          total_propiedades_alquiler?: number | null
+          total_propiedades_venta?: number | null
+          updated_at?: string | null
+          variacion_anual?: number | null
+          variacion_mensual?: number | null
+          yield_bruto?: number | null
+          yield_neto?: number | null
+        }
+        Relationships: []
       }
       propiedades: {
         Row: {

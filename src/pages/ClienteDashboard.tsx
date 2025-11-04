@@ -5,7 +5,8 @@ import { User } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { useSubscription, SUBSCRIPTION_PRODUCTS } from '@/contexts/SubscriptionContext';
+import { useSubscription } from '@/contexts/SubscriptionContext';
+import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Check, LogOut, CreditCard, Settings, BarChart3 } from 'lucide-react';
 
@@ -218,11 +219,8 @@ const ClienteDashboard = () => {
         {/* Subscription Plans */}
         <h2 className="text-2xl font-bold mb-4">Planes Disponibles</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {Object.entries(SUBSCRIPTION_PRODUCTS).map(([key, plan]) => {
-            const isCurrentPlan = 
-              (tier === 'basic' && key === 'basic') ||
-              (tier === 'investor' && key === 'investor') ||
-              (tier === 'investor_platino' && key === 'investor_platino');
+          {Object.entries(SUBSCRIPTION_TIERS).filter(([key]) => key !== 'free').map(([key, plan]) => {
+            const isCurrentPlan = tier === key;
 
             return (
               <Card key={key} className={isCurrentPlan ? 'border-primary border-2' : ''}>
@@ -233,7 +231,7 @@ const ClienteDashboard = () => {
                       <Badge variant="default">Tu Plan</Badge>
                     )}
                   </div>
-                  <CardDescription className="text-2xl font-bold">{plan.price}</CardDescription>
+                  <CardDescription className="text-2xl font-bold">€{plan.price}/mes</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-2 mb-6">
@@ -245,7 +243,7 @@ const ClienteDashboard = () => {
                     ))}
                   </ul>
                   <Button
-                    onClick={() => handleCheckout(plan.priceId)}
+                    onClick={() => handleCheckout(plan.priceId!)}
                     disabled={isCurrentPlan || checkoutLoading === plan.priceId}
                     className="w-full"
                     variant={isCurrentPlan ? 'secondary' : 'default'}

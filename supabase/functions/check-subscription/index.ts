@@ -19,6 +19,62 @@ const PRODUCT_TO_TIER: Record<string, string> = {
   'prod_TKAGwOzkUFemBK': 'investor_platino' // Inversor Premium
 };
 
+// Función para obtener límites según tier
+function getTierLimits(tier: string) {
+  const limits: Record<string, any> = {
+    free: {
+      limite_matchings_mes: 5,
+      max_ciudades_acceso: 0,
+      dias_historico_acceso: 7,
+      puede_descargar_datos: false,
+      formatos_descarga: [],
+      tiene_acceso_ine: false,
+      tiene_api_access: false,
+      periodicidad_alertas: 'ninguna',
+      max_ubicaciones_alerta: 0,
+      estimaciones_reforma_mes: 0
+    },
+    basic: {
+      limite_matchings_mes: 20,
+      max_ciudades_acceso: 0,
+      dias_historico_acceso: 90,
+      puede_descargar_datos: false,
+      formatos_descarga: [],
+      tiene_acceso_ine: false,
+      tiene_api_access: false,
+      periodicidad_alertas: 'semanal',
+      max_ubicaciones_alerta: 1,
+      estimaciones_reforma_mes: 3
+    },
+    investor: {
+      limite_matchings_mes: null,
+      max_ciudades_acceso: null,
+      dias_historico_acceso: 365,
+      puede_descargar_datos: true,
+      formatos_descarga: ['pdf', 'excel', 'csv'],
+      tiene_acceso_ine: true,
+      tiene_api_access: false,
+      periodicidad_alertas: 'diaria',
+      max_ubicaciones_alerta: 5,
+      estimaciones_reforma_mes: null
+    },
+    investor_platino: {
+      limite_matchings_mes: null,
+      max_ciudades_acceso: null,
+      dias_historico_acceso: null,
+      puede_descargar_datos: true,
+      formatos_descarga: ['pdf', 'excel', 'csv', 'api'],
+      tiene_acceso_ine: true,
+      tiene_api_access: true,
+      periodicidad_alertas: 'inmediata',
+      max_ubicaciones_alerta: null,
+      estimaciones_reforma_mes: null
+    }
+  };
+  
+  return limits[tier] || limits.free;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -56,10 +112,14 @@ serve(async (req) => {
     if (customers.data.length === 0) {
       logStep("No customer found, checking for free tier");
       
-      // Actualizar cliente a free tier si no tiene suscripción
+      // Actualizar cliente a free tier con límites
+      const limits = getTierLimits('free');
       const { error: updateError } = await supabaseClient
         .from('clientes')
-        .update({ tipo_suscripcion: 'free' })
+        .update({ 
+          tipo_suscripcion: 'free',
+          ...limits
+        })
         .eq('user_id', user.id);
       
       if (updateError) {
@@ -114,10 +174,14 @@ serve(async (req) => {
         logStep("Error updating stripe_customers", { error: stripeError });
       }
 
-      // Actualizar tipo_suscripcion en clientes
+      // Actualizar tipo_suscripcion y límites en clientes
+      const limits = getTierLimits(tier);
       const { error: clienteError } = await supabaseClient
         .from('clientes')
-        .update({ tipo_suscripcion: tier })
+        .update({ 
+          tipo_suscripcion: tier,
+          ...limits
+        })
         .eq('user_id', user.id);
 
       if (clienteError) {
@@ -126,10 +190,14 @@ serve(async (req) => {
     } else {
       logStep("No active subscription found");
       
-      // Actualizar a free tier
+      // Actualizar a free tier con límites
+      const limits = getTierLimits('free');
       const { error: updateError } = await supabaseClient
         .from('clientes')
-        .update({ tipo_suscripcion: 'free' })
+        .update({ 
+          tipo_suscripcion: 'free',
+          ...limits
+        })
         .eq('user_id', user.id);
       
       if (updateError) {
