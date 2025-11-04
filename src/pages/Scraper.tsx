@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 
 interface ScrapingLog {
   id: string;
@@ -446,6 +447,94 @@ const Scraper = () => {
                     </p>
                   )}
                 </form>
+              </CardContent>
+            </Card>
+
+            {/* Control de Cron Jobs */}
+            <Card className="shadow-lg border-primary/20">
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-2">
+                  <Power className="h-5 w-5 text-primary" />
+                  <CardTitle>Control Automático</CardTitle>
+                </div>
+                <CardDescription>
+                  Gestiona los trabajos programados del sistema
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Control de Scrapers */}
+                <div className="space-y-2 p-4 border rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <Label className="text-base font-medium">Scrapers cada 6h</Label>
+                      <p className="text-sm text-muted-foreground">Ejecuta scrapers automáticamente</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        const { error } = await supabase.functions.invoke('manage-cron-jobs', {
+                          body: { action: 'stop_scrapers' }
+                        });
+                        if (!error) toast.success("Scrapers detenidos");
+                      }}
+                    >
+                      <PowerOff className="h-4 w-4 mr-2" />
+                      Detener
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Control de Limpieza */}
+                <div className="space-y-2 p-4 border rounded-lg bg-muted/30">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <Label className="text-base font-medium">Limpieza Automática</Label>
+                      <p className="text-sm text-muted-foreground">Archiva propiedades inactivas</p>
+                    </div>
+                    <Switch
+                      defaultChecked={true}
+                      onCheckedChange={async (checked) => {
+                        const { error } = await supabase.functions.invoke('manage-cron-jobs', {
+                          body: { 
+                            action: checked ? 'start_cleanup' : 'stop_cleanup',
+                            frequency: '0 */2 * * *'
+                          }
+                        });
+                        if (!error) {
+                          toast.success(checked ? "Limpieza activada" : "Limpieza desactivada");
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm">Frecuencia</Label>
+                    <Select
+                      defaultValue="0 */2 * * *"
+                      onValueChange={async (frequency) => {
+                        const { error } = await supabase.functions.invoke('manage-cron-jobs', {
+                          body: { 
+                            action: 'update_cleanup_frequency',
+                            frequency
+                          }
+                        });
+                        if (!error) toast.success("Frecuencia actualizada");
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="0 * * * *">Cada hora</SelectItem>
+                        <SelectItem value="0 */2 * * *">Cada 2 horas</SelectItem>
+                        <SelectItem value="0 */4 * * *">Cada 4 horas</SelectItem>
+                        <SelectItem value="0 */6 * * *">Cada 6 horas</SelectItem>
+                        <SelectItem value="0 */12 * * *">Cada 12 horas</SelectItem>
+                        <SelectItem value="0 0 * * *">Diaria (medianoche)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

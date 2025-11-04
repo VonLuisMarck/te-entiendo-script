@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.ubicaciones]
 verify_jwt = false
+
+[functions.manage-cron-jobs]
+verify_jwt = true
