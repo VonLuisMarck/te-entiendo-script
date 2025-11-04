@@ -1,0 +1,227 @@
+
+  "Madrid": {
+    "provincia": "Madrid",
+    "ciudades": {
+      "Madrid": [
+        "Centro",
+        "Arganzuela",
+        "Retiro",
+        "Salamanca",
+        "Chamartín",
+        "Tetuán",
+        "Chamberí",
+        "Fuencarral-El Pardo",
+        "Moncloa-Aravaca",
+        "Latina",
+        "Carabanchel",
+        "Usera",
+        "Puente de Vallecas",
+        "Moratalaz",
+        "Ciudad Lineal",
+        "Hortaleza",
+        "Villaverde",
+        "Villa de Vallecas",
+        "Vicálvaro",
+        "San Blas-Canillejas",
+        "Barajas"
+      ],
+      "Móstoles": [],
+      "Alcalá de Henares": [],
+      "Fuenlabrada": [],
+      "Getafe": [],
+      "Leganés": [],
+      "Alcorcón": [],
+      "Torrejón de Ardoz": [],
+      "Parla": [],
+      "Alcobendas": [],
+      "San Sebastián de los Reyes": [],
+      "Pozuelo de Alarcón": [],
+      "Las Rozas de Madrid": [],
+      "Rivas-Vaciamadrid": [],
+      "Majadahonda": [],
+      "Coslada": [],
+      "Valdemoro": [],
+      "Pinto": [],
+      "Collado Villalba": [],
+      "Aranjuez": []
+    }
+  },
+  "Barcelona": {
+    "provincia": "Barcelona",
+    "ciudades": {
+      "Barcelona": [
+        "Ciutat Vella",
+        "Eixample",
+        "Sants-Montjuïc",
+        "Les Corts",
+        "Sarrià-Sant Gervasi",
+        "Gràcia",
+        "Horta-Guinardó",
+        "Nou Barris",
+        "Sant Andreu",
+        "Sant Martí"
+      ],
+      "L'Hospitalet de Llobregat": [],
+      "Badalona": [],
+      "Terrassa": [],
+      "Sabadell": [],
+      "Mataró": [],
+      "Santa Coloma de Gramenet": [],
+      "Cornellà de Llobregat": [],
+      "Sant Boi de Llobregat": [],
+      "Rubí": [],
+      "Manresa": [],
+      "Vilanova i la Geltrú": [],
+      "Castelldefels": [],
+      "Granollers": []
+    }
+  },
+  "Valencia": {
+    "provincia": "Valencia",
+    "ciudades": {
+      "Valencia": [
+        "Ciutat Vella",
+        "Eixample",
+        "Extramurs",
+        "Campanar",
+        "La Saïdia",
+        "El Pla del Real",
+        "Jesús",
+        "Quatre Carreres",
+        "Poblats Marítims",
+        "Camins al Grau",
+        "Algirós",
+        "Benimaclet",
+        "Rascanya",
+        "Benicalap",
+        "Pobles del Nord",
+        "Pobles de l'Oest",
+        "Pobles del Sud",
+        "L'Olivereta",
+        "Patraix"
+      ],
+      "Torrent": [],
+      "Gandía": [],
+      "Paterna": [],
+      "Sagunto": []
+    }
+  },
+  "Sevilla": {
+    "provincia": "Sevilla",
+    "ciudades": {
+      "Sevilla": [
+        "Casco Antiguo",
+        "Macarena",
+        "Triana",
+        "Los Remedios",
+        "Nervión",
+        "Cerro-Amate",
+        "Sur",
+        "Este-Alcosa-Torreblanca",
+        "Bellavista-La Palmera",
+        "San Pablo-Santa Justa",
+        "Norte"
+      ],
+      "Dos Hermanas": [],
+      "Alcalá de Guadaíra": [],
+      "Utrera": []
+    }
+  },
+  "Murcia": {
+    "provincia": "Murcia",
+    "ciudades": {
+      "Murcia": [
+        "Centro",
+        "Norte",
+        "Sur",
+        "Este",
+        "Oeste"
+      ],
+      "Cartagena": [],
+      "Lorca": [],
+      "Molina de Segura": []
+    }
+  },
+  "Málaga": {
+    "provincia": "Málaga",
+    "ciudades": {
+      "Málaga": [],
+      "Marbella": [],
+      "Mijas": [],
+      "Fuengirola": [],
+      "Benalmádena": [],
+      "Torremolinos": [],
+      "Vélez-Málaga": [],
+      "Estepona": []
+    }
+  },
+  "Cantabria": {
+    "provincia": "Cantabria",
+    "ciudades": {
+      "Santander": [],
+      "Torrelavega": []
+    }
+  },
+  "Bizkaia": {
+    "provincia": "Bizkaia",
+    "ciudades": {
+      "Bilbao": [],
+      "Barakaldo": [],
+      "Getxo": []
+    }
+  },
+  "A Coruña": {
+    "provincia": "A Coruña",
+    "ciudades": {
+      "A Coruña": [],
+      "Santiago de Compostela": [],
+      "Ferrol": []
+    }
+  },
+  "Valladolid": {
+    "provincia": "Valladolid",
+    "ciudades": {
+      "Valladolid": []
+    }
+  },
+  "Palencia": {
+    "provincia": "Palencia",
+    "ciudades": {
+      "Palencia": []
+    }
+  },
+  "Zaragoza": {
+    "provincia": "Zaragoza",
+    "ciudades": {
+      "Zaragoza": []
+    }
+  },
+  "Tarragona": {
+    "provincia": "Tarragona",
+    "ciudades": {
+      "Tarragona": [],
+      "Reus": []
+    }
+  },
+  "Alicante": {
+    "provincia": "Alicante",
+    "ciudades": {
+      "Alicante": [],
+      "Elche": [],
+      "Torrevieja": [],
+      "Orihuela": [],
+      "Benidorm": [],
+      "Alcoy": [],
+      "San Vicente del Raspeig": [],
+      "Elda": []
+    }
+  },
+  "Almería": {
+    "provincia": "Almería",
+    "ciudades": {
+      "Almería": [],
+      "Roquetas de Mar": [],
+      "El Ejido": []
+    }
+  }
+}
