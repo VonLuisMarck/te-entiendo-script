@@ -120,28 +120,26 @@ const Dashboard = () => {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen flex w-full bg-gradient-to-br from-background via-muted/20 to-background">
-        <AppSidebar />
-        
-        <div className="flex-1 flex flex-col w-full">
-          <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-            <div className="px-6 py-4 flex justify-between items-center">
-              <div className="flex items-center gap-4">
-                <SidebarTrigger />
-                <h2 className="text-2xl font-bold">Dashboard</h2>
-              </div>
-              <div className="flex items-center gap-2">
-                <ThemeToggle />
-                <Button variant="outline" onClick={handleGenerateReport}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  Informe
-                </Button>
-              </div>
+    <SidebarProvider defaultOpen={true}>
+      <AppSidebar />
+      <main className="flex-1 flex flex-col w-full min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
+        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="px-6 py-4 flex justify-between items-center">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger />
+              <h2 className="text-2xl font-bold">Dashboard</h2>
             </div>
-          </header>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button variant="outline" onClick={handleGenerateReport}>
+                <FileText className="h-4 w-4 mr-2" />
+                Informe
+              </Button>
+            </div>
+          </div>
+        </header>
 
-          <main className="flex-1 p-6 overflow-auto">
+        <div className="flex-1 p-6 overflow-auto">
             <div className="mb-6">
               <p className="text-muted-foreground">
                 Bienvenido, {user?.user_metadata?.nombre || user?.email}
@@ -202,13 +200,12 @@ const Dashboard = () => {
               </Card>
             </div>
 
-            <div className="mb-6">
-              <h3 className="text-lg font-semibold mb-4">Mapa de Propiedades Activas</h3>
-              <SpainHeatmap />
-            </div>
-          </main>
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-4">Mapa de Propiedades Activas</h3>
+            <SpainHeatmap />
+          </div>
         </div>
-      </div>
+      </main>
     </SidebarProvider>
   );
 };

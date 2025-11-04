@@ -9,7 +9,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -29,9 +28,7 @@ const menuItems = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
   const navigate = useNavigate();
-  const isCollapsed = state === "collapsed";
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -40,15 +37,13 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className={isCollapsed ? "w-16" : "w-64"} collapsible="icon">
+    <Sidebar collapsible="icon" className="border-r">
       <SidebarContent>
         <div className="p-4 flex items-center gap-3 border-b">
           <img src={homelyLogo} alt="Homely" className="h-8 w-8 object-contain" />
-          {!isCollapsed && (
-            <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-              Homely
-            </h1>
-          )}
+          <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+            Homely
+          </h1>
         </div>
 
         <SidebarGroup>
@@ -67,7 +62,7 @@ export function AppSidebar() {
                       }
                     >
                       <item.icon className="h-4 w-4" />
-                      {!isCollapsed && <span>{item.title}</span>}
+                      <span>{item.title}</span>
                     </NavLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -82,16 +77,16 @@ export function AppSidebar() {
             className="w-full justify-start"
             onClick={() => navigate("/settings")}
           >
-            <Settings className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2">Ajustes</span>}
+            <Settings className="h-4 w-4 mr-2" />
+            <span>Ajustes</span>
           </Button>
           <Button
             variant="ghost"
             className="w-full justify-start"
             onClick={handleLogout}
           >
-            <LogOut className="h-4 w-4" />
-            {!isCollapsed && <span className="ml-2">Salir</span>}
+            <LogOut className="h-4 w-4 mr-2" />
+            <span>Salir</span>
           </Button>
         </div>
       </SidebarContent>
