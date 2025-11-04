@@ -51,7 +51,7 @@ serve(async (req) => {
 
   try {
     const requestBody = await req.json();
-    const { raw_data, portal_origen } = requestBody;
+    const { raw_data, portal_origen, url_propiedad } = requestBody;
     
     // Validar que venga el raw data
     if (!raw_data || typeof raw_data !== 'string') {
@@ -64,6 +64,13 @@ serve(async (req) => {
     if (!portal_origen) {
       return new Response(
         JSON.stringify({ error: 'Se requiere portal_origen (fotocasa, pisos.com, etc.)' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+    
+    if (!url_propiedad) {
+      return new Response(
+        JSON.stringify({ error: 'Se requiere url_propiedad (URL de la propiedad)' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -138,7 +145,16 @@ INSTRUCCIONES CRÍTICAS:
 
 7. **CÁLCULOS AUTOMÁTICOS**:
    - Si tienes precio y metros, calcula precio_m2 = precio / metros
-   - Si falta algún dato, devuelve null (NO inventes valores)`;
+   - Si falta algún dato, devuelve null (NO inventes valores)
+
+8. **EXTERNAL_ID**: Extrae el ID único de la propiedad del portal
+   - En Fotocasa: número en la URL tipo "/inmueble/12345678-piso-madrid"
+   - En Pisos.com: número de referencia tipo "ref123456" o en URL
+   - Es el identificador único que usa el portal (CRÍTICO para evitar duplicados)
+
+9. **FECHA_PUBLICACION**: Intenta extraer la fecha de publicación del anuncio
+   - Formatos comunes: "Publicado hace X días", "Fecha: DD/MM/YYYY"
+   - Devuelve en formato ISO (YYYY-MM-DD) o null si no la encuentras`;
 
     const userPrompt = `Portal origen: ${portal_origen}
 
@@ -197,9 +213,13 @@ ${raw_data.substring(0, 15000)}`; // Limitar a 15k caracteres para no exceder to
                     type: 'array', 
                     items: { type: 'string' },
                     description: 'Array de URLs de imágenes (máximo 10)' 
-                  }
+                  },
+                  
+                  // Identificadores
+                  external_id: { type: 'string', description: 'ID único de la propiedad en el portal (número de referencia)' },
+                  fecha_publicacion: { type: 'string', description: 'Fecha de publicación en formato ISO (YYYY-MM-DD) o null' }
                 },
-                required: ['titulo', 'precio', 'ubicacion', 'tipo_propiedad', 'provincia', 'ciudad', 'url'],
+                required: ['titulo', 'precio', 'ubicacion', 'tipo_propiedad', 'provincia', 'ciudad', 'url', 'external_id'],
                 additionalProperties: false
               }
             }
@@ -255,36 +275,47 @@ ${raw_data.substring(0, 15000)}`; // Limitar a 15k caracteres para no exceder to
       precio_m2 = Math.round((propertyData.precio / propertyData.metros) * 100) / 100;
     }
     
+    // Construir el external_id: si la IA no lo extrae, intentar sacarlo de la URL
+    let external_id = cleanText(propertyData.external_id) || '';
+    if (!external_id) {
+      // Fallback: extraer de la URL
+      const urlMatch = url_propiedad.match(/\/(\d+)[-_]/) || url_propiedad.match(/ref[=:]?(\w+)/i);
+      external_id = urlMatch ? urlMatch[1] : `${portal_origen}_${Date.now()}`;
+    }
+    
     const result = {
-      // Ubicación
-      provincia: cleanText(propertyData.provincia) || 'Desconocida',
-      ciudad: cleanText(propertyData.ciudad) || 'Desconocida',
-      distrito: cleanText(propertyData.distrito) || '',
-      ubicacion: cleanText(propertyData.ubicacion) || '',
+      // === CAMPOS REQUERIDOS POR LA TABLA propiedades ===
       
-      // Básicos
+      // Identificadores (REQUIRED)
+      external_id: external_id,
+      portal_origen: portal_origen,
+      
+      // Básicos (REQUIRED)
       titulo: cleanText(propertyData.titulo) || 'Sin título',
-      descripcion: propertyData.descripcion?.substring(0, 2000) || null,
+      ubicacion: cleanText(propertyData.ubicacion) || `${propertyData.ciudad}, ${propertyData.provincia}`,
       tipo_propiedad: cleanText(propertyData.tipo_propiedad) || 'Otro',
-      condition: cleanText(propertyData.condition) || null,
+      url: propertyData.url || url_propiedad,
+      precio: propertyData.precio || 0,
       
-      // Numéricos
-      precio: propertyData.precio || null,
+      // Opcionales
+      descripcion: propertyData.descripcion?.substring(0, 2000) || null,
+      condition: cleanText(propertyData.condition) || null,
       metros: propertyData.metros || null,
       precio_m2: precio_m2 || null,
       dormitorios: propertyData.dormitorios || null,
       banos: propertyData.banos || null,
       ano_construccion: propertyData.ano_construccion || null,
-      
-      // Booleanos
       tiene_ascensor: propertyData.tiene_ascensor ?? null,
       tiene_parking: propertyData.tiene_parking ?? null,
-      
-      // URLs
-      url: propertyData.url || '',
       imagenes: Array.isArray(propertyData.imagenes) 
         ? propertyData.imagenes.slice(0, 10) 
-        : []
+        : [],
+      fecha_publicacion: propertyData.fecha_publicacion || null,
+      
+      // === CAMPOS EXTRA PARA CLASIFICACIÓN (no en tabla) ===
+      provincia: cleanText(propertyData.provincia) || 'Desconocida',
+      ciudad: cleanText(propertyData.ciudad) || 'Desconocida',
+      distrito: cleanText(propertyData.distrito) || ''
     };
     
     console.log('Propiedad extraída:', {
