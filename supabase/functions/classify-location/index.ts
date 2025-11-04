@@ -34,9 +34,7 @@ async function getUbicaciones() {
   
   if (error || !data) {
     console.error('Error cargando ubicaciones:', error);
-    // Fallback al JSON estático si falla
-    const ubicacionesData = await import("./ubicaciones.json", { with: { type: "json" } });
-    return ubicacionesData.default;
+    throw new Error('No se pudieron cargar las ubicaciones de la base de datos');
   }
   
   ubicacionesCache = data.contenido;

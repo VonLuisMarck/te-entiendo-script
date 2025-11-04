@@ -12,11 +12,12 @@ serve(async (req) => {
   }
 
   try {
-    // GET: Devolver todas las ubicaciones desde la base de datos
     if (req.method === 'GET') {
+      console.log('Fetching ubicaciones from database...');
+      
       const supabase = createClient(
         Deno.env.get('SUPABASE_URL') ?? '',
-        Deno.env.get('SUPABASE_ANON_KEY') ?? ''
+        Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
       );
       
       const { data, error } = await supabase
@@ -26,13 +27,23 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
       
-      if (error || !data) {
-        console.error('Error cargando ubicaciones:', error);
+      if (error) {
+        console.error('Database error:', error);
+        return new Response(
+          JSON.stringify({ error: 'Error al cargar ubicaciones' }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      if (!data) {
+        console.error('No ubicaciones found in database');
         return new Response(
           JSON.stringify({ error: 'No se encontraron ubicaciones' }),
           { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
+      
+      console.log(`Returning ubicaciones version ${data.version}`);
       
       return new Response(
         JSON.stringify(data.contenido, null, 2),
