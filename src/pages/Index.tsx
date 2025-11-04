@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Building2, Search, TrendingUp, Users, Sparkles, Target, Zap } from "lucide-react";
+import { Search, TrendingUp, Users, Sparkles, Target, Zap } from "lucide-react";
+import homelyLogo from "@/assets/homely-logo.png";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -35,18 +36,18 @@ const Index = () => {
       <div className="container mx-auto px-4 py-16">
         <div className="text-center mb-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
           <div className="flex justify-center mb-6">
-            <div className="relative p-4 bg-gradient-to-br from-primary/20 to-primary/5 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-110">
-              <Building2 className="h-16 w-16 text-primary animate-pulse" />
+            <div className="relative">
+              <img src={homelyLogo} alt="Homely" className="h-32 w-32 object-contain hover:scale-110 transition-all duration-300" />
               <Sparkles className="h-6 w-6 text-primary absolute -top-2 -right-2 animate-bounce" />
             </div>
           </div>
           <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent drop-shadow-lg">
-            InmoFinder
+            Homely
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
             Plataforma inteligente de matching de propiedades inmobiliarias. 
             <span className="block mt-2 font-semibold text-foreground/80">
-              Conecta clientes con sus propiedades ideales mediante scraping automático y scoring avanzado.
+              Turning data into home decisions.
             </span>
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">

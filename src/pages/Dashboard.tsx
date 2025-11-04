@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import homelyLogo from "@/assets/homely-logo.png";
 
 const Dashboard = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -120,10 +121,10 @@ const Dashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Building2 className="h-6 w-6 text-primary" />
+          <div className="flex items-center gap-3">
+            <img src={homelyLogo} alt="Homely" className="h-10 w-10 object-contain" />
             <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-              InmoFinder
+              Homely
             </h1>
           </div>
           <div className="flex items-center gap-2">

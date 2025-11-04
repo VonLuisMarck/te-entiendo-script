@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Building2, ShieldCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { z } from "zod";
+import homelyLogo from "@/assets/homely-logo.png";
 
 const authSchema = z.object({
   email: z.string().email("Email inválido").max(255, "Email demasiado largo"),
@@ -74,13 +75,11 @@ const AdminAuth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-primary/10 rounded-full">
-              <ShieldCheck className="h-8 w-8 text-primary" />
-            </div>
+            <img src={homelyLogo} alt="Homely" className="h-20 w-20 object-contain" />
           </div>
           <CardTitle className="text-2xl font-bold">Panel de Administración</CardTitle>
           <CardDescription>
-            Acceso exclusivo para empleados de InmoFinder
+            Acceso exclusivo para empleados de Homely
           </CardDescription>
         </CardHeader>
         <CardContent>
