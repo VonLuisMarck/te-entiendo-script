@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Building2, Users, TrendingUp, FileText, LogOut, Settings } from "lucide-react";
+import { Building2, Users, TrendingUp, FileText, LogOut, Settings, Search, MapPin, BarChart3, Archive } from "lucide-react";
 import { generateBusinessReport } from "@/lib/business-report-generator";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { SpainHeatmap } from "@/components/SpainHeatmap";
 import homelyLogo from "@/assets/homely-logo.png";
 
 const Dashboard = () => {
@@ -209,40 +210,124 @@ const Dashboard = () => {
         </div>
 
         <div className="mb-8">
+          <h3 className="text-xl font-bold mb-4">Mapa de Propiedades Activas</h3>
+          <SpainHeatmap />
+        </div>
+
+        <div className="mb-8">
           <h3 className="text-xl font-bold mb-4">Navegación Rápida</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate("/propiedades")}
-            >
-              <Building2 className="h-6 w-6" />
-              <span>Propiedades</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate("/clientes")}
-            >
-              <Users className="h-6 w-6" />
-              <span>Clientes</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate("/matchings")}
-            >
-              <TrendingUp className="h-6 w-6" />
-              <span>Matchings</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="h-20 flex flex-col gap-2"
-              onClick={() => navigate("/scraper")}
-            >
-              <FileText className="h-6 w-6" />
-              <span>Scraper</span>
-            </Button>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/propiedades")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                    <Building2 className="h-6 w-6 text-primary" />
+                  </div>
+                  Propiedades
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Gestiona y visualiza todas las propiedades scrapeadas
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/clientes")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <div className="p-2 rounded-lg bg-success/10 group-hover:bg-success/20 transition-colors">
+                    <Users className="h-6 w-6 text-success" />
+                  </div>
+                  Clientes
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Administra tus clientes y sus criterios de búsqueda
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/matchings")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <div className="p-2 rounded-lg bg-warning/10 group-hover:bg-warning/20 transition-colors">
+                    <Search className="h-6 w-6 text-warning" />
+                  </div>
+                  Matchings
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Revisa las coincidencias entre clientes y propiedades
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/scraper")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                    <TrendingUp className="h-6 w-6 text-primary" />
+                  </div>
+                  Scraper
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Configura y ejecuta scrapers de portales inmobiliarios
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/metricas")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <div className="p-2 rounded-lg bg-accent/10 group-hover:bg-accent/20 transition-colors">
+                    <BarChart3 className="h-6 w-6 text-accent" />
+                  </div>
+                  Métricas de Mercado
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Análisis de precios por ciudad y barrio - Detecta chollos
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/mercado-ciudades")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
+                    <MapPin className="h-6 w-6 text-primary" />
+                  </div>
+                  Mercado por Ciudades
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Análisis del mercado inmobiliario por ciudades
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/ubicaciones")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <div className="p-2 rounded-lg bg-accent/10 group-hover:bg-accent/20 transition-colors">
+                    <MapPin className="h-6 w-6 text-accent" />
+                  </div>
+                  Gestionar Ubicaciones
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Editar catálogo de provincias, ciudades y distritos
+                </CardDescription>
+              </CardHeader>
+            </Card>
+
+            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/historico")}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3 text-lg">
+                  <div className="p-2 rounded-lg bg-muted/10 group-hover:bg-muted/20 transition-colors">
+                    <Archive className="h-6 w-6 text-muted-foreground" />
+                  </div>
+                  Histórico
+                </CardTitle>
+                <CardDescription className="text-sm">
+                  Consulta el histórico de propiedades archivadas
+                </CardDescription>
+              </CardHeader>
+            </Card>
           </div>
         </div>
       </main>
