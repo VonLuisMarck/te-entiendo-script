@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { Building2, Users, TrendingUp, FileText, LogOut, Settings, Search, MapPin, BarChart3, Archive } from "lucide-react";
 import { generateBusinessReport } from "@/lib/business-report-generator";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -20,6 +20,7 @@ const Dashboard = () => {
     historico: 0,
   });
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -118,34 +119,90 @@ const Dashboard = () => {
     toast.success("Sesión cerrada");
   };
 
+  const menuItems = [
+    { title: "Dashboard", url: "/dashboard", icon: BarChart3 },
+    { title: "Propiedades", url: "/propiedades", icon: Building2 },
+    { title: "Clientes", url: "/clientes", icon: Users },
+    { title: "Matchings", url: "/matchings", icon: Search },
+    { title: "Scraper", url: "/scraper", icon: FileText },
+    { title: "Métricas", url: "/metricas", icon: BarChart3 },
+    { title: "Mercado", url: "/mercado-ciudades", icon: MapPin },
+    { title: "Ubicaciones", url: "/ubicaciones", icon: MapPin },
+    { title: "Histórico", url: "/historico", icon: Archive },
+  ];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+    <div className="min-h-screen flex bg-gradient-to-br from-background via-muted/20 to-background">
+      {/* Sidebar */}
+      <aside className="w-64 border-r bg-card/50 backdrop-blur-sm flex flex-col">
+        <div className="p-6 border-b">
           <div className="flex items-center gap-3">
             <img src={homelyLogo} alt="Homely" className="h-10 w-10 object-contain" />
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
               Homely
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <Button variant="outline" onClick={handleGenerateReport}>
-              <FileText className="h-4 w-4 mr-2" />
-              Descargar Informe
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate("/settings")}>
-              <Settings className="h-5 w-5" />
-            </Button>
-            <Button variant="ghost" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Cerrar Sesión
-            </Button>
-          </div>
         </div>
-      </header>
 
-      <main className="container mx-auto px-4 py-8">
+        <nav className="flex-1 p-4">
+          <div className="space-y-1">
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = location.pathname === item.url;
+              return (
+                <button
+                  key={item.url}
+                  onClick={() => navigate(item.url)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-all duration-200 ${
+                    isActive
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{item.title}</span>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        <div className="p-4 border-t space-y-2">
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={() => navigate("/settings")}
+          >
+            <Settings className="h-5 w-5 mr-3" />
+            Ajustes
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full justify-start"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-5 w-5 mr-3" />
+            Salir
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <div className="flex-1 flex flex-col">
+        <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+          <div className="px-6 py-4 flex justify-between items-center">
+            <h2 className="text-2xl font-bold">Dashboard</h2>
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
+              <Button variant="outline" onClick={handleGenerateReport}>
+                <FileText className="h-4 w-4 mr-2" />
+                Informe
+              </Button>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-6 overflow-auto">
         <div className="mb-8">
           <h2 className="text-3xl font-bold mb-2">Dashboard</h2>
           <p className="text-muted-foreground">
@@ -209,128 +266,12 @@ const Dashboard = () => {
           </Card>
         </div>
 
-        <div className="mb-8">
-          <h3 className="text-xl font-bold mb-4">Mapa de Propiedades Activas</h3>
-          <SpainHeatmap />
-        </div>
-
-        <div className="mb-8">
-          <h3 className="text-xl font-bold mb-4">Navegación Rápida</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/propiedades")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg">
-                  <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                    <Building2 className="h-6 w-6 text-primary" />
-                  </div>
-                  Propiedades
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Gestiona y visualiza todas las propiedades scrapeadas
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/clientes")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg">
-                  <div className="p-2 rounded-lg bg-success/10 group-hover:bg-success/20 transition-colors">
-                    <Users className="h-6 w-6 text-success" />
-                  </div>
-                  Clientes
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Administra tus clientes y sus criterios de búsqueda
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/matchings")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg">
-                  <div className="p-2 rounded-lg bg-warning/10 group-hover:bg-warning/20 transition-colors">
-                    <Search className="h-6 w-6 text-warning" />
-                  </div>
-                  Matchings
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Revisa las coincidencias entre clientes y propiedades
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/scraper")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg">
-                  <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                    <TrendingUp className="h-6 w-6 text-primary" />
-                  </div>
-                  Scraper
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Configura y ejecuta scrapers de portales inmobiliarios
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/metricas")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg">
-                  <div className="p-2 rounded-lg bg-accent/10 group-hover:bg-accent/20 transition-colors">
-                    <BarChart3 className="h-6 w-6 text-accent" />
-                  </div>
-                  Métricas de Mercado
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Análisis de precios por ciudad y barrio - Detecta chollos
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/mercado-ciudades")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg">
-                  <div className="p-2 rounded-lg bg-primary/10 group-hover:bg-primary/20 transition-colors">
-                    <MapPin className="h-6 w-6 text-primary" />
-                  </div>
-                  Mercado por Ciudades
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Análisis del mercado inmobiliario por ciudades
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/ubicaciones")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg">
-                  <div className="p-2 rounded-lg bg-accent/10 group-hover:bg-accent/20 transition-colors">
-                    <MapPin className="h-6 w-6 text-accent" />
-                  </div>
-                  Gestionar Ubicaciones
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Editar catálogo de provincias, ciudades y distritos
-                </CardDescription>
-              </CardHeader>
-            </Card>
-
-            <Card className="cursor-pointer hover:shadow-glow hover:scale-105 transition-all duration-300 shadow-elegant group" onClick={() => navigate("/historico")}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-3 text-lg">
-                  <div className="p-2 rounded-lg bg-muted/10 group-hover:bg-muted/20 transition-colors">
-                    <Archive className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  Histórico
-                </CardTitle>
-                <CardDescription className="text-sm">
-                  Consulta el histórico de propiedades archivadas
-                </CardDescription>
-              </CardHeader>
-            </Card>
+          <div className="mb-6">
+            <h3 className="text-xl font-bold mb-4">Mapa de Propiedades Activas</h3>
+            <SpainHeatmap />
           </div>
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };
