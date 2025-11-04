@@ -8,7 +8,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { SpainHeatmap } from "@/components/SpainHeatmap";
 import homelyLogo from "@/assets/homely-logo.png";
 
 const Dashboard = () => {
@@ -210,8 +209,41 @@ const Dashboard = () => {
         </div>
 
         <div className="mb-8">
-          <h3 className="text-xl font-bold mb-4">Mapa de Propiedades Activas por Ciudad</h3>
-          <SpainHeatmap />
+          <h3 className="text-xl font-bold mb-4">Navegación Rápida</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() => navigate("/propiedades")}
+            >
+              <Building2 className="h-6 w-6" />
+              <span>Propiedades</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() => navigate("/clientes")}
+            >
+              <Users className="h-6 w-6" />
+              <span>Clientes</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() => navigate("/matchings")}
+            >
+              <TrendingUp className="h-6 w-6" />
+              <span>Matchings</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="h-20 flex flex-col gap-2"
+              onClick={() => navigate("/scraper")}
+            >
+              <FileText className="h-6 w-6" />
+              <span>Scraper</span>
+            </Button>
+          </div>
         </div>
       </main>
     </div>
