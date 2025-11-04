@@ -44,7 +44,9 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         .from('clientes')
         .select('tipo_suscripcion')
         .eq('user_id', session.user.id)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
       console.log('Cliente data:', clienteData);
       console.log('Cliente error:', clienteError);
