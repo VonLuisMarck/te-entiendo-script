@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet";
+import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import "leaflet/dist/leaflet.css";
 import { Card } from "@/components/ui/card";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 interface PropertyLocation {
   location: string;
@@ -43,6 +43,8 @@ const cityCoordinates: Record<string, [number, number]> = {
 export function SpainHeatmap() {
   const [locations, setLocations] = useState<PropertyLocation[]>([]);
   const [loading, setLoading] = useState(true);
+  const mapRef = useRef<L.Map | null>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadPropertyLocations();
@@ -99,6 +101,48 @@ export function SpainHeatmap() {
     return Math.max(0.3, Math.min(0.8, (count / maxCount) * 0.8));
   };
 
+  useEffect(() => {
+    if (!mapContainerRef.current || mapRef.current || locations.length === 0) return;
+
+    // Inicializar el mapa
+    const map = L.map(mapContainerRef.current).setView([40.4168, -3.7038], 6);
+    mapRef.current = map;
+
+    // Añadir capa de tiles
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    }).addTo(map);
+
+    // Añadir marcadores
+    locations.forEach((location) => {
+      const radius = getRadius(location.count);
+      const opacity = getOpacity(location.count);
+
+      L.circleMarker([location.lat!, location.lon!], {
+        radius: radius,
+        fillColor: 'hsl(var(--primary))',
+        color: 'hsl(var(--primary))',
+        weight: 2,
+        opacity: opacity,
+        fillOpacity: opacity * 0.6,
+      })
+        .bindPopup(`
+          <div style="text-align: center;">
+            <strong style="font-size: 1rem; text-transform: capitalize;">${location.location}</strong>
+            <p style="font-size: 0.875rem; color: #666;">
+              ${location.count} ${location.count === 1 ? 'propiedad' : 'propiedades'}
+            </p>
+          </div>
+        `)
+        .addTo(map);
+    });
+
+    return () => {
+      map.remove();
+      mapRef.current = null;
+    };
+  }, [locations]);
+
   if (loading) {
     return (
       <Card className="w-full h-[500px] flex items-center justify-center">
@@ -109,40 +153,7 @@ export function SpainHeatmap() {
 
   return (
     <Card className="w-full h-[500px] overflow-hidden">
-      <MapContainer
-        center={[40.4168, -3.7038]} // Centro en Madrid
-        zoom={6}
-        className="h-full w-full"
-        scrollWheelZoom={false}
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        {locations.map((location, idx) => (
-          <CircleMarker
-            key={idx}
-            center={[location.lat!, location.lon!]}
-            radius={getRadius(location.count)}
-            pathOptions={{
-              fillColor: "hsl(var(--primary))",
-              color: "hsl(var(--primary))",
-              weight: 2,
-              opacity: getOpacity(location.count),
-              fillOpacity: getOpacity(location.count) * 0.6,
-            }}
-          >
-            <Popup>
-              <div className="text-center">
-                <strong className="text-base capitalize">{location.location}</strong>
-                <p className="text-sm text-muted-foreground">
-                  {location.count} {location.count === 1 ? "propiedad" : "propiedades"}
-                </p>
-              </div>
-            </Popup>
-          </CircleMarker>
-        ))}
-      </MapContainer>
+      <div ref={mapContainerRef} className="h-full w-full" />
     </Card>
   );
 }
