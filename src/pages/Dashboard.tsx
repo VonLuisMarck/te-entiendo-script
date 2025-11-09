@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { SpainHeatmap } from "@/components/SpainHeatmap";
+import Map from "@/components/Map";
 import homelyLogo from "@/assets/homely-logo.png";
 
 const Dashboard = () => {
@@ -266,9 +267,15 @@ const Dashboard = () => {
           </Card>
         </div>
 
-          <div className="mb-6">
-            <h3 className="text-xl font-bold mb-4">Mapa de Propiedades Activas</h3>
-            <SpainHeatmap />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            <div>
+              <h3 className="text-xl font-bold mb-4">Mapa de Propiedades Activas</h3>
+              <SpainHeatmap />
+            </div>
+            <div>
+              <h3 className="text-xl font-bold mb-4">Mapa Interactivo Global</h3>
+              <Map />
+            </div>
           </div>
         </main>
       </div>
