@@ -100,7 +100,7 @@ const Propiedades = () => {
         .maybeSingle();
 
       // Generar PDF
-      await generarPDFAnalisis({
+      const result = await generarPDFAnalisis({
         propiedad,
         matching: matching || undefined,
         metrica: metrica || undefined,
@@ -108,7 +108,20 @@ const Propiedades = () => {
         clienteNombre: cliente?.nombre || 'Cliente'
       });
 
-      toast.success("Análisis descargado correctamente");
+      if (result.warnings && result.warnings.length > 0) {
+        // Mostrar warning si no se pudo generar la imagen
+        const hasCreditsError = result.warnings.some(w => 
+          w.includes('créditos') || w.includes('credits') || w.includes('402')
+        );
+        
+        if (hasCreditsError) {
+          toast.warning("PDF generado sin imagen de la ciudad. No hay créditos suficientes para generar imágenes. Añade créditos en Settings → Workspace → Usage.");
+        } else {
+          toast.success("Análisis descargado correctamente (sin imagen de ciudad)");
+        }
+      } else {
+        toast.success("Análisis descargado correctamente");
+      }
     } catch (error) {
       console.error("Error generating PDF:", error);
       toast.error("Error al generar el análisis PDF");

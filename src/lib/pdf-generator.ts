@@ -48,15 +48,23 @@ export const generarPDFAnalisis = async ({
   
   // Generar imagen de la ciudad
   let cityImageUrl = null;
+  let imageGenerationWarning = null;
   try {
-    const { data: imageData } = await supabase.functions.invoke('generate-city-image', {
+    const { data: imageData, error: imageError } = await supabase.functions.invoke('generate-city-image', {
       body: { ciudad, provincia }
     });
-    if (imageData?.imageUrl) {
+    if (imageError) {
+      console.error('Error generando imagen de ciudad:', imageError);
+      imageGenerationWarning = imageError.message || 'Error desconocido al generar imagen';
+    } else if (imageData?.error) {
+      console.error('Error generando imagen de ciudad:', imageData.error);
+      imageGenerationWarning = imageData.error;
+    } else if (imageData?.imageUrl) {
       cityImageUrl = imageData.imageUrl;
     }
   } catch (error) {
     console.error('Error generando imagen de ciudad:', error);
+    imageGenerationWarning = error instanceof Error ? error.message : 'Error desconocido';
   }
   
   // === PORTADA ===
@@ -778,6 +786,12 @@ export const generarPDFAnalisis = async ({
   const ubicacionLimpia = propiedad.ubicacion.replace(/[,\s]/g, '_').substring(0, 30);
   const fileName = `InmoFinder_${ubicacionLimpia}_${Date.now()}.pdf`;
   doc.save(fileName);
+  
+  // Retornar información sobre warnings
+  return {
+    success: true,
+    warnings: imageGenerationWarning ? [imageGenerationWarning] : []
+  };
 };
 
 function generarConclusiones({ propiedad, matching, metrica, clientePerfil }: any): string[] {

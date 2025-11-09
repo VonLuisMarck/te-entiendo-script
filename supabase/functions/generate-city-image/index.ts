@@ -51,8 +51,16 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('AI Gateway error:', response.status, errorText);
+      
+      let errorMessage = 'Error al generar imagen';
+      if (response.status === 402) {
+        errorMessage = 'No hay créditos suficientes para generar imágenes. Por favor, añade créditos en Settings → Workspace → Usage.';
+      } else if (response.status === 429) {
+        errorMessage = 'Límite de peticiones excedido. Por favor, intenta de nuevo más tarde.';
+      }
+      
       return new Response(
-        JSON.stringify({ error: 'Error al generar imagen', details: errorText }),
+        JSON.stringify({ error: errorMessage, details: errorText }),
         { status: response.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
