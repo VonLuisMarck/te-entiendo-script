@@ -66,7 +66,7 @@ const ClienteMetricas = () => {
         .from('metricas_barrios')
         .select('*')
         .order('ciudad', { ascending: true })
-        .order('barrio', { ascending: true });
+        .order('distrito', { ascending: true });
 
       if (error) throw error;
       
