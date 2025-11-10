@@ -70,8 +70,13 @@ REGLAS CRÍTICAS DE EXTRACCIÓN:
 1. **Tipo de Propiedad**: Normaliza a UNO de estos valores EXACTOS:
    - "piso" | "chalet" | "duplex" | "atico" | "casa" | "estudio" | "otro"
 
-2. **Estado/Condición**: Normaliza a UNO de estos valores EXACTOS o null:
-   - "obra nueva" | "buen estado" | "a reformar" | null
+2. **Estado/Condición** (SÉ MUY ESTRICTO):
+   - "obra nueva": SOLO si menciona EXPLÍCITAMENTE: "obra nueva", "new build", "estrenar", "entrega inmediata", "promoción nueva"
+   - "buen estado": Si dice "buen estado", "reformado", "como nuevo", "listo para entrar"
+   - "a reformar": Si dice "para reformar", "necesita reforma", "para actualizar", "antiguos"
+   - null: Si NO hay información clara del estado
+   
+   ⚠️ IMPORTANTE: NO asumas "obra nueva" por defecto. Si no hay indicadores claros, usa null
 
 3. **Características** (analiza título y descripción):
    - tiene_ascensor: boolean (busca: "ascensor", "lift", "elevador")
