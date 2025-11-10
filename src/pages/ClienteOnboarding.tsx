@@ -53,6 +53,11 @@ const criteriosSchema = z.object({
   ubicaciones: z.array(z.string()).min(1, "Añade al menos una ubicación"),
   presupuestoMin: z.number().positive("El presupuesto mínimo debe ser mayor a 0").optional(),
   presupuestoMax: z.number().positive("El presupuesto máximo debe ser mayor a 0").optional(),
+  telefono: z.string()
+    .trim()
+    .regex(/^\+?[1-9]\d{1,14}$/, "Número de teléfono inválido. Usa formato internacional (ej: +34612345678)")
+    .min(9, "El teléfono debe tener al menos 9 dígitos")
+    .max(20, "El teléfono no puede tener más de 20 caracteres"),
 });
 
 const ClienteOnboarding = () => {
@@ -65,6 +70,7 @@ const ClienteOnboarding = () => {
   
   // Perfil inversor
   const [perfil, setPerfil] = useState('vivir');
+  const [telefono, setTelefono] = useState('');
   const [objetivoInversion, setObjetivoInversion] = useState('rentabilidad');
   const [horizonteTemporal, setHorizonteTemporal] = useState('medio');
   const [perfilRiesgo, setPerfilRiesgo] = useState('moderado');
@@ -173,6 +179,7 @@ const ClienteOnboarding = () => {
         ubicaciones,
         presupuestoMin: presupuestoMin ? parseFloat(presupuestoMin) : undefined,
         presupuestoMax: presupuestoMax ? parseFloat(presupuestoMax) : undefined,
+        telefono: telefono.trim(),
       });
 
       if (!validation.success) {
@@ -197,6 +204,7 @@ const ClienteOnboarding = () => {
             user_id: user.id,
             nombre: user.user_metadata?.nombre || user.email?.split('@')[0] || 'Usuario',
             email: user.email!,
+            telefono: telefono.trim(),
             perfil: perfil,
             presupuesto_min: presupuestoMin ? parseFloat(presupuestoMin) : null,
             presupuesto_max: presupuestoMax ? parseFloat(presupuestoMax) : null,
@@ -210,6 +218,7 @@ const ClienteOnboarding = () => {
         const { error: updateError } = await supabase
           .from('clientes')
           .update({
+            telefono: telefono.trim(),
             perfil: perfil,
             presupuesto_min: presupuestoMin ? parseFloat(presupuestoMin) : null,
             presupuesto_max: presupuestoMax ? parseFloat(presupuestoMax) : null,
@@ -260,7 +269,7 @@ const ClienteOnboarding = () => {
   const canGoNext = () => {
     switch (currentStep) {
       case 3:
-        return perfil !== '';
+        return perfil !== '' && telefono.trim() !== '';
       case 4:
         return ubicaciones.length > 0;
       case 5:
@@ -455,6 +464,29 @@ const ClienteOnboarding = () => {
                       </div>
                     </div>
                   </RadioGroup>
+                </div>
+
+                <div>
+                  <Label htmlFor="telefono" className="text-base font-semibold flex items-center gap-2 mb-2">
+                    <Bell className="h-4 w-4" />
+                    Teléfono para alertas de WhatsApp
+                    <span className="text-destructive">*</span>
+                  </Label>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    Recibirás notificaciones inmediatas cuando encontremos propiedades que coincidan con tus criterios
+                  </p>
+                  <Input
+                    id="telefono"
+                    type="tel"
+                    placeholder="+34 612 345 678"
+                    value={telefono}
+                    onChange={(e) => setTelefono(e.target.value)}
+                    className="text-base"
+                    maxLength={20}
+                  />
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Usa formato internacional (ej: +34612345678)
+                  </p>
                 </div>
 
                 {perfil !== 'vivir' && (
@@ -945,6 +977,7 @@ const ClienteOnboarding = () => {
                 <h4 className="font-semibold mb-3">Resumen de tu perfil:</h4>
                 <div className="space-y-2 text-sm">
                   <p><strong>Objetivo:</strong> {perfil === 'vivir' ? 'Vivienda habitual' : perfil === 'alquilar' ? 'Inversión en alquiler' : 'Reformar y vender'}</p>
+                  <p><strong>Teléfono:</strong> {telefono}</p>
                   <p><strong>Ubicaciones:</strong> {ubicaciones.join(', ')}</p>
                   <p><strong>Presupuesto:</strong> {presupuestoMin && presupuestoMax && `${new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(parseFloat(presupuestoMin))} - ${new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(parseFloat(presupuestoMax))}`}</p>
                   {tipoPropiedad.length > 0 && <p><strong>Tipo:</strong> {tipoPropiedad.join(', ')}</p>}
@@ -966,6 +999,7 @@ const ClienteOnboarding = () => {
                   <CardContent className="space-y-2 text-sm">
                     <p>• Revisaremos propiedades existentes</p>
                     <p>• Te notificaremos de nuevas propiedades</p>
+                    <p>• Recibirás alertas por WhatsApp</p>
                     <p>• Podrás ver matchings en tu dashboard</p>
                     <p>• Análisis de mercado disponible</p>
                   </CardContent>
