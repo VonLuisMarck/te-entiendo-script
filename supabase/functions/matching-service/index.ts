@@ -26,16 +26,13 @@ serve(async (req) => {
     const requestBody = await req.json();
     const { cliente_id, propiedad_id, recalcular_todos } = MatchingRequestSchema.parse(requestBody);
     
-    console.log('[Matching Service] Iniciando cálculo de matchings en background');
+    console.log('[Matching Service] Iniciando cálculo de matchings avanzado');
 
-    // Definir la tarea de procesamiento en background
     const processMatchings = async () => {
       const startTime = Date.now();
       let matchingsCreados = 0;
-      let matchingsActualizados = 0;
 
       try {
-        // Obtener clientes y propiedades según los filtros (con límite razonable)
         const { data: clientes } = await supabase
           .from('clientes')
           .select(`
@@ -47,14 +44,14 @@ serve(async (req) => {
           `)
           .eq('activo', true)
           .eq(cliente_id ? 'id' : 'activo', cliente_id || true)
-          .limit(20); // Limitar a 20 clientes máximo
+          .limit(20);
 
         const { data: propiedades } = await supabase
           .from('propiedades')
           .select('*')
           .eq('activo', true)
           .eq(propiedad_id ? 'id' : 'activo', propiedad_id || true)
-          .limit(100); // Limitar a 100 propiedades máximo
+          .limit(100);
 
         if (!clientes || !propiedades) {
           console.error('[Matching Service] No se encontraron clientes o propiedades');
@@ -63,7 +60,7 @@ serve(async (req) => {
 
         console.log(`[Matching Service] Procesando ${clientes.length} clientes x ${propiedades.length} propiedades`);
 
-        // Pre-cargar TODAS las métricas en memoria para evitar queries repetidas
+        // Pre-cargar métricas de mercado
         const { data: todasMetricas } = await supabase
           .from('metricas_barrios')
           .select('*');
@@ -76,7 +73,6 @@ serve(async (req) => {
           });
         }
 
-        // Procesar en lotes de 50 para evitar timeout
         const BATCH_SIZE = 50;
         const matchingsToUpsert: any[] = [];
 
@@ -84,77 +80,56 @@ serve(async (req) => {
           const criterios = cliente.criterios_busqueda?.[0];
           
           for (const propiedad of propiedades) {
-            // Calcular score base
-            const scoreBase = calcularScore(cliente, criterios, propiedad);
+            // Nuevo algoritmo exhaustivo de scoring
+            const resultado = calcularScoreExhaustivo(cliente, criterios, propiedad, metricasMap);
             
-            // Analizar precio vs mercado usando cache en memoria
-            const analisisMercado = analizarPrecioMercadoEnMemoria(propiedad, metricasMap);
-            
-            // Calcular bonus por oportunidad de mercado según perfil
-            const bonusMercado = calcularBonusPerfil(cliente.perfil, analisisMercado);
-            
-            // Score final
-            const score = Math.min(100, scoreBase + bonusMercado);
-            
-            if (score >= 60) {
-              const criteriosCumplidos = evaluarCriterios(cliente, criterios, propiedad);
-              
+            if (resultado.score >= 60) {
               matchingsToUpsert.push({
                 cliente_id: cliente.id,
                 propiedad_id: propiedad.id,
-                score,
-                criterios_cumplidos: criteriosCumplidos,
-                analisis_mercado: analisisMercado,
+                score: resultado.score,
+                criterios_cumplidos: resultado.criteriosCumplidos,
+                analisis_mercado: resultado.analisisMercado,
               });
 
-              // Cuando alcanzamos el tamaño del lote, hacemos upsert
               if (matchingsToUpsert.length >= BATCH_SIZE) {
-                const { error } = await supabase
+                await supabase
                   .from('matchings')
                   .upsert(matchingsToUpsert, {
                     onConflict: 'cliente_id,propiedad_id',
                     ignoreDuplicates: false
                   });
-
-                if (!error) {
-                  matchingsCreados += matchingsToUpsert.length;
-                }
-                matchingsToUpsert.length = 0; // Limpiar array
+                matchingsCreados += matchingsToUpsert.length;
+                matchingsToUpsert.length = 0;
               }
             }
           }
         }
 
-        // Procesar los matchings restantes
         if (matchingsToUpsert.length > 0) {
-          const { error } = await supabase
+          await supabase
             .from('matchings')
             .upsert(matchingsToUpsert, {
               onConflict: 'cliente_id,propiedad_id',
               ignoreDuplicates: false
             });
-
-          if (!error) {
-            matchingsCreados += matchingsToUpsert.length;
-          }
+          matchingsCreados += matchingsToUpsert.length;
         }
 
         const duracionSegundos = Math.floor((Date.now() - startTime) / 1000);
-        console.log(`[Matching Service] Completado: ${matchingsCreados} matchings procesados en ${duracionSegundos}s`);
+        console.log(`[Matching Service] Completado: ${matchingsCreados} matchings en ${duracionSegundos}s`);
       } catch (error) {
-        console.error('[Matching Service] Error en background:', error);
+        console.error('[Matching Service] Error:', error);
       }
     };
 
-    // Iniciar procesamiento en background
-    // @ts-ignore - EdgeRuntime está disponible en Supabase Edge Functions
+    // @ts-ignore
     EdgeRuntime.waitUntil(processMatchings());
 
-    // Devolver respuesta inmediata
     return new Response(
       JSON.stringify({
         success: true,
-        message: 'Cálculo de matchings iniciado en background',
+        message: 'Cálculo de matchings iniciado (algoritmo exhaustivo)',
         status: 'processing'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -162,220 +137,259 @@ serve(async (req) => {
   } catch (error: any) {
     console.error('[Matching Service] Error:', error.message);
     
-    const status = error.message?.includes('Unauthorized') ? 403 : 
-                   error.issues ? 400 : 500;
-    
     return new Response(
       JSON.stringify({ 
-        error: error.issues ? 'Invalid request data' : 'Failed to process matching'
+        error: 'Failed to process matching'
       }),
       { 
-        status,
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
   }
 });
 
-function calcularScore(cliente: any, criterios: any, propiedad: any): number {
-  let score = 0;
-  let maxScore = 0;
-  let penalizaciones = 0;
+/**
+ * ALGORITMO EXHAUSTIVO DE SCORING
+ * Considera todos los criterios del perfilado completo del cliente
+ */
+function calcularScoreExhaustivo(
+  cliente: any, 
+  criterios: any, 
+  propiedad: any,
+  metricasMap: Map<string, any>
+): { score: number; criteriosCumplidos: any; analisisMercado: any } {
+  
+  let scoreTotal = 0;
+  const pesos: any = {};
+  const cumplimiento: any = {};
 
-  // Presupuesto (peso: 25 puntos base - CRÍTICO)
-  maxScore += 25;
-  if (propiedad.precio >= (cliente.presupuesto_min || 0) && 
-      propiedad.precio <= (cliente.presupuesto_max || Infinity)) {
+  // ==========================================
+  // 1. PRESUPUESTO (25 puntos) - CRÍTICO
+  // ==========================================
+  pesos.presupuesto = 25;
+  const flexibilidad = 0.10; // 10% de flexibilidad por defecto
+  const presupuestoMinFlex = (cliente.presupuesto_min || 0) * (1 - flexibilidad);
+  const presupuestoMaxFlex = (cliente.presupuesto_max || Infinity) * (1 + flexibilidad);
+
+  if (propiedad.precio >= presupuestoMinFlex && propiedad.precio <= presupuestoMaxFlex) {
+    const rangoTotal = presupuestoMaxFlex - presupuestoMinFlex;
+    const posicion = (propiedad.precio - presupuestoMinFlex) / rangoTotal;
     
-    // Estar dentro del presupuesto ya no da el máximo automáticamente
-    // Depende de qué tan cerca del límite inferior estés (más bajo = mejor)
-    const presupuestoMax = cliente.presupuesto_max || propiedad.precio;
-    const presupuestoMin = cliente.presupuesto_min || 0;
-    const rangoPresupuesto = presupuestoMax - presupuestoMin;
+    // Mejor score cuanto más bajo en el rango
+    if (posicion <= 0.20) scoreTotal += 25;
+    else if (posicion <= 0.40) scoreTotal += 22;
+    else if (posicion <= 0.60) scoreTotal += 18;
+    else if (posicion <= 0.80) scoreTotal += 14;
+    else scoreTotal += 10;
     
-    if (rangoPresupuesto > 0) {
-      // Cuanto más cerca del mínimo, mejor score (escala mucho más exigente)
-      const posicionEnRango = (propiedad.precio - presupuestoMin) / rangoPresupuesto;
-      
-      if (posicionEnRango <= 0.15) {
-        score += 25; // Solo el 15% más bajo obtiene puntuación perfecta
-      } else if (posicionEnRango <= 0.30) {
-        score += 21; // Hasta el 30% más bajo
-      } else if (posicionEnRango <= 0.50) {
-        score += 17; // Hasta la mitad del rango
-      } else if (posicionEnRango <= 0.70) {
-        score += 12; // Rango medio-alto
-      } else if (posicionEnRango <= 0.85) {
-        score += 8; // Cerca del límite superior
+    cumplimiento.presupuesto = true;
+  } else {
+    scoreTotal += 5; // Penalización severa
+    cumplimiento.presupuesto = false;
+  }
+
+  if (!criterios) {
+    return {
+      score: Math.round(scoreTotal),
+      criteriosCumplidos: cumplimiento,
+      analisisMercado: { disponible: false }
+    };
+  }
+
+  // ==========================================
+  // 2. UBICACIÓN (20 puntos) - MUY IMPORTANTE
+  // ==========================================
+  pesos.ubicacion = 20;
+  if (criterios.ubicaciones && matchUbicacion(criterios.ubicaciones, propiedad.ubicacion)) {
+    scoreTotal += 20;
+    cumplimiento.ubicacion = true;
+  } else {
+    cumplimiento.ubicacion = false;
+  }
+
+  // ==========================================
+  // 3. TIPO DE PROPIEDAD (15 puntos)
+  // ==========================================
+  pesos.tipoPropiedad = 15;
+  if (criterios.tipo_propiedad?.includes(propiedad.tipo_propiedad)) {
+    scoreTotal += 15;
+    cumplimiento.tipoPropiedad = true;
+  } else {
+    cumplimiento.tipoPropiedad = false;
+  }
+
+  // ==========================================
+  // 4. SUPERFICIE (12 puntos)
+  // ==========================================
+  pesos.superficie = 12;
+  const metrosMin = criterios.metros_min || 0;
+  const metrosMax = criterios.metros_max || Infinity;
+  
+  if (propiedad.metros >= metrosMin && propiedad.metros <= metrosMax) {
+    // Score progresivo según cercanía al ideal
+    const rangoMetros = metrosMax - metrosMin;
+    if (rangoMetros > 0) {
+      const posicionMetros = (propiedad.metros - metrosMin) / rangoMetros;
+      if (posicionMetros >= 0.4 && posicionMetros <= 0.7) {
+        scoreTotal += 12; // Rango ideal (centro del rango)
+      } else if (posicionMetros >= 0.2 && posicionMetros <= 0.9) {
+        scoreTotal += 10; // Rango bueno
       } else {
-        score += 4; // Muy cerca del máximo (casi penalización)
+        scoreTotal += 7; // En los extremos
       }
     } else {
-      score += 15; // Sin rango definido, puntuación media-baja
+      scoreTotal += 10;
     }
+    cumplimiento.superficie = true;
   } else {
-    // Fuera del presupuesto: penalización significativa
     const desviacion = Math.min(
-      Math.abs(propiedad.precio - (cliente.presupuesto_min || 0)),
-      Math.abs(propiedad.precio - (cliente.presupuesto_max || Infinity))
+      Math.abs(propiedad.metros - metrosMin),
+      Math.abs(propiedad.metros - metrosMax)
     );
-    const penalizacion = Math.min(25, (desviacion / 5000) * 5);
-    score += Math.max(0, 25 - penalizacion);
-    penalizaciones += 15; // Penalización adicional por estar fuera
+    scoreTotal += Math.max(0, 12 - (desviacion / 10));
+    cumplimiento.superficie = false;
   }
 
-  if (!criterios) return Math.max(0, (score / maxScore) * 100 - penalizaciones);
-
-  // Ubicación (peso: 25 puntos) - MUY IMPORTANTE
-  maxScore += 25;
-  if (criterios.ubicaciones && matchUbicacion(criterios.ubicaciones, propiedad.ubicacion)) {
-    score += 25;
+  // ==========================================
+  // 5. DORMITORIOS (10 puntos)
+  // ==========================================
+  pesos.dormitorios = 10;
+  const dormitoriosMin = criterios.dormitorios_min || 0;
+  
+  if (propiedad.dormitorios >= dormitoriosMin) {
+    const exceso = propiedad.dormitorios - dormitoriosMin;
+    if (exceso === 0 || exceso === 1) scoreTotal += 10;
+    else if (exceso === 2) scoreTotal += 8;
+    else scoreTotal += 6;
+    cumplimiento.dormitorios = true;
   } else {
-    penalizaciones += 20; // No estar en la ubicación deseada es muy grave
+    cumplimiento.dormitorios = false;
   }
 
-  // Tipo de propiedad (peso: 15 puntos)
-  maxScore += 15;
-  if (criterios.tipo_propiedad?.includes(propiedad.tipo_propiedad)) {
-    score += 15;
+  // ==========================================
+  // 6. ESTADO/CONDICIÓN (8 puntos)
+  // ==========================================
+  pesos.condicion = 8;
+  if (!criterios.condition || criterios.condition.length === 0 || 
+      criterios.condition.includes(propiedad.condition)) {
+    scoreTotal += 8;
+    cumplimiento.condicion = true;
   } else {
-    penalizaciones += 10; // Tipo incorrecto es importante
+    // Penalización menor si está cercano
+    const estadosOrdenados = ['para reformar', 'buen estado', 'reformado', 'obra nueva'];
+    const indexProp = estadosOrdenados.indexOf(propiedad.condition);
+    const indexesCriterio = criterios.condition.map((c: string) => estadosOrdenados.indexOf(c));
+    
+    if (indexesCriterio.some((idx: number) => Math.abs(idx - indexProp) <= 1)) {
+      scoreTotal += 4; // Estado cercano al deseado
+    }
+    cumplimiento.condicion = false;
   }
 
-  // Dormitorios (peso: 12 puntos)
-  maxScore += 12;
-  if (!criterios.dormitorios_min || propiedad.dormitorios >= criterios.dormitorios_min) {
-    // Ajustar puntos según qué tan por encima está
-    const exceso = propiedad.dormitorios - (criterios.dormitorios_min || 0);
-    if (exceso === 0 || exceso === 1) {
-      score += 12; // Perfecto o 1 más
-    } else if (exceso === 2) {
-      score += 10; // 2 dormitorios extra puede ser excesivo
-    } else if (exceso > 2) {
-      score += 7; // Demasiados dormitorios no siempre es bueno
+  // ==========================================
+  // 7. CARACTERÍSTICAS ESENCIALES (10 puntos total)
+  // ==========================================
+  pesos.caracteristicas = 10;
+  let caracteristicasScore = 0;
+  let caracteristicasTotal = 0;
+
+  // Ascensor (3 puntos)
+  if (criterios.tiene_ascensor === true) {
+    caracteristicasTotal += 3;
+    if (propiedad.tiene_ascensor) {
+      caracteristicasScore += 3;
+      cumplimiento.ascensor = true;
+    } else {
+      cumplimiento.ascensor = false;
+    }
+  }
+
+  // Parking (3 puntos)
+  if (criterios.tiene_parking === true) {
+    caracteristicasTotal += 3;
+    if (propiedad.tiene_parking) {
+      caracteristicasScore += 3;
+      cumplimiento.parking = true;
+    } else {
+      cumplimiento.parking = false;
+    }
+  }
+
+  // Trastero (2 puntos)
+  if (propiedad.tiene_trastero) {
+    caracteristicasScore += 2;
+    cumplimiento.trastero = true;
+  }
+
+  // Normalizar características a 10 puntos
+  if (caracteristicasTotal > 0) {
+    scoreTotal += (caracteristicasScore / caracteristicasTotal) * 10;
+  } else {
+    scoreTotal += caracteristicasScore;
+  }
+
+  // ==========================================
+  // 8. AÑO DE CONSTRUCCIÓN (5 puntos)
+  // ==========================================
+  pesos.anoConstruccion = 5;
+  if (criterios.ano_construccion_min) {
+    if (propiedad.ano_construccion && propiedad.ano_construccion >= criterios.ano_construccion_min) {
+      const antiguedad = new Date().getFullYear() - propiedad.ano_construccion;
+      if (antiguedad <= 5) scoreTotal += 5; // Muy nuevo
+      else if (antiguedad <= 15) scoreTotal += 4; // Relativamente nuevo
+      else if (antiguedad <= 30) scoreTotal += 3; // Aceptable
+      else scoreTotal += 2;
+      cumplimiento.anoConstruccion = true;
+    } else {
+      cumplimiento.anoConstruccion = false;
     }
   } else {
-    penalizaciones += 8; // Menos dormitorios de lo necesario
+    scoreTotal += 3; // No es criterio, valor neutral
   }
 
-  // Metros (peso: 12 puntos)
-  maxScore += 12;
-  if ((!criterios.metros_min || propiedad.metros >= criterios.metros_min) &&
-      (!criterios.metros_max || propiedad.metros <= criterios.metros_max)) {
-    score += 12;
-  } else {
-    // Penalización por desviación de metros
-    const desviacionMetros = criterios.metros_min && propiedad.metros < criterios.metros_min
-      ? criterios.metros_min - propiedad.metros
-      : criterios.metros_max && propiedad.metros > criterios.metros_max
-      ? propiedad.metros - criterios.metros_max
-      : 0;
-    
-    const penalizacionMetros = Math.min(8, (desviacionMetros / 10) * 2);
-    penalizaciones += penalizacionMetros;
-    score += Math.max(4, 12 - penalizacionMetros);
+  // ==========================================
+  // 9. ANÁLISIS DE MERCADO (hasta +15 puntos bonus)
+  // ==========================================
+  const analisisMercado = analizarPrecioMercado(propiedad, metricasMap);
+  
+  if (analisisMercado.disponible) {
+    const bonusMercado = calcularBonusMercado(
+      cliente.perfil,
+      analisisMercado.desviacion_porcentaje,
+      analisisMercado.nivel_oportunidad
+    );
+    scoreTotal += bonusMercado;
+    cumplimiento.analisisMercado = analisisMercado;
   }
 
-  // Estado (peso: 6 puntos) - Más importante de lo que era
-  maxScore += 6;
-  if (!criterios.condition || criterios.condition.includes(propiedad.condition)) {
-    score += 6;
-  } else {
-    penalizaciones += 4; // Estado incorrecto puede ser problemático
-  }
+  // ==========================================
+  // 10. AJUSTE POR PERFIL DE INVERSOR
+  // ==========================================
+  const ajustePerfil = calcularAjustePorPerfil(cliente.perfil, propiedad, analisisMercado);
+  scoreTotal += ajustePerfil;
 
-  // Extras (peso: 5 puntos) - Menos importante pero suma
-  maxScore += 5;
-  let extrasScore = 0;
-  if (!criterios.tiene_ascensor || criterios.tiene_ascensor === propiedad.tiene_ascensor) {
-    extrasScore += 2.5;
-  } else {
-    penalizaciones += 2;
-  }
-  
-  if (!criterios.tiene_parking || criterios.tiene_parking === propiedad.tiene_parking) {
-    extrasScore += 2.5;
-  } else {
-    penalizaciones += 2;
-  }
-  score += extrasScore;
+  const scoreFinal = Math.max(0, Math.min(100, Math.round(scoreTotal)));
 
-  // Calcular score final con penalizaciones
-  const scoreBase = Math.round((score / maxScore) * 100);
-  const scoreFinal = Math.max(0, Math.min(100, scoreBase - penalizaciones));
-  
-  return scoreFinal;
-}
-
-function matchUbicacion(ubicacionesCriterios: string[], ubicacionPropiedad: string): boolean {
-  if (!ubicacionPropiedad) return false;
-  
-  // Normalizar función auxiliar
-  const normalizar = (texto: string) => texto
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-  
-  const ubicacionPropNorm = normalizar(ubicacionPropiedad);
-  
-  return ubicacionesCriterios.some(ubicCriterio => {
-    const criterioNorm = normalizar(ubicCriterio);
-    
-    // Match exacto
-    if (ubicacionPropNorm === criterioNorm) return true;
-    
-    // Si la ubicación de la propiedad contiene el criterio
-    // Ej: "Centro, Murcia" contiene "Murcia"
-    if (ubicacionPropNorm.includes(criterioNorm)) return true;
-    
-    // Si el criterio contiene la ubicación de la propiedad
-    // Ej: criterio "Murcia capital" y propiedad "Murcia"
-    if (criterioNorm.includes(ubicacionPropNorm)) return true;
-    
-    // Comparar por partes (ciudad, barrio)
-    const partesProp = ubicacionPropNorm.split(',').map(p => p.trim());
-    const partesCriterio = criterioNorm.split(',').map(p => p.trim());
-    
-    // Si alguna parte coincide
-    for (const parteProp of partesProp) {
-      for (const parteCrit of partesCriterio) {
-        if (parteProp === parteCrit) return true;
-        if (parteProp.includes(parteCrit) || parteCrit.includes(parteProp)) return true;
-      }
-    }
-    
-    return false;
-  });
-}
-
-function evaluarCriterios(cliente: any, criterios: any, propiedad: any): any {
   return {
-    presupuesto: propiedad.precio >= (cliente.presupuesto_min || 0) && 
-                 propiedad.precio <= (cliente.presupuesto_max || Infinity),
-    ubicacion: criterios?.ubicaciones ? matchUbicacion(criterios.ubicaciones, propiedad.ubicacion) : false,
-    tipo_propiedad: criterios?.tipo_propiedad?.includes(propiedad.tipo_propiedad),
-    dormitorios: !criterios?.dormitorios_min || propiedad.dormitorios >= criterios.dormitorios_min,
-    metros: (!criterios?.metros_min || propiedad.metros >= criterios.metros_min) &&
-            (!criterios?.metros_max || propiedad.metros <= criterios.metros_max),
-    condition: !criterios?.condition || criterios.condition.includes(propiedad.condition),
-    ascensor: criterios?.tiene_ascensor === propiedad.tiene_ascensor,
-    parking: criterios?.tiene_parking === propiedad.tiene_parking,
+    score: scoreFinal,
+    criteriosCumplidos: cumplimiento,
+    analisisMercado: analisisMercado
   };
 }
 
-// Versión optimizada que usa cache en memoria
-function analizarPrecioMercadoEnMemoria(propiedad: any, metricasMap: Map<string, any>): any {
+/**
+ * Analizar precio vs mercado
+ */
+function analizarPrecioMercado(propiedad: any, metricasMap: Map<string, any>): any {
   if (!propiedad.precio_m2 || !propiedad.ubicacion) {
     return { disponible: false };
   }
 
-  // Extraer ciudad y distrito
   const partes = propiedad.ubicacion.split(',').map((p: string) => p.trim());
   const ciudad = partes[0];
   const distrito = partes[1] || null;
 
-  // Buscar en el Map primero por distrito, luego por ciudad
   let metricasUsadas = metricasMap.get(`${ciudad}|${distrito}`);
   if (!metricasUsadas) {
     metricasUsadas = metricasMap.get(`${ciudad}|ciudad`);
@@ -385,12 +399,10 @@ function analizarPrecioMercadoEnMemoria(propiedad: any, metricasMap: Map<string,
     return { disponible: false };
   }
 
-  // Calcular desviación porcentual
   const precioM2Propiedad = propiedad.precio_m2;
   const precioM2Mercado = metricasUsadas.precio_m2_medio;
   const desviacionPorcentaje = ((precioM2Propiedad - precioM2Mercado) / precioM2Mercado) * 100;
 
-  // Determinar nivel de oportunidad
   let nivelOportunidad = 'normal';
   let esChollo = false;
 
@@ -420,44 +432,105 @@ function analizarPrecioMercadoEnMemoria(propiedad: any, metricasMap: Map<string,
   };
 }
 
-function calcularBonusPerfil(perfil: string, analisisMercado: any): number {
-  if (!analisisMercado.disponible) return 0;
-
-  const desviacion = analisisMercado.desviacion_porcentaje;
-
-  // AJUSTADO: Bonus más realista (max 15 puntos vs 20 previos)
-  // Solo para oportunidades reales
+/**
+ * Calcular bonus por oportunidad de mercado
+ */
+function calcularBonusMercado(perfil: string, desviacion: number, nivel: string): number {
   switch (perfil) {
     case 'reformar':
-      // Flippers: Solo interesa si es chollo MUY significativo
-      if (desviacion <= -30) return 15; // Súper chollazo excepcional
+      // Flippers necesitan chollos significativos
+      if (desviacion <= -30) return 15;
       if (desviacion <= -25) return 12;
       if (desviacion <= -20) return 10;
       if (desviacion <= -15) return 7;
       if (desviacion <= -10) return 4;
-      return 0; // Si no es chollo claro, no suma
+      return 0;
 
     case 'alquilar':
-      // Landlords: Valoran chollos pero también aceptan precio justo
+      // Inversores de alquiler valoran chollos y precio justo
       if (desviacion <= -30) return 13;
       if (desviacion <= -25) return 11;
       if (desviacion <= -20) return 9;
       if (desviacion <= -15) return 7;
       if (desviacion <= -10) return 5;
       if (desviacion <= -5) return 3;
-      if (Math.abs(desviacion) <= 5) return 2; // Precio justo vale poco
+      if (Math.abs(desviacion) <= 5) return 2;
       return 0;
 
     case 'vivir':
     default:
-      // End users: Menos exigentes pero valoran descuentos
+      // Vivienda habitual: cualquier descuento es positivo
       if (desviacion <= -30) return 12;
-      if (desviacion <= -25) return 10;
-      if (desviacion <= -20) return 8;
-      if (desviacion <= -15) return 6;
-      if (desviacion <= -10) return 5;
-      if (desviacion <= -5) return 3;
-      if (desviacion <= 0) return 1; // Cualquier descuento mínimo
+      if (desviacion <= -20) return 10;
+      if (desviacion <= -15) return 8;
+      if (desviacion <= -10) return 6;
+      if (desviacion <= -5) return 4;
+      if (desviacion <= 0) return 2;
       return 0;
   }
+}
+
+/**
+ * Ajuste adicional según perfil de inversor
+ */
+function calcularAjustePorPerfil(perfil: string, propiedad: any, analisis: any): number {
+  let ajuste = 0;
+
+  switch (perfil) {
+    case 'reformar':
+      // Flippers prefieren propiedades para reformar con potencial
+      if (propiedad.condition === 'para reformar') ajuste += 3;
+      if (analisis.disponible && analisis.es_chollo) ajuste += 2;
+      break;
+
+    case 'alquilar':
+      // Inversores de alquiler prefieren propiedades en buen estado
+      if (propiedad.condition === 'buen estado' || propiedad.condition === 'reformado') ajuste += 2;
+      if (propiedad.tiene_ascensor) ajuste += 1;
+      if (propiedad.tiene_parking) ajuste += 1;
+      break;
+
+    case 'vivir':
+      // Vivienda habitual: valora comodidades
+      if (propiedad.condition === 'obra nueva' || propiedad.condition === 'reformado') ajuste += 2;
+      if (propiedad.tiene_ascensor) ajuste += 1;
+      break;
+  }
+
+  return ajuste;
+}
+
+/**
+ * Match de ubicación (mismo que antes)
+ */
+function matchUbicacion(ubicacionesCriterios: string[], ubicacionPropiedad: string): boolean {
+  if (!ubicacionPropiedad) return false;
+  
+  const normalizar = (texto: string) => texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+  
+  const ubicacionPropNorm = normalizar(ubicacionPropiedad);
+  
+  return ubicacionesCriterios.some(ubicCriterio => {
+    const criterioNorm = normalizar(ubicCriterio);
+    
+    if (ubicacionPropNorm === criterioNorm) return true;
+    if (ubicacionPropNorm.includes(criterioNorm)) return true;
+    if (criterioNorm.includes(ubicacionPropNorm)) return true;
+    
+    const partesProp = ubicacionPropNorm.split(',').map(p => p.trim());
+    const partesCriterio = criterioNorm.split(',').map(p => p.trim());
+    
+    for (const parteProp of partesProp) {
+      for (const parteCrit of partesCriterio) {
+        if (parteProp === parteCrit) return true;
+        if (parteProp.includes(parteCrit) || parteCrit.includes(parteProp)) return true;
+      }
+    }
+    
+    return false;
+  });
 }
