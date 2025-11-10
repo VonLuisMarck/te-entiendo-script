@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { toast } from "sonner";
 import { ShieldCheck } from "lucide-react";
 import { z } from "zod";
-import homelyLogo from "@/assets/homely-logo.png";
+import findooLogo from "@/assets/findoo-logo.png";
 
 const authSchema = z.object({
   email: z.string().email("Email inválido").max(255, "Email demasiado largo"),
@@ -75,7 +75,7 @@ const AdminAuth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <img src={homelyLogo} alt="Findoo" className="h-20 w-20 object-contain" />
+            <img src={findooLogo} alt="Findoo" className="h-20 w-20 object-contain" />
           </div>
           <CardTitle className="text-2xl font-bold">Panel de Administración</CardTitle>
           <CardDescription>

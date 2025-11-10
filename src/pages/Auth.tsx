@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
 import { z } from "zod";
-import homelyLogo from "@/assets/homely-logo.png";
+import findooLogo from "@/assets/findoo-logo.png";
 
 const authSchema = z.object({
   email: z.string().email("Email inválido").max(255, "Email demasiado largo"),
@@ -98,7 +98,7 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <img src={homelyLogo} alt="Findoo" className="h-20 w-20 object-contain" />
+            <img src={findooLogo} alt="Findoo" className="h-20 w-20 object-contain" />
           </div>
           <CardTitle className="text-2xl font-bold">Portal de Clientes</CardTitle>
           <CardDescription>
