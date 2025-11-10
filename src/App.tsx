@@ -29,6 +29,7 @@ import Historico from "./pages/Historico";
 import Ubicaciones from "./pages/Ubicaciones";
 import ReclassifyProperties from "./pages/ReclassifyProperties";
 import BatchProcessing from "./pages/BatchProcessing";
+import PropiedadesRaw from "./pages/PropiedadesRaw";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/ubicaciones" element={<AdminProtectedRoute><Ubicaciones /></AdminProtectedRoute>} />
             <Route path="/reclassify-properties" element={<AdminProtectedRoute><ReclassifyProperties /></AdminProtectedRoute>} />
             <Route path="/batch-processing" element={<AdminProtectedRoute><BatchProcessing /></AdminProtectedRoute>} />
+            <Route path="/propiedades-raw" element={<AdminProtectedRoute><PropiedadesRaw /></AdminProtectedRoute>} />
             <Route path="/settings" element={<AdminProtectedRoute><Settings /></AdminProtectedRoute>} />
             <Route path="/subscription" element={<AdminProtectedRoute><Subscription /></AdminProtectedRoute>} />
             <Route path="/llamadas-ia" element={<AdminProtectedRoute><LlamadasIA /></AdminProtectedRoute>} />

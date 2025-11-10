@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Building2, Users, TrendingUp, FileText, LogOut, Settings, Search, MapPin, BarChart3, Archive, Zap } from "lucide-react";
+import { Building2, Users, TrendingUp, FileText, LogOut, Settings, Search, MapPin, BarChart3, Archive, Zap, Database } from "lucide-react";
 import { generateBusinessReport } from "@/lib/business-report-generator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -122,6 +122,7 @@ const Dashboard = () => {
   const menuItems = [
     { title: "Dashboard", url: "/dashboard", icon: BarChart3 },
     { title: "Propiedades", url: "/propiedades", icon: Building2 },
+    { title: "Raw Data", url: "/propiedades-raw", icon: Database },
     { title: "Clientes", url: "/clientes", icon: Users },
     { title: "Matchings", url: "/matchings", icon: Search },
     { title: "Scraper", url: "/scraper", icon: FileText },
