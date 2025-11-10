@@ -58,7 +58,7 @@ const Metricas = () => {
         .from("metricas_barrios")
         .select("*")
         .order("ciudad", { ascending: true })
-        .order("barrio", { ascending: true, nullsFirst: true });
+        .order("distrito", { ascending: true, nullsFirst: true });
 
       if (error) throw error;
       setMetricas(data || []);
