@@ -334,6 +334,44 @@ export type Database = {
           },
         ]
       }
+      matching_feedback: {
+        Row: {
+          cliente_id: string
+          created_at: string
+          feedback_type: string
+          id: string
+          matching_id: string | null
+          notas: string | null
+          propiedad_id: string
+        }
+        Insert: {
+          cliente_id: string
+          created_at?: string
+          feedback_type: string
+          id?: string
+          matching_id?: string | null
+          notas?: string | null
+          propiedad_id: string
+        }
+        Update: {
+          cliente_id?: string
+          created_at?: string
+          feedback_type?: string
+          id?: string
+          matching_id?: string | null
+          notas?: string | null
+          propiedad_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "matching_feedback_matching_id_fkey"
+            columns: ["matching_id"]
+            isOneToOne: false
+            referencedRelation: "matchings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       matchings: {
         Row: {
           analisis_mercado: Json | null

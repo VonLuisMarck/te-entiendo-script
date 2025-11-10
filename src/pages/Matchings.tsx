@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Home, LogOut, TrendingUp, RefreshCw, ExternalLink, MessageCircle, FileText, Hammer, Send } from "lucide-react";
+import { Search, Home, LogOut, TrendingUp, RefreshCw, ExternalLink, MessageCircle, FileText, Hammer, Send, ThumbsUp, ThumbsDown, Star } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +59,7 @@ const Matchings = () => {
   const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
   const [generatingPresupuesto, setGeneratingPresupuesto] = useState<string | null>(null);
   const [sendingWhatsApp, setSendingWhatsApp] = useState<string | null>(null);
+  const [feedbackLoading, setFeedbackLoading] = useState<string | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -331,6 +332,34 @@ const Matchings = () => {
       .sort((a, b) => b.mejorScore - a.mejorScore);
   }, [matchings]);
 
+  const handleFeedback = async (matching: Matching, feedbackType: string) => {
+    setFeedbackLoading(matching.id);
+    try {
+      const { error } = await supabase
+        .from('matching_feedback')
+        .insert({
+          matching_id: matching.id,
+          cliente_id: matching.cliente_id,
+          propiedad_id: matching.propiedades.id || matching.propiedad_id,
+          feedback_type: feedbackType
+        });
+
+      if (error) throw error;
+
+      toast.success("Feedback guardado. El algoritmo mejorará con tu valoración.");
+      
+      // Recalcular matchings para aplicar el aprendizaje
+      setTimeout(() => {
+        recalcularMatchings();
+      }, 500);
+    } catch (error: any) {
+      console.error("Error saving feedback:", error);
+      toast.error("Error al guardar feedback");
+    } finally {
+      setFeedbackLoading(null);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate("/auth");
@@ -479,6 +508,53 @@ const Matchings = () => {
                                 ))}
                               </div>
                             )}
+
+                            <div className="mb-3 p-3 bg-muted/30 rounded-md border">
+                              <p className="text-xs font-semibold mb-2 flex items-center gap-2">
+                                <Star className="h-4 w-4 text-primary" />
+                                Ayuda a mejorar el algoritmo
+                              </p>
+                              <div className="flex gap-2 flex-wrap">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleFeedback(matching, 'muy_relevante')}
+                                  disabled={feedbackLoading === matching.id}
+                                  className="flex-1 min-w-[120px]"
+                                >
+                                  <ThumbsUp className="h-4 w-4 mr-1" />
+                                  Muy Relevante
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleFeedback(matching, 'relevante')}
+                                  disabled={feedbackLoading === matching.id}
+                                  className="flex-1 min-w-[100px]"
+                                >
+                                  Relevante
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleFeedback(matching, 'irrelevante')}
+                                  disabled={feedbackLoading === matching.id}
+                                  className="flex-1 min-w-[100px]"
+                                >
+                                  Irrelevante
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleFeedback(matching, 'muy_irrelevante')}
+                                  disabled={feedbackLoading === matching.id}
+                                  className="flex-1 min-w-[120px]"
+                                >
+                                  <ThumbsDown className="h-4 w-4 mr-1" />
+                                  Muy Irrelevante
+                                </Button>
+                              </div>
+                            </div>
 
                             <div className="flex justify-between items-center gap-2">
                               <p className="text-xs text-muted-foreground">

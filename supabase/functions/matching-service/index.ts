@@ -52,6 +52,11 @@ serve(async (req) => {
           .eq('activo', true)
           .eq(propiedad_id ? 'id' : 'activo', propiedad_id || true)
           .limit(100);
+        
+        // Cargar feedback histórico para ML
+        const { data: feedbackData } = await supabase
+          .from('matching_feedback')
+          .select('cliente_id, propiedad_id, feedback_type');
 
         if (!clientes || !propiedades) {
           console.error('[Matching Service] No se encontraron clientes o propiedades');
@@ -73,23 +78,42 @@ serve(async (req) => {
           });
         }
 
+        // Organizar feedback por cliente para ML
+        const feedbackMap = new Map<string, any[]>();
+        if (feedbackData) {
+          feedbackData.forEach((fb: any) => {
+            if (!feedbackMap.has(fb.cliente_id)) {
+              feedbackMap.set(fb.cliente_id, []);
+            }
+            feedbackMap.get(fb.cliente_id)!.push(fb);
+          });
+        }
+
         const BATCH_SIZE = 50;
         const matchingsToUpsert: any[] = [];
 
         for (const cliente of clientes) {
           const criterios = cliente.criterios_busqueda?.[0];
+          const clienteFeedback = feedbackMap.get(cliente.id) || [];
           
           for (const propiedad of propiedades) {
-            // Nuevo algoritmo exhaustivo de scoring
+            // Nuevo algoritmo exhaustivo de scoring con ML
             const resultado = calcularScoreExhaustivo(cliente, criterios, propiedad, metricasMap);
             
-            if (resultado.score >= 60) {
+            // Aplicar ajuste ML basado en feedback histórico
+            const ajusteML = calcularAjusteML(propiedad, clienteFeedback);
+            const scoreFinal = Math.max(0, Math.min(100, resultado.score + ajusteML));
+            
+            if (scoreFinal >= 60) {
               matchingsToUpsert.push({
                 cliente_id: cliente.id,
                 propiedad_id: propiedad.id,
-                score: resultado.score,
+                score: scoreFinal,
                 criterios_cumplidos: resultado.criteriosCumplidos,
-                analisis_mercado: resultado.analisisMercado,
+                analisis_mercado: {
+                  ...resultado.analisisMercado,
+                  ajuste_ml: ajusteML
+                },
               });
 
               if (matchingsToUpsert.length >= BATCH_SIZE) {
@@ -165,7 +189,7 @@ function calcularScoreExhaustivo(
   const cumplimiento: any = {};
 
   // ==========================================
-  // 1. PRESUPUESTO (25 puntos) - CRÍTICO
+  // 1. PRESUPUESTO (25 puntos) - CRÍTICO - SISTEMA RELATIVO
   // ==========================================
   pesos.presupuesto = 25;
   const flexibilidad = 0.10; // 10% de flexibilidad por defecto
@@ -176,13 +200,29 @@ function calcularScoreExhaustivo(
     const rangoTotal = presupuestoMaxFlex - presupuestoMinFlex;
     const posicion = (propiedad.precio - presupuestoMinFlex) / rangoTotal;
     
-    // Mejor score cuanto más bajo en el rango
-    if (posicion <= 0.20) scoreTotal += 25;
-    else if (posicion <= 0.40) scoreTotal += 22;
-    else if (posicion <= 0.60) scoreTotal += 18;
-    else if (posicion <= 0.80) scoreTotal += 14;
-    else scoreTotal += 10;
+    // Score base: Inversamente proporcional a la posición en el rango (0-15 puntos)
+    // Cuanto más cerca del mínimo, más puntos
+    const scoreBase = 15 * (1 - posicion); // 15 en el mínimo, 0 en el máximo
     
+    // Bonus por precio vs mercado (0-10 puntos)
+    let bonusMercado = 0;
+    const metricasKey = propiedad.ciudad ? `${propiedad.ciudad}|${propiedad.distrito || 'ciudad'}` : null;
+    const metricas = metricasKey ? metricasMap.get(metricasKey) : null;
+    
+    if (metricas && metricas.precio_medio && propiedad.precio) {
+      const relacionPrecio = propiedad.precio / metricas.precio_medio;
+      
+      if (relacionPrecio <= 0.70) bonusMercado = 10; // 30%+ más barato que mercado
+      else if (relacionPrecio <= 0.80) bonusMercado = 8; // 20-30% más barato
+      else if (relacionPrecio <= 0.85) bonusMercado = 6; // 15-20% más barato
+      else if (relacionPrecio <= 0.90) bonusMercado = 5; // 10-15% más barato
+      else if (relacionPrecio <= 0.95) bonusMercado = 3; // 5-10% más barato
+      else if (relacionPrecio <= 1.00) bonusMercado = 2; // En mercado o ligeramente más barato
+      else if (relacionPrecio <= 1.05) bonusMercado = 1; // Hasta 5% más caro
+      // Más del 5% sobre mercado: 0 puntos
+    }
+    
+    scoreTotal += Math.min(25, scoreBase + bonusMercado);
     cumplimiento.presupuesto = true;
   } else {
     scoreTotal += 5; // Penalización severa
@@ -498,6 +538,66 @@ function calcularAjustePorPerfil(perfil: string, propiedad: any, analisis: any):
   }
 
   return ajuste;
+}
+
+/**
+ * Calcular ajuste ML basado en feedback histórico del cliente
+ */
+function calcularAjusteML(propiedad: any, feedbackHistorico: any[]): number {
+  if (!feedbackHistorico || feedbackHistorico.length === 0) return 0;
+
+  let ajuste = 0;
+  let pesoTotal = 0;
+
+  // Analizar patrones de feedback previo
+  for (const fb of feedbackHistorico) {
+    // Peso decrece con el tiempo (feedback reciente es más relevante)
+    const diasDesde = (Date.now() - new Date(fb.created_at).getTime()) / (1000 * 60 * 60 * 24);
+    const pesoTemporal = Math.max(0.1, 1 - (diasDesde / 365)); // Decae en 1 año
+
+    // Calcular similitud con la propiedad evaluada
+    // (simplificado - en producción usaríamos embeddings o features más sofisticados)
+    let similitud = 0;
+    let factoresSimilitud = 0;
+
+    // Comparar características clave
+    if (fb.tipo_propiedad === propiedad.tipo_propiedad) {
+      similitud += 1;
+      factoresSimilitud++;
+    }
+    if (fb.ubicacion === propiedad.ubicacion) {
+      similitud += 2; // Ubicación pesa más
+      factoresSimilitud++;
+    }
+    if (fb.condition === propiedad.condition) {
+      similitud += 1;
+      factoresSimilitud++;
+    }
+
+    if (factoresSimilitud > 0) {
+      similitud = similitud / factoresSimilitud;
+
+      // Aplicar ajuste según tipo de feedback
+      let valorFeedback = 0;
+      switch (fb.feedback_type) {
+        case 'muy_relevante': valorFeedback = 10; break;
+        case 'relevante': valorFeedback = 5; break;
+        case 'neutral': valorFeedback = 0; break;
+        case 'irrelevante': valorFeedback = -5; break;
+        case 'muy_irrelevante': valorFeedback = -10; break;
+      }
+
+      ajuste += valorFeedback * similitud * pesoTemporal;
+      pesoTotal += pesoTemporal;
+    }
+  }
+
+  // Normalizar ajuste (máximo ±15 puntos)
+  if (pesoTotal > 0) {
+    ajuste = (ajuste / pesoTotal) * 1.5; // Factor de escala
+  }
+
+  return Math.max(-15, Math.min(15, ajuste));
 }
 
 /**
