@@ -43,8 +43,9 @@ export const generarPDFAnalisis = async ({
     return false;
   };
 
-  // Usar ciudad y provincia de los campos de la base de datos
-  const ciudad = propiedad.ciudad || 'Ciudad desconocida';
+  // Extraer ubicación más detallada disponible
+  const ubicacionDetallada = propiedad.distrito || propiedad.ciudad || propiedad.provincia || propiedad.ubicacion || 'Ubicación no especificada';
+  const ciudad = propiedad.ciudad || propiedad.provincia || 'Ciudad desconocida';
   const provincia = propiedad.provincia || '';
   
   // Generar imagen de la ciudad (opcional)
@@ -99,12 +100,27 @@ export const generarPDFAnalisis = async ({
     }
   }
   
-  // Título principal - ubicación
+  // Título principal - generar título dinámico basado en análisis
+  let tituloPrincipal = ubicacionDetallada;
+  
+  // Si hay análisis de mercado, crear título con porcentaje de ajuste
+  if (matching?.analisis_mercado?.disponible) {
+    const desviacion = matching.analisis_mercado.desviacion_porcentaje;
+    if (desviacion <= -10) {
+      tituloPrincipal = `Ocasión con ${Math.abs(desviacion).toFixed(0)}% de ajuste`;
+    } else if (desviacion <= -5) {
+      tituloPrincipal = `Oportunidad con ${Math.abs(desviacion).toFixed(0)}% de descuento`;
+    } else if (desviacion <= 10) {
+      tituloPrincipal = `${ubicacionDetallada} - Precio Justo`;
+    } else {
+      tituloPrincipal = `${ubicacionDetallada} - ${desviacion.toFixed(0)}% sobre mercado`;
+    }
+  }
+  
   doc.setTextColor(cityImageUrl ? 255 : 30, cityImageUrl ? 255 : 58, cityImageUrl ? 255 : 138);
   doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  const ubicacionTitle = ciudad || propiedad.ubicacion;
-  doc.text(ubicacionTitle, pageWidth / 2, cityImageUrl ? 50 : 80, { align: 'center' });
+  doc.text(tituloPrincipal, pageWidth / 2, cityImageUrl ? 50 : 80, { align: 'center' });
   
   // Subtítulo con tipo de propiedad
   const ySubtitle = cityImageUrl ? 65 : 95;
@@ -167,7 +183,7 @@ export const generarPDFAnalisis = async ({
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   
-  const resumenText = `La propiedad ubicada en ${propiedad.ubicacion} representa ${
+  const resumenText = `La propiedad ubicada en ${ubicacionDetallada} representa ${
     clientePerfil === 'reformar' ? 'una oportunidad de inversión para reforma y reventa' :
     clientePerfil === 'alquilar' ? 'una oportunidad de inversión para alquiler' :
     'una opción para vivienda habitual'
@@ -376,7 +392,7 @@ export const generarPDFAnalisis = async ({
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text(`Análisis del Mercado en ${ciudad}${provincia ? ', ' + provincia : ''}`, margin, yPosition + 2);
+    doc.text(`Análisis del Mercado en ${ubicacionDetallada}`, margin, yPosition + 2);
     yPosition += 15;
 
     doc.setTextColor(0, 0, 0);
