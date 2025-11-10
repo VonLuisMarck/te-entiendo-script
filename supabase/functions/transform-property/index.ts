@@ -44,54 +44,63 @@ serve(async (req) => {
       }
     }
 
-    const prompt = `Eres un experto en normalización de datos inmobiliarios. Debes transformar datos crudos de propiedades de diferentes portales a un modelo de datos estandarizado.
+    const prompt = `Eres un experto en normalización y extracción de datos inmobiliarios. Analiza el RAW completo del anuncio y extrae/normaliza TODOS los campos al modelo de datos estandarizado.
 
-DATOS CRUDOS DE LA PROPIEDAD:
+DATOS CRUDOS DEL ANUNCIO (RAW):
 ${JSON.stringify(propiedad, null, 2)}
 
-${ubicacionesJson ? `UBICACIONES DISPONIBLES EN ESPAÑA:\n${ubicacionesJson}\n` : ''}
+${ubicacionesJson ? `UBICACIONES DISPONIBLES EN ESPAÑA (solo municipios >50k habitantes):\n${ubicacionesJson}\n` : ''}
 
-TAREAS:
-1. **Ubicación**: Extrae y clasifica la ubicación en:
-   - ciudad (nombre normalizado de la ciudad)
-   - distrito (barrio/zona si está disponible)
-   - provincia (provincia española)
+REGLAS DE EXTRACCIÓN Y NORMALIZACIÓN:
 
-2. **Tipo de Propiedad**: Normaliza a uno de estos valores EXACTOS:
-   - "piso"
-   - "chalet" 
-   - "duplex"
-   - "atico"
-   - "casa"
-   - "estudio"
-   - "otro"
+1. **Ubicación** (CRÍTICO - lee el JSON de ubicaciones):
+   - ciudad: Busca en el JSON la ciudad que coincida. Solo municipios >50k habitantes.
+   - provincia: Extrae la provincia española correspondiente
+   - distrito: SOLO si la ciudad tiene >300k habitantes Y el dato está disponible. Si no, null.
 
-3. **Condición**: Normaliza a uno de estos valores EXACTOS:
-   - "obra nueva"
-   - "buen estado"
-   - "a reformar"
-   - null (si no se puede determinar)
+2. **Tipo de Propiedad**: Normaliza a UNO de estos valores EXACTOS:
+   - "piso" | "chalet" | "duplex" | "atico" | "casa" | "estudio" | "otro"
 
-4. **Extracción de datos de descripción**: Analiza el texto de descripción y titulo para extraer:
-   - tiene_ascensor (boolean)
-   - tiene_parking (boolean)
-   - ano_construccion (número de 4 dígitos o null)
+3. **Estado/Condición**: Normaliza a UNO de estos valores EXACTOS o null:
+   - "obra nueva" | "buen estado" | "a reformar" | null
 
-5. **Cálculo precio_m2**: Si no está presente y hay metros y precio, calcula: precio / metros
+4. **Características** (analiza título y descripción):
+   - tiene_ascensor: boolean (busca: "ascensor", "lift", "elevador")
+   - tiene_parking: boolean (busca: "parking", "garaje", "plaza de garaje", "garage")
+   - tiene_trastero: boolean (busca: "trastero", "storage room", "cuarto trastero")
+   - ano_construccion: número de 4 dígitos o null (busca: "año", "construido en", fechas)
 
-6. **Validación de campos numéricos**: Asegura que estos campos sean números válidos o null:
-   - dormitorios
-   - banos
-   - metros
-   - precio_m2
+5. **Datos numéricos**: Extrae y valida (número válido o null):
+   - dormitorios (habitaciones)
+   - banos (baños completos)
+   - metros (metros cuadrados, m², m2)
+   - precio_m2: Si falta y hay metros y precio, calcula: precio / metros
 
-IMPORTANTE: 
-- Mantén external_id, portal_origen, url, titulo, descripcion, precio, imagenes, fecha_scraping, fecha_publicacion tal cual
-- Solo transforma/normaliza los campos mencionados
-- Si un campo no se puede determinar con certeza, usa null
-- Los valores booleanos deben ser true/false, no "sí"/"no"
+6. **Datos de contacto del anunciante** (busca en descripción o campos específicos):
+   - contacto_email: Busca emails (format: xxx@xxx.xx)
+   - contacto_telefono: Busca teléfonos (formatos: +34 XXX XXX XXX, XXX XXX XXX, etc.)
 
-Responde SOLO con un objeto JSON válido con la propiedad transformada, sin explicaciones adicionales.`;
+7. **URLs de imágenes**:
+   - imagenes: Array de URLs de fotos del anuncio (mantén las que vienen o extrae si están en el raw)
+
+CAMPOS QUE DEBES MANTENER TAL CUAL (no transformar):
+- external_id
+- portal_origen
+- url
+- titulo
+- descripcion
+- precio
+- fecha_scraping
+- fecha_publicacion
+
+IMPORTANTE:
+- NO todos los campos son obligatorios. Si no encuentras un dato, usa null
+- Los booleanos deben ser true/false, nunca strings
+- distrito solo para ciudades >300k habitantes
+- Busca contacto en cualquier parte del raw
+- Sé flexible con formatos pero estricto con normalización
+
+Responde SOLO con un objeto JSON válido, sin markdown ni explicaciones:`;
 
     console.log('[Transform] Llamando a Lovable AI para transformación...');
 

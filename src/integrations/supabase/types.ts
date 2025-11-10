@@ -524,9 +524,13 @@ export type Database = {
           activo: boolean | null
           ano_construccion: number | null
           banos: number | null
+          ciudad: string | null
           condition: string | null
+          contacto_email: string | null
+          contacto_telefono: string | null
           created_at: string | null
           descripcion: string | null
+          distrito: string | null
           dormitorios: number | null
           external_id: string
           fecha_publicacion: string | null
@@ -538,8 +542,10 @@ export type Database = {
           portal_origen: string
           precio: number
           precio_m2: number | null
+          provincia: string | null
           tiene_ascensor: boolean | null
           tiene_parking: boolean | null
+          tiene_trastero: boolean | null
           tipo_propiedad: string
           titulo: string
           ubicacion: string
@@ -550,9 +556,13 @@ export type Database = {
           activo?: boolean | null
           ano_construccion?: number | null
           banos?: number | null
+          ciudad?: string | null
           condition?: string | null
+          contacto_email?: string | null
+          contacto_telefono?: string | null
           created_at?: string | null
           descripcion?: string | null
+          distrito?: string | null
           dormitorios?: number | null
           external_id: string
           fecha_publicacion?: string | null
@@ -564,8 +574,10 @@ export type Database = {
           portal_origen: string
           precio: number
           precio_m2?: number | null
+          provincia?: string | null
           tiene_ascensor?: boolean | null
           tiene_parking?: boolean | null
+          tiene_trastero?: boolean | null
           tipo_propiedad: string
           titulo: string
           ubicacion: string
@@ -576,9 +588,13 @@ export type Database = {
           activo?: boolean | null
           ano_construccion?: number | null
           banos?: number | null
+          ciudad?: string | null
           condition?: string | null
+          contacto_email?: string | null
+          contacto_telefono?: string | null
           created_at?: string | null
           descripcion?: string | null
+          distrito?: string | null
           dormitorios?: number | null
           external_id?: string
           fecha_publicacion?: string | null
@@ -590,8 +606,10 @@ export type Database = {
           portal_origen?: string
           precio?: number
           precio_m2?: number | null
+          provincia?: string | null
           tiene_ascensor?: boolean | null
           tiene_parking?: boolean | null
+          tiene_trastero?: boolean | null
           tipo_propiedad?: string
           titulo?: string
           ubicacion?: string
