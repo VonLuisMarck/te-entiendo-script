@@ -47,26 +47,37 @@ export const generarPDFAnalisis = async ({
   const ciudad = propiedad.ciudad || 'Ciudad desconocida';
   const provincia = propiedad.provincia || '';
   
-  // Generar imagen de la ciudad
+  // Generar imagen de la ciudad (opcional)
   let cityImageUrl = null;
   let imageGenerationWarning = null;
   try {
     const { data: imageData, error: imageError } = await supabase.functions.invoke('generate-city-image', {
       body: { ciudad, provincia }
     });
+    
     if (imageError) {
-      console.error('Error generando imagen de ciudad:', imageError);
-      imageGenerationWarning = imageError.message || 'Error desconocido al generar imagen';
+      console.warn('No se pudo generar imagen de ciudad:', imageError);
+      imageGenerationWarning = imageError.message || 'Error al generar imagen';
     } else if (imageData?.error) {
-      console.error('Error generando imagen de ciudad:', imageData.error);
+      console.warn('No se pudo generar imagen de ciudad:', imageData.error);
       imageGenerationWarning = imageData.error;
+      
+      // Informar al usuario si es un error de créditos
+      if (imageData.error.includes('créditos')) {
+        console.info('💡 Añade créditos en Settings → Workspace → Usage para generar imágenes de ciudades');
+      }
     } else if (imageData?.imageUrl) {
       cityImageUrl = imageData.imageUrl;
+      console.log('✓ Imagen de ciudad generada correctamente');
+    } else {
+      console.warn('Respuesta inesperada al generar imagen');
     }
   } catch (error) {
-    console.error('Error generando imagen de ciudad:', error);
+    console.warn('Error al intentar generar imagen de ciudad:', error);
     imageGenerationWarning = error instanceof Error ? error.message : 'Error desconocido';
   }
+  
+  // El PDF se generará de todas formas, con o sin imagen
   
   // === PORTADA ===
   doc.setFillColor(240, 244, 248);
