@@ -721,31 +721,83 @@ export const generarPDFAnalisis = async ({
 
     if (matching.criterios_cumplidos) {
       const criterios = matching.criterios_cumplidos;
-      const criteriosData = [
-        ['Presupuesto', criterios.presupuesto ? 'Cumple' : 'No cumple'],
-        ['Ubicacion', criterios.ubicacion ? 'Cumple' : 'No cumple'],
-        ['Tipo de propiedad', criterios.tipo_propiedad ? 'Cumple' : 'No cumple'],
-        ['Dormitorios', criterios.dormitorios ? 'Cumple' : 'No cumple'],
-        ['Metros', criterios.metros ? 'Cumple' : 'No cumple'],
-      ];
+      
+      // Explicación del matching
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      const explicacionScore = score >= 80 
+        ? 'Esta propiedad cumple excelentemente con tus criterios de búsqueda. Es una opción altamente recomendada.'
+        : score >= 70
+        ? 'Esta propiedad cumple muy bien con la mayoría de tus requisitos. Vale la pena considerarla seriamente.'
+        : score >= 60
+        ? 'Esta propiedad cumple satisfactoriamente con varios de tus criterios, aunque con algunas diferencias.'
+        : 'Esta propiedad cumple parcialmente con tus criterios. Evalúa si las características que no coinciden son negociables.';
+      
+      const splitExpl = doc.splitTextToSize(explicacionScore, pageWidth - 2 * margin);
+      doc.text(splitExpl, margin, yPosition);
+      yPosition += splitExpl.length * 4 + 10;
+      
+      // Tabla de criterios mejorada
+      const criteriosData: string[][] = [];
+      
+      if (criterios.presupuesto !== undefined) {
+        const status = criterios.presupuesto ? '✓ Sí' : '✗ No';
+        criteriosData.push(['Presupuesto', status, criterios.presupuesto ? 'Dentro de tu rango' : 'Fuera de presupuesto']);
+      }
+      
+      if (criterios.ubicacion !== undefined) {
+        const status = criterios.ubicacion ? '✓ Sí' : '✗ No';
+        const detail = criterios.ubicacion ? `En ${ciudad}` : 'Otra ubicación';
+        criteriosData.push(['Ubicación', status, detail]);
+      }
+      
+      if (criterios.tipo_propiedad !== undefined) {
+        const status = criterios.tipo_propiedad ? '✓ Sí' : '✗ No';
+        criteriosData.push(['Tipo de propiedad', status, propiedad.tipo_propiedad]);
+      }
+      
+      if (criterios.dormitorios !== undefined) {
+        const status = criterios.dormitorios ? '✓ Sí' : '✗ No';
+        criteriosData.push(['Dormitorios', status, `${propiedad.dormitorios} habitaciones`]);
+      }
+      
+      if (criterios.metros !== undefined) {
+        const status = criterios.metros ? '✓ Sí' : '✗ No';
+        criteriosData.push(['Superficie', status, `${propiedad.metros} m²`]);
+      }
+      
+      if (criterios.condition !== undefined) {
+        const status = criterios.condition ? '✓ Sí' : '✗ No';
+        criteriosData.push(['Estado', status, propiedad.condition || 'No especificado']);
+      }
 
-      autoTable(doc, {
-        startY: yPosition,
-        body: criteriosData,
-        theme: 'striped',
-        styles: { 
-          fontSize: 9, 
-          cellPadding: 3,
-          font: 'helvetica'
-        },
-        columnStyles: {
-          0: { fontStyle: 'bold', cellWidth: 60, fillColor: [249, 250, 251] },
-          1: { cellWidth: 'auto' }
-        },
-        margin: { left: margin, right: margin }
-      });
+      if (criteriosData.length > 0) {
+        autoTable(doc, {
+          startY: yPosition,
+          head: [['Criterio', 'Cumple', 'Detalles']],
+          body: criteriosData,
+          theme: 'striped',
+          headStyles: {
+            fillColor: [30, 58, 138],
+            textColor: [255, 255, 255],
+            fontStyle: 'bold',
+            fontSize: 9
+          },
+          styles: { 
+            fontSize: 9, 
+            cellPadding: 3,
+            font: 'helvetica'
+          },
+          columnStyles: {
+            0: { fontStyle: 'bold', cellWidth: 50, fillColor: [249, 250, 251] },
+            1: { cellWidth: 25, halign: 'center' },
+            2: { cellWidth: 'auto' }
+          },
+          margin: { left: margin, right: margin }
+        });
 
-      yPosition = (doc as any).lastAutoTable.finalY + 12;
+        yPosition = (doc as any).lastAutoTable.finalY + 12;
+      }
     }
   }
 
@@ -772,7 +824,7 @@ export const generarPDFAnalisis = async ({
   });
 
   // Agregar box con conclusiones
-  const conclusionesText = conclusiones.map(c => `- ${c}`).join('\n\n');
+  const conclusionesText = conclusiones.map(c => `• ${c}`).join('\n\n');
   const splitText = doc.splitTextToSize(conclusionesText, pageWidth - 2 * margin - 10);
   const textHeight = splitText.length * 5 + 10;
   
@@ -783,6 +835,300 @@ export const generarPDFAnalisis = async ({
   
   yPosition += 6;
   doc.text(splitText, margin + 5, yPosition);
+  yPosition += textHeight + 10;
+
+  // === ANÁLISIS DE RIESGOS Y OPORTUNIDADES ===
+  checkNewPage(80);
+  
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, yPosition - 5, pageWidth, 10, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Análisis de Riesgos y Oportunidades', margin, yPosition + 2);
+  yPosition += 15;
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  
+  // OPORTUNIDADES
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(34, 197, 94);
+  doc.text('✓ Oportunidades Identificadas', margin, yPosition);
+  yPosition += 8;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  
+  const oportunidades: string[] = [];
+  
+  if (matching?.analisis_mercado?.disponible && matching.analisis_mercado.desviacion_porcentaje < -5) {
+    oportunidades.push(`Precio ${Math.abs(matching.analisis_mercado.desviacion_porcentaje).toFixed(1)}% inferior al mercado - Potencial de negociación o reventa rápida con beneficio`);
+  }
+  
+  if (metrica?.proyeccion_revalorizacion_anual && metrica.proyeccion_revalorizacion_anual > 3) {
+    oportunidades.push(`Zona con crecimiento anual del ${metrica.proyeccion_revalorizacion_anual.toFixed(1)}% - Alta probabilidad de revalorización del activo`);
+  }
+  
+  if (clientePerfil === 'reformar' && (propiedad.condition === 'a reformar' || propiedad.condition === 'para reformar')) {
+    oportunidades.push('Estado para reformar permite maximizar ROI mediante reforma integral y modernización');
+  }
+  
+  if (propiedad.metros >= 80 && propiedad.dormitorios < 4) {
+    oportunidades.push(`Con ${propiedad.metros}m² es posible redistribuir espacios para añadir dormitorios y aumentar el valor de mercado`);
+  }
+  
+  if (metrica && metrica.total_propiedades < 50) {
+    oportunidades.push('Mercado con poca oferta - Mayor poder de negociación y menor competencia');
+  }
+  
+  if (!propiedad.tiene_ascensor && propiedad.tiene_parking) {
+    oportunidades.push('Parking disponible aumenta atractivo y justifica precio superior en zona urbana');
+  }
+  
+  if (oportunidades.length === 0) {
+    oportunidades.push('Propiedad estándar sin oportunidades excepcionales identificadas en este momento');
+  }
+  
+  const oportunidadesText = oportunidades.map((o, i) => `${i + 1}. ${o}`).join('\n\n');
+  const splitOp = doc.splitTextToSize(oportunidadesText, pageWidth - 2 * margin - 10);
+  const opHeight = splitOp.length * 4 + 10;
+  
+  checkNewPage(opHeight + 20);
+  
+  doc.setFillColor(240, 253, 244);
+  doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, opHeight, 2, 2, 'F');
+  
+  yPosition += 6;
+  doc.text(splitOp, margin + 5, yPosition);
+  yPosition += opHeight + 15;
+  
+  // RIESGOS
+  checkNewPage(40);
+  
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(239, 68, 68);
+  doc.text('⚠ Riesgos a Considerar', margin, yPosition);
+  yPosition += 8;
+  
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(0, 0, 0);
+  
+  const riesgos: string[] = [];
+  
+  if (matching?.analisis_mercado?.disponible && matching.analisis_mercado.desviacion_porcentaje > 15) {
+    riesgos.push(`Precio ${matching.analisis_mercado.desviacion_porcentaje.toFixed(1)}% superior al mercado - Riesgo de sobrepago y dificultad para revender`);
+  }
+  
+  if (metrica?.proyeccion_revalorizacion_anual && metrica.proyeccion_revalorizacion_anual < 0) {
+    riesgos.push(`Mercado en descenso ${metrica.proyeccion_revalorizacion_anual.toFixed(1)}% anual - Riesgo de depreciación del activo`);
+  }
+  
+  if (!propiedad.tiene_ascensor && propiedad.metros > 100) {
+    riesgos.push('Sin ascensor puede limitar mercado potencial, especialmente para familias o personas mayores');
+  }
+  
+  if (propiedad.ano_construccion && propiedad.ano_construccion < 1980) {
+    riesgos.push(`Construcción de ${propiedad.ano_construccion} puede requerir gastos imprevistos en instalaciones (electricidad, fontanería, estructura)`);
+  }
+  
+  if (!propiedad.condition || propiedad.condition === 'a reformar') {
+    riesgos.push('Estado a reformar implica inversión adicional significativa y periodo sin generar ingresos durante obras');
+  }
+  
+  if (metrica && metrica.total_propiedades > 200) {
+    riesgos.push('Alta competencia en el mercado local - Más difícil destacar y puede presionar precios a la baja');
+  }
+  
+  if (riesgos.length === 0) {
+    riesgos.push('No se han identificado riesgos significativos en base a la información disponible');
+  }
+  
+  const riesgosText = riesgos.map((r, i) => `${i + 1}. ${r}`).join('\n\n');
+  const splitRiesgo = doc.splitTextToSize(riesgosText, pageWidth - 2 * margin - 10);
+  const riesgoHeight = splitRiesgo.length * 4 + 10;
+  
+  checkNewPage(riesgoHeight + 20);
+  
+  doc.setFillColor(254, 242, 242);
+  doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, riesgoHeight, 2, 2, 'F');
+  
+  yPosition += 6;
+  doc.text(splitRiesgo, margin + 5, yPosition);
+  yPosition += riesgoHeight + 15;
+
+  // === ANÁLISIS FINANCIERO PERSONALIZADO ===
+  checkNewPage(100);
+  
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, yPosition - 5, pageWidth, 10, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  const tituloFinanciero = clientePerfil === 'reformar' ? 'Análisis Financiero - Reformar y Vender' :
+                          clientePerfil === 'alquilar' ? 'Análisis Financiero - Inversión en Alquiler' :
+                          'Análisis Financiero - Vivienda Habitual';
+  doc.text(tituloFinanciero, margin, yPosition + 2);
+  yPosition += 15;
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  
+  if (clientePerfil === 'reformar') {
+    const costeReformaEstimado = Math.round(propiedad.metros * 600); // €600/m² reforma media
+    const precioCompra = propiedad.precio;
+    const precioVentaEstimado = metrica?.precio_m2_medio ? Math.round(metrica.precio_m2_medio * propiedad.metros) : Math.round(precioCompra * 1.15);
+    const gastosCompra = Math.round(precioCompra * 0.12); // 12% gastos notaría, registro, etc.
+    const gastosVenta = Math.round(precioVentaEstimado * 0.05); // 5% comisión agencia
+    const beneficioBruto = precioVentaEstimado - precioCompra - costeReformaEstimado - gastosCompra - gastosVenta;
+    const roi = ((beneficioBruto / (precioCompra + costeReformaEstimado + gastosCompra)) * 100).toFixed(1);
+    
+    const analisisText = `Inversión Total Estimada:\n`;
+    const analisisText2 = `• Precio de compra: ${formatNumber(precioCompra)} €\n`;
+    const analisisText3 = `• Reforma estimada (€600/m²): ${formatNumber(costeReformaEstimado)} €\n`;
+    const analisisText4 = `• Gastos de compra (~12%): ${formatNumber(gastosCompra)} €\n`;
+    const analisisText5 = `TOTAL INVERSIÓN: ${formatNumber(precioCompra + costeReformaEstimado + gastosCompra)} €\n\n`;
+    const analisisText6 = `Retorno Estimado:\n`;
+    const analisisText7 = `• Precio venta estimado: ${formatNumber(precioVentaEstimado)} €\n`;
+    const analisisText8 = `• Gastos venta (~5%): ${formatNumber(gastosVenta)} €\n`;
+    const analisisText9 = `BENEFICIO NETO ESTIMADO: ${formatNumber(beneficioBruto)} €\n`;
+    const analisisText10 = `ROI ESTIMADO: ${roi}%\n\n`;
+    const analisisText11 = `Tiempo estimado de proyecto: 6-12 meses (obras + comercialización)\n`;
+    const analisisText12 = `Rentabilidad anualizada: ${(parseFloat(roi) / 0.75).toFixed(1)}% (asumiendo 9 meses)`;
+    
+    const fullText = analisisText + analisisText2 + analisisText3 + analisisText4 + analisisText5 + 
+                    analisisText6 + analisisText7 + analisisText8 + analisisText9 + analisisText10 + 
+                    analisisText11 + analisisText12;
+    
+    const splitAnalisis = doc.splitTextToSize(fullText, pageWidth - 2 * margin - 10);
+    const analisisHeight = splitAnalisis.length * 4 + 10;
+    
+    checkNewPage(analisisHeight + 10);
+    
+    doc.setFillColor(254, 249, 195);
+    doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, analisisHeight, 2, 2, 'F');
+    
+    yPosition += 6;
+    doc.text(splitAnalisis, margin + 5, yPosition);
+    yPosition += analisisHeight + 12;
+    
+  } else if (clientePerfil === 'alquilar') {
+    const precioCompra = propiedad.precio;
+    const rentaMensualEstimada = Math.round((precioCompra * 0.05) / 12); // 5% rentabilidad anual
+    const gastosCompra = Math.round(precioCompra * 0.12);
+    const gastosMensuales = Math.round(rentaMensualEstimada * 0.25); // 25% gastos (comunidad, IBI, seguros, etc.)
+    const rentaNetaMensual = rentaMensualEstimada - gastosMensuales;
+    const rentabilidadNeta = ((rentaNetaMensual * 12 / (precioCompra + gastosCompra)) * 100).toFixed(2);
+    
+    const analisisText = `Inversión Inicial:\n`;
+    const analisisText2 = `• Precio de compra: ${formatNumber(precioCompra)} €\n`;
+    const analisisText3 = `• Gastos de compra (~12%): ${formatNumber(gastosCompra)} €\n`;
+    const analisisText4 = `TOTAL INVERSIÓN: ${formatNumber(precioCompra + gastosCompra)} €\n\n`;
+    const analisisText5 = `Ingresos Estimados Mensuales:\n`;
+    const analisisText6 = `• Renta mensual estimada: ${formatNumber(rentaMensualEstimada)} €\n`;
+    const analisisText7 = `• Gastos mensuales (~25%): ${formatNumber(gastosMensuales)} €\n`;
+    const analisisText8 = `RENTA NETA MENSUAL: ${formatNumber(rentaNetaMensual)} €\n`;
+    const analisisText9 = `RENTA NETA ANUAL: ${formatNumber(rentaNetaMensual * 12)} €\n\n`;
+    const analisisText10 = `RENTABILIDAD NETA: ${rentabilidadNeta}% anual\n\n`;
+    const analisisText11 = metrica?.proyeccion_revalorizacion_anual 
+      ? `Revalorización esperada: +${metrica.proyeccion_revalorizacion_anual.toFixed(1)}% anual adicional` 
+      : 'Revalorización: datos insuficientes para calcular';
+    
+    const fullText = analisisText + analisisText2 + analisisText3 + analisisText4 + analisisText5 + 
+                    analisisText6 + analisisText7 + analisisText8 + analisisText9 + analisisText10 + analisisText11;
+    
+    const splitAnalisis = doc.splitTextToSize(fullText, pageWidth - 2 * margin - 10);
+    const analisisHeight = splitAnalisis.length * 4 + 10;
+    
+    checkNewPage(analisisHeight + 10);
+    
+    doc.setFillColor(254, 249, 195);
+    doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, analisisHeight, 2, 2, 'F');
+    
+    yPosition += 6;
+    doc.text(splitAnalisis, margin + 5, yPosition);
+    yPosition += analisisHeight + 12;
+    
+  } else {
+    // Vivienda habitual
+    const precioCompra = propiedad.precio;
+    const gastosCompra = Math.round(precioCompra * 0.12);
+    const hipotecaEstimada = Math.round(precioCompra * 0.8); // 80% hipoteca
+    const cuotaMensualEst = Math.round((hipotecaEstimada * 0.005)); // ~0.5% mensual aprox
+    const entradaNecesaria = precioCompra - hipotecaEstimada + gastosCompra;
+    
+    const analisisText = `Coste Total de Adquisición:\n`;
+    const analisisText2 = `• Precio de compra: ${formatNumber(precioCompra)} €\n`;
+    const analisisText3 = `• Gastos de compra (~12%): ${formatNumber(gastosCompra)} €\n`;
+    const analisisText4 = `TOTAL: ${formatNumber(precioCompra + gastosCompra)} €\n\n`;
+    const analisisText5 = `Financiación Estimada (80% hipoteca):\n`;
+    const analisisText6 = `• Entrada necesaria: ${formatNumber(entradaNecesaria)} €\n`;
+    const analisisText7 = `• Hipoteca: ${formatNumber(hipotecaEstimada)} €\n`;
+    const analisisText8 = `• Cuota mensual estimada: ${formatNumber(cuotaMensualEst)} €/mes (aprox)\n\n`;
+    const analisisText9 = `Coste por m² habitable: ${formatNumber(Math.round(precioCompra / propiedad.metros))} €/m²\n`;
+    const analisisText10 = metrica?.proyeccion_revalorizacion_anual 
+      ? `Revalorización esperada: +${metrica.proyeccion_revalorizacion_anual.toFixed(1)}% anual` 
+      : 'Revalorización: datos insuficientes';
+    
+    const fullText = analisisText + analisisText2 + analisisText3 + analisisText4 + analisisText5 + 
+                    analisisText6 + analisisText7 + analisisText8 + analisisText9 + analisisText10;
+    
+    const splitAnalisis = doc.splitTextToSize(fullText, pageWidth - 2 * margin - 10);
+    const analisisHeight = splitAnalisis.length * 4 + 10;
+    
+    checkNewPage(analisisHeight + 10);
+    
+    doc.setFillColor(254, 249, 195);
+    doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, analisisHeight, 2, 2, 'F');
+    
+    yPosition += 6;
+    doc.text(splitAnalisis, margin + 5, yPosition);
+    yPosition += analisisHeight + 12;
+  }
+
+  // === PRÓXIMOS PASOS RECOMENDADOS ===
+  checkNewPage(60);
+  
+  doc.setFillColor(30, 58, 138);
+  doc.rect(0, yPosition - 5, pageWidth, 10, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Próximos Pasos Recomendados', margin, yPosition + 2);
+  yPosition += 15;
+  
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'normal');
+  
+  const proximosPasos = [
+    '1. VISITA PRESENCIAL: Programa una visita para inspeccionar el estado real, orientación, vistas y entorno',
+    '2. VERIFICACIÓN LEGAL: Solicita nota simple del Registro para comprobar cargas, hipotecas y situación legal',
+    '3. COMPARATIVA ACTIVA: Visita al menos 3-5 propiedades similares para tener referencias de mercado',
+    '4. TASACIÓN PROFESIONAL: Si procedes, contrata tasador independiente para confirmar valor real',
+    clientePerfil === 'reformar' ? '5. PRESUPUESTO DETALLADO: Solicita 3 presupuestos de reforma antes de tomar decisión final' :
+    clientePerfil === 'alquilar' ? '5. ANÁLISIS DE RENTAS: Investiga rentas reales en portales para validar proyecciones' :
+    '5. PRE-APROBACIÓN HIPOTECARIA: Consulta con bancos condiciones y máximo que te pueden conceder'
+  ];
+  
+  const pasosText = proximosPasos.join('\n\n');
+  const splitPasos = doc.splitTextToSize(pasosText, pageWidth - 2 * margin - 10);
+  const pasosHeight = splitPasos.length * 4 + 10;
+  
+  checkNewPage(pasosHeight + 10);
+  
+  doc.setFillColor(243, 244, 246);
+  doc.roundedRect(margin, yPosition, pageWidth - 2 * margin, pasosHeight, 2, 2, 'F');
+  
+  yPosition += 6;
+  doc.text(splitPasos, margin + 5, yPosition);
+  yPosition += pasosHeight + 10;
 
   // === FOOTER ===
   const pageCount = doc.getNumberOfPages();
