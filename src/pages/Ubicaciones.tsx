@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Building2, Upload, Download, Save, ArrowLeft } from "lucide-react";
+import { Building2, Upload, Download, Save, ArrowLeft, TrendingUp } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -175,6 +175,14 @@ const Ubicaciones = () => {
               <Button onClick={handleSave} disabled={isLoading}>
                 <Save className="h-4 w-4 mr-2" />
                 {isLoading ? "Guardando..." : "Guardar Cambios"}
+              </Button>
+              
+              <Button 
+                variant="secondary" 
+                onClick={() => navigate("/reclassify-properties")}
+              >
+                <TrendingUp className="h-4 w-4 mr-2" />
+                Reclasificar Propiedades
               </Button>
             </div>
 

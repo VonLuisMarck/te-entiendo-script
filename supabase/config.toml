@@ -56,3 +56,6 @@ verify_jwt = true
 
 [functions.transform-property]
 verify_jwt = false
+
+[functions.reclassify-properties]
+verify_jwt = false

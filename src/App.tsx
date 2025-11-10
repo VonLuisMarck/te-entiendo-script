@@ -24,6 +24,7 @@ import LlamadasIA from "./pages/LlamadasIA";
 import MercadoCiudades from "./pages/MercadoCiudades";
 import Historico from "./pages/Historico";
 import Ubicaciones from "./pages/Ubicaciones";
+import ReclassifyProperties from "./pages/ReclassifyProperties";
 
 const queryClient = new QueryClient();
 
@@ -48,6 +49,7 @@ const App = () => (
             <Route path="/mercado-ciudades" element={<AdminProtectedRoute><MercadoCiudades /></AdminProtectedRoute>} />
             <Route path="/historico" element={<AdminProtectedRoute><Historico /></AdminProtectedRoute>} />
             <Route path="/ubicaciones" element={<AdminProtectedRoute><Ubicaciones /></AdminProtectedRoute>} />
+            <Route path="/reclassify-properties" element={<AdminProtectedRoute><ReclassifyProperties /></AdminProtectedRoute>} />
             <Route path="/settings" element={<AdminProtectedRoute><Settings /></AdminProtectedRoute>} />
             <Route path="/llamadas-ia" element={<AdminProtectedRoute><LlamadasIA /></AdminProtectedRoute>} />
             <Route path="/cliente/dashboard" element={<ClienteDashboard />} />

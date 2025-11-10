@@ -128,6 +128,7 @@ const Dashboard = () => {
     { title: "Métricas", url: "/metricas", icon: BarChart3 },
     { title: "Mercado", url: "/mercado-ciudades", icon: MapPin },
     { title: "Ubicaciones", url: "/ubicaciones", icon: MapPin },
+    { title: "Reclasificar", url: "/reclassify-properties", icon: TrendingUp },
     { title: "Histórico", url: "/historico", icon: Archive },
   ];
 
