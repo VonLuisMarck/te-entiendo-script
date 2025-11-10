@@ -43,8 +43,31 @@ export const generarPDFAnalisis = async ({
     return false;
   };
 
-  // Extraer ubicación más detallada disponible
-  const ubicacionDetallada = propiedad.distrito || propiedad.ciudad || propiedad.provincia || propiedad.ubicacion || 'Ubicación no especificada';
+  // Extraer ubicación más detallada disponible de forma segura
+  let ubicacionDetallada = 'Ubicación no especificada';
+  
+  // Intentar con los campos normalizados primero
+  if (propiedad.distrito) {
+    ubicacionDetallada = propiedad.distrito;
+  } else if (propiedad.ciudad) {
+    ubicacionDetallada = propiedad.ciudad;
+  } else if (propiedad.provincia) {
+    ubicacionDetallada = propiedad.provincia;
+  } else if (propiedad.ubicacion) {
+    // Si ubicacion es un JSON string, intentar parsearlo
+    try {
+      if (typeof propiedad.ubicacion === 'string' && propiedad.ubicacion.includes('{')) {
+        const parsed = JSON.parse(propiedad.ubicacion);
+        ubicacionDetallada = parsed.distrito || parsed.ciudad || parsed.provincia || 'Ubicación no especificada';
+      } else {
+        ubicacionDetallada = propiedad.ubicacion;
+      }
+    } catch (e) {
+      // Si no se puede parsear, usar el string tal cual
+      ubicacionDetallada = propiedad.ubicacion;
+    }
+  }
+  
   const ciudad = propiedad.ciudad || propiedad.provincia || 'Ciudad desconocida';
   const provincia = propiedad.provincia || '';
   
