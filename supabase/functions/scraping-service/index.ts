@@ -115,51 +115,49 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
 
   for (const propiedad of data.propiedades) {
     try {
-      // Clasificar ubicación con IA antes de insertar
-      console.log(`[Webhook] Clasificando ubicación: ${propiedad.ubicacion}`);
-      const { data: locationData, error: locationError } = await supabase.functions.invoke('classify-location', {
-        body: { ubicacion: propiedad.ubicacion }
+      // Transformar propiedad completa con IA (normaliza todos los campos)
+      console.log(`[Webhook] Transformando propiedad: ${propiedad.titulo?.substring(0, 50)}...`);
+      const { data: transformData, error: transformError } = await supabase.functions.invoke('transform-property', {
+        body: { propiedad }
       });
 
-      let ciudad = null;
-      let distrito = null;
-      let provincia = null;
-
-      if (locationError) {
-        console.error('[Webhook] Error clasificando ubicación:', locationError);
-        errores.push(`Error clasificando ubicación ${propiedad.ubicacion}: ${locationError.message}`);
-      } else if (locationData) {
-        ciudad = locationData.ciudad;
-        distrito = locationData.distrito;
-        provincia = locationData.provincia;
-        console.log(`[Webhook] Ubicación clasificada: ${ciudad} ${distrito ? `(${distrito})` : ''}, ${provincia}`);
+      if (transformError) {
+        console.error('[Webhook] Error transformando propiedad:', transformError);
+        errores.push(`Error transformando ${propiedad.external_id}: ${transformError.message}`);
+        continue; // Saltar esta propiedad si hay error
       }
+
+      if (!transformData?.success || !transformData?.propiedad) {
+        console.error('[Webhook] Respuesta inválida de transform-property');
+        errores.push(`Error: respuesta inválida de transformación para ${propiedad.external_id}`);
+        continue;
+      }
+
+      const propiedadTransformada = transformData.propiedad;
+      console.log(`[Webhook] Propiedad transformada exitosamente: ${propiedadTransformada.ciudad || 'N/A'} ${propiedadTransformada.distrito ? `(${propiedadTransformada.distrito})` : ''}`);
 
       const { data: existing } = await supabase
         .from('propiedades')
         .select('id')
-        .eq('external_id', propiedad.external_id)
-        .eq('portal_origen', propiedad.portal_origen)
+        .eq('external_id', propiedadTransformada.external_id)
+        .eq('portal_origen', propiedadTransformada.portal_origen)
         .maybeSingle();
 
-      const propiedadConUbicacion = {
-        ...propiedad,
-        ciudad,
-        distrito,
-        provincia,
+      const propiedadFinal = {
+        ...propiedadTransformada,
         activo: true
       };
 
       if (existing) {
         await supabase
           .from('propiedades')
-          .update(propiedadConUbicacion)
+          .update(propiedadFinal)
           .eq('id', existing.id);
         propiedadesActualizadas++;
       } else {
         await supabase
           .from('propiedades')
-          .insert(propiedadConUbicacion);
+          .insert(propiedadFinal);
         propiedadesNuevas++;
       }
     } catch (error) {
