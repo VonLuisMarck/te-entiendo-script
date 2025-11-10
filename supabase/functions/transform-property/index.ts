@@ -46,41 +46,50 @@ serve(async (req) => {
 
     const prompt = `Eres un experto en normalización y extracción de datos inmobiliarios. Analiza el RAW completo del anuncio y extrae/normaliza TODOS los campos al modelo de datos estandarizado.
 
-DATOS CRUDOS DEL ANUNCIO (RAW):
+DATOS CRUDOS DEL ANUNCIO (RAW COMPLETO - ANALIZA TODO):
 ${JSON.stringify(propiedad, null, 2)}
 
 ${ubicacionesJson ? `UBICACIONES DISPONIBLES EN ESPAÑA (solo municipios >50k habitantes):\n${ubicacionesJson}\n` : ''}
 
-REGLAS DE EXTRACCIÓN Y NORMALIZACIÓN:
+REGLAS CRÍTICAS DE EXTRACCIÓN:
 
-1. **Ubicación** (CRÍTICO - lee el JSON de ubicaciones):
-   - ciudad: Busca en el JSON la ciudad que coincida. Solo municipios >50k habitantes.
-   - provincia: Extrae la provincia española correspondiente
-   - distrito: SOLO si la ciudad tiene >300k habitantes Y el dato está disponible. Si no, null.
+⚠️ **UBICACIÓN (MÁS IMPORTANTE)**:
+   - DEBES analizar TODO el anuncio: título, descripcion, ubicacion, y cualquier otro campo
+   - Busca menciones de ubicación en CUALQUIER parte del raw
+   - Prioridad: descripcion > ubicacion > titulo
+   - ciudad: Busca en el JSON la ciudad que coincida (solo >50k habitantes)
+   - provincia: Extrae la provincia española
+   - distrito: SOLO si ciudad >300k habitantes Y hay mención explícita (ej: "San Blas", "Chamberí")
+   
+   EJEMPLOS:
+   - Si ves "San Blas - Madrid" → ciudad: "Madrid", distrito: "San Blas", provincia: "Madrid"
+   - Si ves "Salamanca, Madrid" → ciudad: "Madrid", distrito: "Salamanca", provincia: "Madrid"
+   - Si ves "Getafe" → ciudad: "Getafe", provincia: "Madrid", distrito: null
+   - Si ves "Centro, Murcia" → ciudad: "Murcia", distrito: "Centro", provincia: "Murcia"
 
-2. **Tipo de Propiedad**: Normaliza a UNO de estos valores EXACTOS:
+1. **Tipo de Propiedad**: Normaliza a UNO de estos valores EXACTOS:
    - "piso" | "chalet" | "duplex" | "atico" | "casa" | "estudio" | "otro"
 
-3. **Estado/Condición**: Normaliza a UNO de estos valores EXACTOS o null:
+2. **Estado/Condición**: Normaliza a UNO de estos valores EXACTOS o null:
    - "obra nueva" | "buen estado" | "a reformar" | null
 
-4. **Características** (analiza título y descripción):
+3. **Características** (analiza título y descripción):
    - tiene_ascensor: boolean (busca: "ascensor", "lift", "elevador")
    - tiene_parking: boolean (busca: "parking", "garaje", "plaza de garaje", "garage")
    - tiene_trastero: boolean (busca: "trastero", "storage room", "cuarto trastero")
    - ano_construccion: número de 4 dígitos o null (busca: "año", "construido en", fechas)
 
-5. **Datos numéricos**: Extrae y valida (número válido o null):
+4. **Datos numéricos**: Extrae y valida (número válido o null):
    - dormitorios (habitaciones)
    - banos (baños completos)
    - metros (metros cuadrados, m², m2)
    - precio_m2: Si falta y hay metros y precio, calcula: precio / metros
 
-6. **Datos de contacto del anunciante** (busca en descripción o campos específicos):
+5. **Datos de contacto del anunciante** (busca en descripción o campos específicos):
    - contacto_email: Busca emails (format: xxx@xxx.xx)
    - contacto_telefono: Busca teléfonos (formatos: +34 XXX XXX XXX, XXX XXX XXX, etc.)
 
-7. **URLs de imágenes**:
+6. **URLs de imágenes**:
    - imagenes: Array de URLs de fotos del anuncio (mantén las que vienen o extrae si están en el raw)
 
 CAMPOS QUE DEBES MANTENER TAL CUAL (no transformar):
@@ -93,12 +102,11 @@ CAMPOS QUE DEBES MANTENER TAL CUAL (no transformar):
 - fecha_scraping
 - fecha_publicacion
 
-IMPORTANTE:
-- NO todos los campos son obligatorios. Si no encuentras un dato, usa null
-- Los booleanos deben ser true/false, nunca strings
+CRÍTICO:
+- Lee TODO el raw antes de decidir la ubicación
 - distrito solo para ciudades >300k habitantes
-- Busca contacto en cualquier parte del raw
 - Sé flexible con formatos pero estricto con normalización
+- Si no encuentras un dato con certeza, usa null
 
 Responde SOLO con un objeto JSON válido, sin markdown ni explicaciones:`;
 
