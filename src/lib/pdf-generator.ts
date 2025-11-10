@@ -135,7 +135,7 @@ export const generarPDFAnalisis = async ({
   doc.setFontSize(8);
   const fecha = new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' });
   doc.text(fecha, pageWidth / 2, pageHeight - 30, { align: 'center' });
-  doc.text('InmoFinder - Análisis Inteligente de Propiedades', pageWidth / 2, pageHeight - 25, { align: 'center' });
+  doc.text('Findoo - Análisis Inteligente de Propiedades', pageWidth / 2, pageHeight - 25, { align: 'center' });
   
   // Nueva página
   doc.addPage();
@@ -778,13 +778,13 @@ export const generarPDFAnalisis = async ({
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setTextColor(107, 114, 128);
-    const footerText = `Pagina ${i} de ${pageCount} | InmoFinder ${new Date().getFullYear()} | Analisis generado automaticamente`;
+    const footerText = `Pagina ${i} de ${pageCount} | Findoo ${new Date().getFullYear()} | Analisis generado automaticamente`;
     doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
   }
 
   // Guardar PDF
   const ubicacionLimpia = propiedad.ubicacion.replace(/[,\s]/g, '_').substring(0, 30);
-  const fileName = `InmoFinder_${ubicacionLimpia}_${Date.now()}.pdf`;
+  const fileName = `Findoo_${ubicacionLimpia}_${Date.now()}.pdf`;
   doc.save(fileName);
   
   // Retornar información sobre warnings
@@ -1243,7 +1243,7 @@ export const generarPDFPresupuesto = async ({
     doc.setPage(i);
     doc.setFontSize(7);
     doc.setTextColor(107, 114, 128);
-    const footerText = `Pagina ${i} de ${pageCount} | InmoFinder x ARQO Estudio ${new Date().getFullYear()} | Presupuesto orientativo`;
+    const footerText = `Pagina ${i} de ${pageCount} | Findoo x ARQO Estudio ${new Date().getFullYear()} | Presupuesto orientativo`;
     doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
   }
 

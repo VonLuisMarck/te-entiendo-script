@@ -37,12 +37,12 @@ const Index = () => {
         <div className="text-center mb-16 animate-in fade-in slide-in-from-bottom-4 duration-1000">
           <div className="flex justify-center mb-6">
             <div className="relative">
-              <img src={homelyLogo} alt="Homely" className="h-32 w-32 object-contain hover:scale-110 transition-all duration-300" />
+              <img src={homelyLogo} alt="Findoo" className="h-32 w-32 object-contain hover:scale-110 transition-all duration-300" />
               <Sparkles className="h-6 w-6 text-primary absolute -top-2 -right-2 animate-bounce" />
             </div>
           </div>
           <h1 className="text-6xl font-bold mb-6 bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent drop-shadow-lg">
-            Homely
+            Findoo
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
             Plataforma inteligente de matching de propiedades inmobiliarias. 

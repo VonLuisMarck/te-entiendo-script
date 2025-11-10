@@ -75,11 +75,11 @@ const AdminAuth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <img src={homelyLogo} alt="Homely" className="h-20 w-20 object-contain" />
+            <img src={homelyLogo} alt="Findoo" className="h-20 w-20 object-contain" />
           </div>
           <CardTitle className="text-2xl font-bold">Panel de Administración</CardTitle>
           <CardDescription>
-            Acceso exclusivo para empleados de Homely
+            Acceso exclusivo para empleados de Findoo
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -89,7 +89,7 @@ const AdminAuth = () => {
               <Input
                 id="email"
                 type="email"
-                placeholder="empleado@inmofinder.com"
+                placeholder="empleado@findoo.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required

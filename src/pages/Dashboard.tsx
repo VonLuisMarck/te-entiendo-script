@@ -137,9 +137,9 @@ const Dashboard = () => {
       <aside className="w-64 border-r bg-card/50 backdrop-blur-sm flex flex-col">
         <div className="p-6 border-b">
           <div className="flex items-center gap-3">
-            <img src={homelyLogo} alt="Homely" className="h-10 w-10 object-contain" />
+            <img src={homelyLogo} alt="Findoo" className="h-10 w-10 object-contain" />
             <h1 className="text-xl font-bold bg-gradient-to-r from-primary to-primary-glow bg-clip-text text-transparent">
-              Homely
+              Findoo
             </h1>
           </div>
         </div>

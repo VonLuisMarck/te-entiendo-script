@@ -42,7 +42,7 @@ export const generateBusinessReport = (metrics: SystemMetrics) => {
   
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(36);
-  doc.text('InmoFinder', pageWidth / 2, 80, { align: 'center' });
+  doc.text('Findoo', pageWidth / 2, 80, { align: 'center' });
   
   doc.setFontSize(20);
   doc.text('Documentación Técnica y de Negocio', pageWidth / 2, 100, { align: 'center' });
@@ -586,5 +586,5 @@ export const generateBusinessReport = (metrics: SystemMetrics) => {
   });
 
   // Guardar PDF
-  doc.save('InmoFinder_Documentacion_Negocio.pdf');
+  doc.save('Findoo_Documentacion_Negocio.pdf');
 };
