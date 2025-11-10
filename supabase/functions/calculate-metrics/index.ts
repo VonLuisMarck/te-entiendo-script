@@ -63,8 +63,8 @@ serve(async (req) => {
       const { data: metricaExistente } = await supabase
         .from('metricas_barrios')
         .select('id, precio_m2_medio, created_at')
-        .eq('provincia', provincia || '')
-        .eq('ciudad', ciudad || '')
+        .eq('provincia', provincia || 'Desconocida')
+        .eq('ciudad', ciudad || 'Sin Clasificar')
         .eq('distrito', distrito || '')
         .maybeSingle();
 
@@ -76,8 +76,8 @@ serve(async (req) => {
         // Guardar snapshot histórico ANTES de actualizar
         await supabase.from('metricas_barrios_historico').insert({
           metrica_id: metricaExistente.id,
-          provincia: provincia || null,
-          ciudad: ciudad || null,
+          provincia: provincia || 'Desconocida',
+          ciudad: ciudad || 'Sin Clasificar',
           distrito: distrito || null,
           precio_medio: metricaExistente.precio_m2_medio,
           precio_m2_medio: metricaExistente.precio_m2_medio,
@@ -101,10 +101,10 @@ serve(async (req) => {
       // Calcular índice de dinamismo temporal
       indiceDinamismo = calcularIndiceDinamismo(props as any[]);
 
-      // Upsert de métricas con provincia (onConflict en el índice único)
+      // Upsert de métricas con provincia (asegurar que ciudad nunca sea NULL)
       const metricaData = {
-        provincia: provincia || null,
-        ciudad: ciudad || null,
+        provincia: provincia || 'Desconocida',
+        ciudad: ciudad || 'Sin Clasificar',
         distrito: distrito || null,
         ...metricas,
         proyeccion_revalorizacion_anual: proyeccionRevalorizacion,
@@ -112,12 +112,12 @@ serve(async (req) => {
         meses_datos_historicos: mesesDatosHistoricos,
       };
 
-      // Buscar si ya existe
+      // Buscar si ya existe (usar mismos valores defaults)
       const { data: existing } = await supabase
         .from('metricas_barrios')
         .select('id')
-        .eq('provincia', provincia || '')
-        .eq('ciudad', ciudad || '')
+        .eq('provincia', provincia || 'Desconocida')
+        .eq('ciudad', ciudad || 'Sin Clasificar')
         .eq('distrito', distrito || '')
         .maybeSingle();
 
@@ -179,9 +179,10 @@ function agruparPorProvinciaDistrito(propiedades: any[]): Record<string, any[]> 
   const grupos: Record<string, any[]> = {};
 
   for (const prop of propiedades) {
-    // Usar campos normalizados directamente (ya clasificados por la IA)
+    // IMPORTANTE: Validar que ciudad no sea NULL/vacío
+    // Si no tiene ciudad normalizada, clasificar como "Sin Clasificar"
     const provincia = prop.provincia || 'Desconocida';
-    const ciudad = prop.ciudad || '';
+    const ciudad = prop.ciudad || 'Sin Clasificar';
     const distrito = prop.distrito || '';
     
     // Clave única: provincia|ciudad|distrito
