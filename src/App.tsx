@@ -16,6 +16,7 @@ import Matchings from "./pages/Matchings";
 import Scraper from "./pages/Scraper";
 import Metricas from "./pages/Metricas";
 import Settings from "./pages/Settings";
+import Subscription from "./pages/Subscription";
 import NotFound from "./pages/NotFound";
 import ClienteDashboard from "./pages/ClienteDashboard";
 import ClienteSettings from "./pages/ClienteSettings";
@@ -53,6 +54,7 @@ const App = () => (
             <Route path="/reclassify-properties" element={<AdminProtectedRoute><ReclassifyProperties /></AdminProtectedRoute>} />
             <Route path="/batch-processing" element={<AdminProtectedRoute><BatchProcessing /></AdminProtectedRoute>} />
             <Route path="/settings" element={<AdminProtectedRoute><Settings /></AdminProtectedRoute>} />
+            <Route path="/subscription" element={<AdminProtectedRoute><Subscription /></AdminProtectedRoute>} />
             <Route path="/llamadas-ia" element={<AdminProtectedRoute><LlamadasIA /></AdminProtectedRoute>} />
             <Route path="/cliente/dashboard" element={<ClienteDashboard />} />
             <Route path="/cliente/settings" element={<ClienteSettings />} />

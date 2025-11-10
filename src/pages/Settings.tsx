@@ -2,13 +2,16 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Building2, ArrowLeft, User as UserIcon, Lock, Mail } from "lucide-react";
+import { Building2, ArrowLeft, User as UserIcon, Lock, Mail, CreditCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
+import { Badge } from "@/components/ui/badge";
 
 const Settings = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -19,6 +22,8 @@ const Settings = () => {
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const navigate = useNavigate();
+  const { tier, subscribed, subscriptionEnd, manageSubscription } = useSubscription();
+  const [loadingPortal, setLoadingPortal] = useState(false);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -83,6 +88,24 @@ const Settings = () => {
     }
   };
 
+  const handleManageSubscription = async () => {
+    try {
+      setLoadingPortal(true);
+      const url = await manageSubscription();
+      if (url) {
+        window.open(url, '_blank');
+        toast.success('Abriendo portal de gestión...');
+      } else {
+        toast.error('Error al abrir portal de cliente');
+      }
+    } catch (error) {
+      console.error('Error managing subscription:', error);
+      toast.error('Error al procesar la solicitud');
+    } finally {
+      setLoadingPortal(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-muted/20 to-background">
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
@@ -108,7 +131,7 @@ const Settings = () => {
         </div>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-8">
+          <TabsList className="grid w-full grid-cols-3 mb-8">
             <TabsTrigger value="profile" className="flex items-center gap-2">
               <UserIcon className="h-4 w-4" />
               Perfil
@@ -116,6 +139,10 @@ const Settings = () => {
             <TabsTrigger value="security" className="flex items-center gap-2">
               <Lock className="h-4 w-4" />
               Seguridad
+            </TabsTrigger>
+            <TabsTrigger value="subscription" className="flex items-center gap-2">
+              <CreditCard className="h-4 w-4" />
+              Suscripción
             </TabsTrigger>
           </TabsList>
 
@@ -212,6 +239,75 @@ const Settings = () => {
                     {loading ? "Actualizando..." : "Actualizar Contraseña"}
                   </Button>
                 </form>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="subscription">
+            <Card className="shadow-elegant">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Gestión de Suscripción
+                </CardTitle>
+                <CardDescription>
+                  Administra tu plan y método de pago
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-1">Plan actual</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-2xl font-bold">{SUBSCRIPTION_TIERS[tier].name}</p>
+                      {subscribed && (
+                        <Badge variant="default">Activo</Badge>
+                      )}
+                    </div>
+                    {subscriptionEnd && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Renueva el {new Date(subscriptionEnd).toLocaleDateString('es-ES')}
+                      </p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold">€{SUBSCRIPTION_TIERS[tier].price}</p>
+                    <p className="text-sm text-muted-foreground">/mes</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Button 
+                    onClick={() => navigate('/subscription')} 
+                    className="w-full"
+                    variant="default"
+                  >
+                    Ver todos los planes
+                  </Button>
+                  
+                  {subscribed && (
+                    <Button 
+                      onClick={handleManageSubscription}
+                      variant="outline"
+                      className="w-full"
+                      disabled={loadingPortal}
+                    >
+                      {loadingPortal ? "Cargando..." : "Gestionar en Stripe"}
+                    </Button>
+                  )}
+                </div>
+
+                <div className="border-t pt-4">
+                  <p className="text-sm font-semibold mb-2">Incluido en tu plan:</p>
+                  <ul className="space-y-2">
+                    {SUBSCRIPTION_TIERS[tier].features.map((feature, index) => (
+                      <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                        <span className="text-primary mt-0.5">✓</span>
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

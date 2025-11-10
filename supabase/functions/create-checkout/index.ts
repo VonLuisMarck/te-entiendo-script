@@ -25,19 +25,18 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
+    const { priceId } = await req.json();
+    if (!priceId) throw new Error("Price ID is required");
+    logStep("Price ID received", { priceId });
+
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
     
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;
-    
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
-
-    const { priceId } = await req.json();
-    if (!priceId) throw new Error("priceId is required");
-    logStep("Price ID received", { priceId });
 
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", { 
       apiVersion: "2025-08-27.basil" 
@@ -48,9 +47,9 @@ serve(async (req) => {
     
     if (customers.data.length > 0) {
       customerId = customers.data[0].id;
-      logStep("Existing customer found", { customerId });
+      logStep("Found existing customer", { customerId });
     } else {
-      logStep("Creating new customer");
+      logStep("No existing customer, will create at checkout");
     }
 
     const origin = req.headers.get("origin") || "http://localhost:8080";
@@ -65,8 +64,11 @@ serve(async (req) => {
         },
       ],
       mode: "subscription",
-      success_url: `${origin}/cliente/dashboard?success=true`,
-      cancel_url: `${origin}/cliente/dashboard?canceled=true`,
+      success_url: `${origin}/settings?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin}/settings`,
+      metadata: {
+        user_id: user.id,
+      },
     });
 
     logStep("Checkout session created", { sessionId: session.id, url: session.url });
