@@ -113,57 +113,56 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
   let propiedadesActualizadas = 0;
   const errores: string[] = [];
 
+  // NUEVO FLUJO: Guardar en propiedades_raw sin procesar (batch processing)
   for (const propiedad of data.propiedades) {
     try {
-      // Transformar propiedad completa con IA (normaliza todos los campos)
-      console.log(`[Webhook] Transformando propiedad: ${propiedad.titulo?.substring(0, 50)}...`);
-      const { data: transformData, error: transformError } = await supabase.functions.invoke('transform-property', {
-        body: { propiedad }
-      });
+      console.log(`[Webhook] Guardando RAW: ${propiedad.titulo?.substring(0, 50)}...`);
 
-      if (transformError) {
-        console.error('[Webhook] Error transformando propiedad:', transformError);
-        errores.push(`Error transformando ${propiedad.external_id}: ${transformError.message}`);
-        continue; // Saltar esta propiedad si hay error
-      }
-
-      if (!transformData?.success || !transformData?.propiedad) {
-        console.error('[Webhook] Respuesta inválida de transform-property');
-        errores.push(`Error: respuesta inválida de transformación para ${propiedad.external_id}`);
-        continue;
-      }
-
-      const propiedadTransformada = transformData.propiedad;
-      console.log(`[Webhook] Propiedad transformada exitosamente: ${propiedadTransformada.ciudad || 'N/A'} ${propiedadTransformada.distrito ? `(${propiedadTransformada.distrito})` : ''}`);
-
+      // Verificar si ya existe en propiedades_raw
       const { data: existing } = await supabase
-        .from('propiedades')
-        .select('id')
-        .eq('external_id', propiedadTransformada.external_id)
-        .eq('portal_origen', propiedadTransformada.portal_origen)
+        .from('propiedades_raw')
+        .select('id, procesado')
+        .eq('external_id', propiedad.external_id)
+        .eq('portal_origen', propiedad.portal_origen)
         .maybeSingle();
 
-      const propiedadFinal = {
-        ...propiedadTransformada,
-        activo: true
+      const rawData = {
+        external_id: propiedad.external_id,
+        portal_origen: propiedad.portal_origen,
+        raw_data: propiedad, // Guardar toda la propiedad como JSON
+        url: propiedad.url,
+        procesado: false,
+        intentos_procesamiento: 0,
+        error_procesamiento: null
       };
 
       if (existing) {
-        await supabase
-          .from('propiedades')
-          .update(propiedadFinal)
-          .eq('id', existing.id);
-        propiedadesActualizadas++;
+        // Si ya existe y no está procesada, actualizar raw_data
+        if (!existing.procesado) {
+          await supabase
+            .from('propiedades_raw')
+            .update({
+              raw_data: propiedad,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existing.id);
+          propiedadesActualizadas++;
+          console.log(`[Webhook] ✅ Actualizada en raw: ${propiedad.external_id}`);
+        } else {
+          console.log(`[Webhook] ⏭️ Ya procesada, skipping: ${propiedad.external_id}`);
+        }
       } else {
+        // Nueva propiedad, insertar en raw
         await supabase
-          .from('propiedades')
-          .insert(propiedadFinal);
+          .from('propiedades_raw')
+          .insert(rawData);
         propiedadesNuevas++;
+        console.log(`[Webhook] ✅ Nueva en raw: ${propiedad.external_id}`);
       }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      errores.push(`Error procesando ${propiedad.external_id}: ${errorMsg}`);
-      console.error('[Webhook] Error procesando propiedad:', error);
+      errores.push(`Error guardando raw ${propiedad.external_id}: ${errorMsg}`);
+      console.error('[Webhook] Error guardando propiedad raw:', error);
     }
   }
 
@@ -181,14 +180,16 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
     status: errores.length === 0 ? 'success' : 'partial',
   });
 
-  console.log(`[Webhook] Procesado: ${propiedadesNuevas} nuevas, ${propiedadesActualizadas} actualizadas`);
+  console.log(`[Webhook] Guardadas en raw: ${propiedadesNuevas} nuevas, ${propiedadesActualizadas} actualizadas`);
+  console.log(`[Webhook] ⚡ Usa Batch Processing para procesarlas y ahorrar 90% en costes IA`);
 
   return new Response(
     JSON.stringify({
       success: true,
-      propiedades_procesadas: data.propiedades.length,
+      propiedades_guardadas_raw: data.propiedades.length,
       propiedades_nuevas: propiedadesNuevas,
       propiedades_actualizadas: propiedadesActualizadas,
+      message: 'Propiedades guardadas en raw. Usa Batch Processing para procesarlas.',
       errores,
     }),
     { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
