@@ -43,8 +43,9 @@ export const generarPDFAnalisis = async ({
     return false;
   };
 
-  // Extraer ciudad y provincia de la ubicación
-  const [ciudad, provincia] = propiedad.ubicacion.split(',').map((s: string) => s.trim());
+  // Usar ciudad y provincia de los campos de la base de datos
+  const ciudad = propiedad.ciudad || 'Ciudad desconocida';
+  const provincia = propiedad.provincia || '';
   
   // Generar imagen de la ciudad
   let cityImageUrl = null;
