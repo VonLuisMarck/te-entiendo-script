@@ -25,6 +25,7 @@ import MercadoCiudades from "./pages/MercadoCiudades";
 import Historico from "./pages/Historico";
 import Ubicaciones from "./pages/Ubicaciones";
 import ReclassifyProperties from "./pages/ReclassifyProperties";
+import BatchProcessing from "./pages/BatchProcessing";
 
 const queryClient = new QueryClient();
 
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/historico" element={<AdminProtectedRoute><Historico /></AdminProtectedRoute>} />
             <Route path="/ubicaciones" element={<AdminProtectedRoute><Ubicaciones /></AdminProtectedRoute>} />
             <Route path="/reclassify-properties" element={<AdminProtectedRoute><ReclassifyProperties /></AdminProtectedRoute>} />
+            <Route path="/batch-processing" element={<AdminProtectedRoute><BatchProcessing /></AdminProtectedRoute>} />
             <Route path="/settings" element={<AdminProtectedRoute><Settings /></AdminProtectedRoute>} />
             <Route path="/llamadas-ia" element={<AdminProtectedRoute><LlamadasIA /></AdminProtectedRoute>} />
             <Route path="/cliente/dashboard" element={<ClienteDashboard />} />

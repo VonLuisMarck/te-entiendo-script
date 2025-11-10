@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      batch_processing_logs: {
+        Row: {
+          coste_estimado_usd: number | null
+          created_at: string | null
+          duracion_segundos: number | null
+          errores: Json | null
+          id: string
+          propiedades_exitosas: number | null
+          propiedades_fallidas: number | null
+          total_propiedades: number
+        }
+        Insert: {
+          coste_estimado_usd?: number | null
+          created_at?: string | null
+          duracion_segundos?: number | null
+          errores?: Json | null
+          id?: string
+          propiedades_exitosas?: number | null
+          propiedades_fallidas?: number | null
+          total_propiedades: number
+        }
+        Update: {
+          coste_estimado_usd?: number | null
+          created_at?: string | null
+          duracion_segundos?: number | null
+          errores?: Json | null
+          id?: string
+          propiedades_exitosas?: number | null
+          propiedades_fallidas?: number | null
+          total_propiedades?: number
+        }
+        Relationships: []
+      }
       clientes: {
         Row: {
           activo: boolean | null
@@ -699,6 +732,45 @@ export type Database = {
           tiene_trastero?: boolean | null
           tipo_propiedad?: string
           ubicacion?: string
+        }
+        Relationships: []
+      }
+      propiedades_raw: {
+        Row: {
+          created_at: string | null
+          error_procesamiento: string | null
+          external_id: string
+          id: string
+          intentos_procesamiento: number | null
+          portal_origen: string
+          procesado: boolean | null
+          raw_data: Json
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string | null
+          error_procesamiento?: string | null
+          external_id: string
+          id?: string
+          intentos_procesamiento?: number | null
+          portal_origen: string
+          procesado?: boolean | null
+          raw_data: Json
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string | null
+          error_procesamiento?: string | null
+          external_id?: string
+          id?: string
+          intentos_procesamiento?: number | null
+          portal_origen?: string
+          procesado?: boolean | null
+          raw_data?: Json
+          updated_at?: string | null
+          url?: string
         }
         Relationships: []
       }

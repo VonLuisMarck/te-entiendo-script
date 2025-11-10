@@ -1,5 +1,8 @@
 project_id = "mtjomlpwpiuhflwmgctk"
 
+[functions.batch-classify-properties]
+verify_jwt = false
+
 [functions.calculate-metrics]
 verify_jwt = false
 

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
-import { Building2, Users, TrendingUp, FileText, LogOut, Settings, Search, MapPin, BarChart3, Archive } from "lucide-react";
+import { Building2, Users, TrendingUp, FileText, LogOut, Settings, Search, MapPin, BarChart3, Archive, Zap } from "lucide-react";
 import { generateBusinessReport } from "@/lib/business-report-generator";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -129,6 +129,7 @@ const Dashboard = () => {
     { title: "Mercado", url: "/mercado-ciudades", icon: MapPin },
     { title: "Ubicaciones", url: "/ubicaciones", icon: MapPin },
     { title: "Reclasificar", url: "/reclassify-properties", icon: TrendingUp },
+    { title: "Batch Processing", url: "/batch-processing", icon: Zap },
     { title: "Histórico", url: "/historico", icon: Archive },
   ];
 
