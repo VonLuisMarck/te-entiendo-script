@@ -48,34 +48,13 @@ export const generarPDFAnalisis = async ({
   const ciudad = propiedad.ciudad || propiedad.provincia || 'Ciudad desconocida';
   const provincia = propiedad.provincia || '';
   
-  // Generar imagen de la ciudad (opcional)
-  let cityImageUrl = null;
-  let imageGenerationWarning = null;
-  try {
-    const { data: imageData, error: imageError } = await supabase.functions.invoke('generate-city-image', {
-      body: { ciudad, provincia }
-    });
-    
-    if (imageError) {
-      console.warn('No se pudo generar imagen de ciudad:', imageError);
-      imageGenerationWarning = imageError.message || 'Error al generar imagen';
-    } else if (imageData?.error) {
-      console.warn('No se pudo generar imagen de ciudad:', imageData.error);
-      imageGenerationWarning = imageData.error;
-      
-      // Informar al usuario si es un error de créditos
-      if (imageData.error.includes('créditos')) {
-        console.info('💡 Añade créditos en Settings → Workspace → Usage para generar imágenes de ciudades');
-      }
-    } else if (imageData?.imageUrl) {
-      cityImageUrl = imageData.imageUrl;
-      console.log('✓ Imagen de ciudad generada correctamente');
-    } else {
-      console.warn('Respuesta inesperada al generar imagen');
-    }
-  } catch (error) {
-    console.warn('Error al intentar generar imagen de ciudad:', error);
-    imageGenerationWarning = error instanceof Error ? error.message : 'Error desconocido';
+  // Usar la primera imagen real de la propiedad si está disponible
+  let propertyImageUrl = null;
+  if (propiedad.imagenes && Array.isArray(propiedad.imagenes) && propiedad.imagenes.length > 0) {
+    propertyImageUrl = propiedad.imagenes[0];
+    console.log('✓ Usando imagen real de la propiedad');
+  } else {
+    console.info('ℹ No hay imágenes disponibles para esta propiedad');
   }
   
   // El PDF se generará de todas formas, con o sin imagen
@@ -84,17 +63,43 @@ export const generarPDFAnalisis = async ({
   doc.setFillColor(240, 244, 248);
   doc.rect(0, 0, pageWidth, pageHeight, 'F');
   
-  // Añadir imagen de la ciudad si está disponible
-  if (cityImageUrl) {
+  // Añadir imagen de la propiedad si está disponible
+  if (propertyImageUrl) {
     try {
-      // La imagen está en base64, la añadimos directamente
-      doc.addImage(cityImageUrl, 'PNG', 0, 0, pageWidth, 80, undefined, 'FAST');
+      // Si es una URL externa, necesitamos convertirla a base64 primero
+      let imageData = propertyImageUrl;
       
-      // Overlay oscuro para mejorar legibilidad del texto
-      doc.setFillColor(0, 0, 0);
-      (doc as any).setGState({ opacity: 0.4 });
-      doc.rect(0, 0, pageWidth, 80, 'F');
-      (doc as any).setGState({ opacity: 1 });
+      // Si no es base64, intentar cargar la imagen
+      if (!propertyImageUrl.startsWith('data:')) {
+        try {
+          const response = await fetch(propertyImageUrl);
+          const blob = await response.blob();
+          const base64 = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+          imageData = base64;
+        } catch (e) {
+          console.warn('No se pudo cargar la imagen externa, continuando sin imagen:', e);
+          imageData = null;
+        }
+      }
+      
+      if (imageData) {
+        // Determinar el formato de la imagen
+        let format = 'JPEG';
+        if (imageData.includes('data:image/png')) format = 'PNG';
+        else if (imageData.includes('data:image/webp')) format = 'WEBP';
+        
+        doc.addImage(imageData, format, 0, 0, pageWidth, 80, undefined, 'FAST');
+        
+        // Overlay oscuro para mejorar legibilidad del texto
+        doc.setFillColor(0, 0, 0);
+        (doc as any).setGState({ opacity: 0.4 });
+        doc.rect(0, 0, pageWidth, 80, 'F');
+        (doc as any).setGState({ opacity: 1 });
+      }
     } catch (error) {
       console.error('Error añadiendo imagen al PDF:', error);
     }
@@ -117,27 +122,27 @@ export const generarPDFAnalisis = async ({
     }
   }
   
-  doc.setTextColor(cityImageUrl ? 255 : 30, cityImageUrl ? 255 : 58, cityImageUrl ? 255 : 138);
+  doc.setTextColor(propertyImageUrl ? 255 : 30, propertyImageUrl ? 255 : 58, propertyImageUrl ? 255 : 138);
   doc.setFontSize(28);
   doc.setFont('helvetica', 'bold');
-  doc.text(tituloPrincipal, pageWidth / 2, cityImageUrl ? 50 : 80, { align: 'center' });
+  doc.text(tituloPrincipal, pageWidth / 2, propertyImageUrl ? 50 : 80, { align: 'center' });
   
   // Subtítulo con tipo de propiedad
-  const ySubtitle = cityImageUrl ? 65 : 95;
-  doc.setTextColor(cityImageUrl ? 255 : 71, cityImageUrl ? 255 : 85, cityImageUrl ? 255 : 105);
+  const ySubtitle = propertyImageUrl ? 65 : 95;
+  doc.setTextColor(propertyImageUrl ? 255 : 71, propertyImageUrl ? 255 : 85, propertyImageUrl ? 255 : 105);
   doc.setFontSize(16);
   doc.setFont('helvetica', 'normal');
   doc.text(propiedad.tipo_propiedad, pageWidth / 2, ySubtitle, { align: 'center' });
   
   // Precio destacado
-  const yPrecio = cityImageUrl ? 100 : 120;
+  const yPrecio = propertyImageUrl ? 100 : 120;
   doc.setTextColor(30, 58, 138);
   doc.setFontSize(32);
   doc.setFont('helvetica', 'bold');
   doc.text(`${formatNumber(propiedad.precio)} €`, pageWidth / 2, yPrecio, { align: 'center' });
   
   // Info adicional
-  const yInfo = cityImageUrl ? 112 : 132;
+  const yInfo = propertyImageUrl ? 112 : 132;
   doc.setTextColor(71, 85, 105);
   doc.setFontSize(11);
   doc.setFont('helvetica', 'normal');
@@ -145,7 +150,7 @@ export const generarPDFAnalisis = async ({
   doc.text(infoLinea, pageWidth / 2, yInfo, { align: 'center' });
   
   // Perfil del cliente
-  const yPerfil = cityImageUrl ? 125 : 145;
+  const yPerfil = propertyImageUrl ? 125 : 145;
   doc.setFontSize(10);
   const perfilText = clientePerfil === 'reformar' ? 'Perfil: Inversor - Reformar y Vender' :
                      clientePerfil === 'alquilar' ? 'Perfil: Inversor - Alquilar' :
@@ -153,7 +158,7 @@ export const generarPDFAnalisis = async ({
   doc.text(perfilText, pageWidth / 2, yPerfil, { align: 'center' });
   
   // Preparado para
-  const yNombre = cityImageUrl ? 135 : 155;
+  const yNombre = propertyImageUrl ? 135 : 155;
   doc.setFontSize(9);
   doc.setTextColor(100, 116, 139);
   doc.text(`Análisis preparado para: ${clienteNombre}`, pageWidth / 2, yNombre, { align: 'center' });
@@ -1161,10 +1166,10 @@ export const generarPDFAnalisis = async ({
   const fileName = `Findoo_${ubicacionLimpia}_${Date.now()}.pdf`;
   doc.save(fileName);
   
-  // Retornar información sobre warnings
+  // Retornar información
   return {
     success: true,
-    warnings: imageGenerationWarning ? [imageGenerationWarning] : []
+    warnings: []
   };
 };
 
