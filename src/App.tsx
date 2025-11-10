@@ -10,6 +10,7 @@ import Auth from "./pages/Auth";
 import AdminAuth from "./pages/AdminAuth";
 import Dashboard from "./pages/Dashboard";
 import { AdminProtectedRoute } from "@/components/AdminProtectedRoute";
+import { ClienteProtectedRoute } from "@/components/ClienteProtectedRoute";
 import Propiedades from "./pages/Propiedades";
 import Clientes from "./pages/Clientes";
 import Matchings from "./pages/Matchings";
@@ -56,9 +57,9 @@ const App = () => (
             <Route path="/settings" element={<AdminProtectedRoute><Settings /></AdminProtectedRoute>} />
             <Route path="/subscription" element={<AdminProtectedRoute><Subscription /></AdminProtectedRoute>} />
             <Route path="/llamadas-ia" element={<AdminProtectedRoute><LlamadasIA /></AdminProtectedRoute>} />
-            <Route path="/cliente/dashboard" element={<ClienteDashboard />} />
-            <Route path="/cliente/settings" element={<ClienteSettings />} />
-            <Route path="/cliente/metricas" element={<ClienteMetricas />} />
+            <Route path="/cliente/dashboard" element={<ClienteProtectedRoute><ClienteDashboard /></ClienteProtectedRoute>} />
+            <Route path="/cliente/settings" element={<ClienteProtectedRoute><ClienteSettings /></ClienteProtectedRoute>} />
+            <Route path="/cliente/metricas" element={<ClienteProtectedRoute><ClienteMetricas /></ClienteProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
