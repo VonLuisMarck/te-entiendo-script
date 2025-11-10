@@ -50,6 +50,32 @@ const Auth = () => {
         });
 
         if (error) throw error;
+
+        // Verificar si el cliente tiene criterios configurados
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: cliente } = await supabase
+            .from('clientes')
+            .select('id')
+            .eq('user_id', user.id)
+            .single();
+
+          if (cliente) {
+            const { data: criterios } = await supabase
+              .from('criterios_busqueda')
+              .select('id')
+              .eq('cliente_id', cliente.id)
+              .limit(1);
+
+            // Si no tiene criterios, redirigir a onboarding
+            if (!criterios || criterios.length === 0) {
+              toast.success("¡Bienvenido de vuelta! Completa tu configuración");
+              navigate("/cliente/onboarding");
+              return;
+            }
+          }
+        }
+
         toast.success("¡Bienvenido de vuelta!");
         navigate("/cliente/dashboard");
       } else {
@@ -57,7 +83,7 @@ const Auth = () => {
           email: validated.email,
           password: validated.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/cliente/dashboard`,
+            emailRedirectTo: `${window.location.origin}/cliente/onboarding`,
             data: {
               nombre: validated.nombre,
             },
@@ -77,8 +103,8 @@ const Auth = () => {
 
           if (clienteError) throw clienteError;
 
-          toast.success("¡Cuenta creada exitosamente!");
-          navigate("/cliente/dashboard");
+          toast.success("¡Cuenta creada! Ahora configura tus preferencias");
+          navigate("/cliente/onboarding");
         }
       }
     } catch (error: any) {

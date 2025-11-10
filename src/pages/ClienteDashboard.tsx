@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useSubscription } from '@/contexts/SubscriptionContext';
 import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, LogOut, CreditCard, Settings, BarChart3 } from 'lucide-react';
+import { Loader2, Check, LogOut, CreditCard, Settings, BarChart3, Sparkles } from 'lucide-react';
 import { UsageLimitsCard } from '@/components/UsageLimitsCard';
 
 const ClienteDashboard = () => {
@@ -166,9 +166,13 @@ const ClienteDashboard = () => {
                 Métricas
               </Button>
             )}
+            <Button onClick={() => navigate('/cliente/onboarding')} variant="outline">
+              <Sparkles className="mr-2 h-4 w-4" />
+              Configurar
+            </Button>
             <Button onClick={() => navigate('/cliente/settings')} variant="outline">
               <Settings className="mr-2 h-4 w-4" />
-              Configuración
+              Ajustes
             </Button>
             <Button onClick={handleLogout} variant="outline">
               <LogOut className="mr-2 h-4 w-4" />

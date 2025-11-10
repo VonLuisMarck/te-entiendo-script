@@ -22,6 +22,7 @@ import NotFound from "./pages/NotFound";
 import ClienteDashboard from "./pages/ClienteDashboard";
 import ClienteSettings from "./pages/ClienteSettings";
 import ClienteMetricas from "./pages/ClienteMetricas";
+import ClienteOnboarding from "./pages/ClienteOnboarding";
 import LlamadasIA from "./pages/LlamadasIA";
 import MercadoCiudades from "./pages/MercadoCiudades";
 import Historico from "./pages/Historico";
@@ -57,6 +58,7 @@ const App = () => (
             <Route path="/settings" element={<AdminProtectedRoute><Settings /></AdminProtectedRoute>} />
             <Route path="/subscription" element={<AdminProtectedRoute><Subscription /></AdminProtectedRoute>} />
             <Route path="/llamadas-ia" element={<AdminProtectedRoute><LlamadasIA /></AdminProtectedRoute>} />
+            <Route path="/cliente/onboarding" element={<ClienteProtectedRoute><ClienteOnboarding /></ClienteProtectedRoute>} />
             <Route path="/cliente/dashboard" element={<ClienteProtectedRoute><ClienteDashboard /></ClienteProtectedRoute>} />
             <Route path="/cliente/settings" element={<ClienteProtectedRoute><ClienteSettings /></ClienteProtectedRoute>} />
             <Route path="/cliente/metricas" element={<ClienteProtectedRoute><ClienteMetricas /></ClienteProtectedRoute>} />
