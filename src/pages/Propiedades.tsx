@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { generarPDFAnalisis, generarPDFPresupuesto } from "@/lib/pdf-generator";
+import { formatearUbicacion } from "@/lib/utils";
 
 interface Propiedad {
   id: string;
@@ -29,18 +30,6 @@ interface Propiedad {
   fecha_scraping: string;
 }
 
-// Función para formatear ubicación de forma legible
-const formatearUbicacion = (propiedad: Propiedad): string => {
-  if (propiedad.ciudad) {
-    // Si tenemos datos normalizados, usarlos
-    if (propiedad.distrito) {
-      return `${propiedad.distrito}, ${propiedad.ciudad}`;
-    }
-    return `${propiedad.ciudad}${propiedad.provincia ? `, ${propiedad.provincia}` : ''}`;
-  }
-  // Fallback al campo ubicacion original
-  return propiedad.ubicacion;
-};
 
 const Propiedades = () => {
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);

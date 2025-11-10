@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "sonner";
 import { generarPDFAnalisis, generarPDFPresupuesto } from "@/lib/pdf-generator";
+import { formatearUbicacion } from "@/lib/utils";
 
 interface Matching {
   id: string;
@@ -29,6 +30,9 @@ interface Matching {
     titulo: string;
     precio: number;
     ubicacion: string;
+    ciudad?: string | null;
+    distrito?: string | null;
+    provincia?: string | null;
     tipo_propiedad: string;
     metros: number;
     dormitorios: number;
@@ -79,7 +83,7 @@ const Matchings = () => {
         .select(`
           *,
           clientes (nombre, email, telefono, tipo_suscripcion),
-          propiedades (id, titulo, precio, ubicacion, tipo_propiedad, metros, dormitorios, banos, precio_m2, url, descripcion, condition, tiene_ascensor, tiene_parking)
+          propiedades (id, titulo, precio, ubicacion, ciudad, distrito, provincia, tipo_propiedad, metros, dormitorios, banos, precio_m2, url, descripcion, condition, tiene_ascensor, tiene_parking)
         `)
         .order("score", { ascending: false });
 
@@ -440,7 +444,7 @@ const Matchings = () => {
                               <div className="flex-1">
                                 <h4 className="font-semibold mb-1">{matching.propiedades?.titulo}</h4>
                                 <p className="text-sm text-muted-foreground mb-2">
-                                  {matching.propiedades?.ubicacion}
+                                  {formatearUbicacion(matching.propiedades)}
                                 </p>
                               </div>
                               <div className="text-right ml-4">
