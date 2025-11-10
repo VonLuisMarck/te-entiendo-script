@@ -624,6 +624,8 @@ export type Database = {
           banos: number | null
           ciudad: string | null
           condition: string | null
+          contacto_email: string | null
+          contacto_telefono: string | null
           created_at: string | null
           distrito: string | null
           dormitorios: number | null
@@ -640,6 +642,7 @@ export type Database = {
           provincia: string | null
           tiene_ascensor: boolean | null
           tiene_parking: boolean | null
+          tiene_trastero: boolean | null
           tipo_propiedad: string
           ubicacion: string
         }
@@ -648,6 +651,8 @@ export type Database = {
           banos?: number | null
           ciudad?: string | null
           condition?: string | null
+          contacto_email?: string | null
+          contacto_telefono?: string | null
           created_at?: string | null
           distrito?: string | null
           dormitorios?: number | null
@@ -664,6 +669,7 @@ export type Database = {
           provincia?: string | null
           tiene_ascensor?: boolean | null
           tiene_parking?: boolean | null
+          tiene_trastero?: boolean | null
           tipo_propiedad: string
           ubicacion: string
         }
@@ -672,6 +678,8 @@ export type Database = {
           banos?: number | null
           ciudad?: string | null
           condition?: string | null
+          contacto_email?: string | null
+          contacto_telefono?: string | null
           created_at?: string | null
           distrito?: string | null
           dormitorios?: number | null
@@ -688,6 +696,7 @@ export type Database = {
           provincia?: string | null
           tiene_ascensor?: boolean | null
           tiene_parking?: boolean | null
+          tiene_trastero?: boolean | null
           tipo_propiedad?: string
           ubicacion?: string
         }
