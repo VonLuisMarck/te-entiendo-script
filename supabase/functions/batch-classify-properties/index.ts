@@ -335,7 +335,64 @@ Cada objeto debe incluir el campo "id_interno" para identificarlo.`;
         errores: errores.length > 0 ? errores : null
       });
 
+    // 8. Actualizar tracking de costes en tiempo real
+    const hoy = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+    
+    // Obtener tracking actual del día
+    const { data: trackingHoy } = await supabase
+      .from('ai_cost_tracking')
+      .select('*')
+      .eq('fecha', hoy)
+      .maybeSingle();
+
+    const nuevoCosteAcumulado = (trackingHoy?.coste_acumulado_dia_usd || 0) + costeEstimado;
+    const nuevasLlamadas = (trackingHoy?.llamadas_ia_dia || 0) + 1;
+
+    // Obtener configuración de umbrales
+    const { data: config } = await supabase
+      .from('ai_cost_config')
+      .select('*')
+      .limit(1)
+      .maybeSingle();
+
+    const umbralDiario = config?.umbral_diario_usd || 10.0;
+    const umbralPorBatch = config?.umbral_por_batch_usd || 2.0;
+
+    // Verificar si se superaron umbrales
+    let alertaActiva = false;
+    let alertaMensaje = '';
+
+    if (costeEstimado > umbralPorBatch) {
+      alertaActiva = true;
+      alertaMensaje = `⚠️ Batch superó umbral: $${costeEstimado.toFixed(4)} > $${umbralPorBatch}`;
+      console.warn(`[Batch] ${alertaMensaje}`);
+    }
+
+    if (nuevoCosteAcumulado > umbralDiario) {
+      alertaActiva = true;
+      alertaMensaje = alertaMensaje 
+        ? `${alertaMensaje} | Coste diario superó umbral: $${nuevoCosteAcumulado.toFixed(4)} > $${umbralDiario}`
+        : `⚠️ Coste diario superó umbral: $${nuevoCosteAcumulado.toFixed(4)} > $${umbralDiario}`;
+      console.warn(`[Batch] Coste diario supera umbral`);
+    }
+
+    // Upsert tracking
+    await supabase
+      .from('ai_cost_tracking')
+      .upsert({
+        fecha: hoy,
+        coste_acumulado_dia_usd: nuevoCosteAcumulado,
+        llamadas_ia_dia: nuevasLlamadas,
+        ultimo_batch_coste_usd: costeEstimado,
+        ultimo_batch_timestamp: new Date().toISOString(),
+        alerta_activa: alertaActiva,
+        alerta_mensaje: alertaMensaje || null
+      }, {
+        onConflict: 'fecha'
+      });
+
     console.log(`[Batch] Completado: ${exitosas} exitosas, ${fallidas} fallidas en ${duracionSegundos}s`);
+    console.log(`[Batch] Coste: $${costeEstimado.toFixed(4)} | Acumulado día: $${nuevoCosteAcumulado.toFixed(4)}`);
 
     return new Response(
       JSON.stringify({

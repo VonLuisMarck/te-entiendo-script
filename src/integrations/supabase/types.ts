@@ -14,6 +14,84 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_cost_config: {
+        Row: {
+          created_at: string | null
+          id: string
+          notificar_email: boolean | null
+          notificar_ui: boolean | null
+          pausar_automatico: boolean | null
+          umbral_diario_usd: number | null
+          umbral_mensual_usd: number | null
+          umbral_por_batch_usd: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          notificar_email?: boolean | null
+          notificar_ui?: boolean | null
+          pausar_automatico?: boolean | null
+          umbral_diario_usd?: number | null
+          umbral_mensual_usd?: number | null
+          umbral_por_batch_usd?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          notificar_email?: boolean | null
+          notificar_ui?: boolean | null
+          pausar_automatico?: boolean | null
+          umbral_diario_usd?: number | null
+          umbral_mensual_usd?: number | null
+          umbral_por_batch_usd?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      ai_cost_tracking: {
+        Row: {
+          alerta_activa: boolean | null
+          alerta_mensaje: string | null
+          coste_acumulado_dia_usd: number | null
+          created_at: string | null
+          fecha: string
+          id: string
+          llamadas_ia_dia: number | null
+          tokens_consumidos_dia: number | null
+          ultimo_batch_coste_usd: number | null
+          ultimo_batch_timestamp: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          alerta_activa?: boolean | null
+          alerta_mensaje?: string | null
+          coste_acumulado_dia_usd?: number | null
+          created_at?: string | null
+          fecha?: string
+          id?: string
+          llamadas_ia_dia?: number | null
+          tokens_consumidos_dia?: number | null
+          ultimo_batch_coste_usd?: number | null
+          ultimo_batch_timestamp?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          alerta_activa?: boolean | null
+          alerta_mensaje?: string | null
+          coste_acumulado_dia_usd?: number | null
+          created_at?: string | null
+          fecha?: string
+          id?: string
+          llamadas_ia_dia?: number | null
+          tokens_consumidos_dia?: number | null
+          ultimo_batch_coste_usd?: number | null
+          ultimo_batch_timestamp?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       batch_processing_logs: {
         Row: {
           coste_estimado_usd: number | null
@@ -1078,6 +1156,7 @@ export type Database = {
           propiedades_desactivadas: number
         }[]
       }
+      get_coste_mensual_actual: { Args: never; Returns: number }
       get_matchings_limit: {
         Args: { tier: Database["public"]["Enums"]["subscription_tier"] }
         Returns: number

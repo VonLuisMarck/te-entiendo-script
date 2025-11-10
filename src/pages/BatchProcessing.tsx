@@ -7,6 +7,8 @@ import { Loader2, Play, Database, CheckCircle, XCircle, TrendingUp } from "lucid
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { AICostMonitor } from "@/components/AICostMonitor";
+import { AICostSettings } from "@/components/AICostSettings";
 
 const BatchProcessing = () => {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -113,6 +115,12 @@ const BatchProcessing = () => {
           </p>
         </div>
       </div>
+
+      {/* Monitor de Costes en Tiempo Real */}
+      <AICostMonitor />
+
+      {/* Configuración de Umbrales */}
+      <AICostSettings />
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
