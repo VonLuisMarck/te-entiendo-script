@@ -84,28 +84,44 @@ serve(async (req) => {
 
     // Obtener ubicaciones desde la base de datos
     const ubicacionesData = await getUbicaciones();
-    
-    // Construir lista de ubicaciones válidas para el prompt
-    const ubicacionesValidas = Object.entries(ubicacionesData).map(([key, data]: [string, any]) => {
-      const ciudadesStr = Object.entries(data.ciudades).map(([ciudad, distritos]: [string, any]) => {
-        if (distritos.length > 0) {
-          return `  - ${ciudad} (distritos: ${distritos.join(', ')})`;
-        }
-        return `  - ${ciudad}`;
-      }).join('\n');
-      return `${data.provincia}:\n${ciudadesStr}`;
-    }).join('\n\n');
 
     const systemPrompt = `Eres un experto en extracción de datos de propiedades inmobiliarias de diferentes portales web españoles (Fotocasa, Pisos.com, Idealista, etc).
 
 Tu tarea es extraer TODA la información estructurada de una propiedad a partir del HTML/JSON raw de la página del portal.
 
-UBICACIONES VÁLIDAS (USAR SOLO ESTAS):
-${ubicacionesValidas}
+UBICACIONES VÁLIDAS EN ESPAÑA:
+${JSON.stringify(ubicacionesData, null, 2)}
 
-INSTRUCCIONES CRÍTICAS:
+⚠️ **JERARQUÍA DEL JSON**: Provincia → Ciudad → Distrito (primer nivel) → Barrios (segundo nivel, NO uses)
 
-1. **UBICACIÓN**: SOLO usa provincias, ciudades y distritos de la lista de arriba. Si no encuentras coincidencia exacta, usa la más cercana.
+REGLAS CRÍTICAS - UBICACIÓN (LA MÁS IMPORTANTE):
+
+🔴 **JERARQUÍA OBLIGATORIA**:
+   El JSON tiene 3 niveles que DEBES respetar:
+   1. **Provincia**: Ej: "Madrid", "Barcelona", "Valencia"
+   2. **Ciudad**: Ej: "Madrid", "Barcelona", "Valencia", "Murcia"  
+   3. **Distrito**: PRIMER nivel del JSON de cada ciudad (ej: "Salamanca", "Chamberí", "Centro")
+   4. **Barrios**: SEGUNDO nivel (ignóralos, NO los uses como distrito)
+
+🔴 **REGLAS PARA CLASIFICAR DISTRITO**:
+   - **distrito**: SOLO el PRIMER nivel del JSON de esa ciudad
+     * Si mencionan "Castellana" (barrio de Salamanca) → distrito: "Salamanca" (busca el distrito padre)
+     * Si mencionan "Gaztambide" (barrio de Chamberí) → distrito: "Chamberí" (busca el distrito padre)
+     * Si mencionan "Chamberí" directamente → distrito: "Chamberí"
+     * Si mencionan "Barrio del Pilar" (barrio de Fuencarral-El Pardo) → distrito: "Fuencarral-El Pardo"
+   
+   - Si mencionan un BARRIO (segundo nivel), encuentra su DISTRITO padre (primer nivel)
+   - Si ciudad NO tiene distritos en JSON → distrito: null
+   - Si ciudad <300k habitantes → distrito: null
+
+🔴 **EJEMPLOS CORRECTOS**:
+   - "Castellana, Madrid" → ciudad: "Madrid", distrito: "Salamanca", provincia: "Madrid"
+   - "Gaztambide" → ciudad: "Madrid", distrito: "Chamberí", provincia: "Madrid"
+   - "Barrio del Pilar, Madrid" → ciudad: "Madrid", distrito: "Fuencarral-El Pardo", provincia: "Madrid"
+   - "Getafe" → ciudad: "Getafe", distrito: null, provincia: "Madrid"
+   - "Centro, Murcia" → ciudad: "Murcia", distrito: "Centro", provincia: "Murcia"
+
+1. **UBICACIÓN**: SOLO usa el PRIMER nivel de distritos del JSON. Si mencionan un barrio, busca a qué distrito pertenece.
 
 2. **TIPO DE PROPIEDAD**: Normaliza a uno de estos valores:
    - "Piso" (apartamentos, pisos, estudios)

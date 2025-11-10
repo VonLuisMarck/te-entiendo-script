@@ -49,23 +49,37 @@ serve(async (req) => {
 DATOS CRUDOS DEL ANUNCIO (RAW COMPLETO - ANALIZA TODO):
 ${JSON.stringify(propiedad, null, 2)}
 
-${ubicacionesJson ? `UBICACIONES DISPONIBLES EN ESPAÑA (solo municipios >50k habitantes):\n${ubicacionesJson}\n` : ''}
+${ubicacionesJson ? `UBICACIONES VÁLIDAS EN ESPAÑA:\n${ubicacionesJson}\n\n⚠️ JERARQUÍA DEL JSON: Provincia → Ciudad → Distrito (primer nivel) → Barrios (segundo nivel)\n` : ''}
 
-REGLAS CRÍTICAS DE EXTRACCIÓN:
+REGLAS CRÍTICAS DE EXTRACACIÓN - UBICACIÓN (LA MÁS IMPORTANTE):
 
-⚠️ **UBICACIÓN (MÁS IMPORTANTE)**:
-   - DEBES analizar TODO el anuncio: título, descripcion, ubicacion, y cualquier otro campo
-   - Busca menciones de ubicación en CUALQUIER parte del raw
-   - Prioridad: descripcion > ubicacion > titulo
-   - ciudad: Busca en el JSON la ciudad que coincida (solo >50k habitantes)
-   - provincia: Extrae la provincia española
-   - distrito: SOLO si ciudad >300k habitantes Y hay mención explícita (ej: "San Blas", "Chamberí")
+🔴 **JERARQUÍA OBLIGATORIA**:
+   El JSON tiene 3 niveles jerárquicos que DEBES respetar:
+   1. **Provincia**: Ej: "Madrid", "Barcelona", "Valencia"
+   2. **Ciudad**: Ej: "Madrid", "Barcelona", "Valencia", "Murcia"
+   3. **Distrito**: PRIMER nivel del JSON de cada ciudad (ej: "Salamanca", "Chamberí", "Centro")
+   4. **Barrios**: SEGUNDO nivel (NO uses esto, ignóralo)
+
+🔴 **REGLAS PARA CLASIFICAR**:
+   - **provincia**: Extrae la provincia española
+   - **ciudad**: Busca en el JSON la ciudad que coincida (solo incluye ciudades >50k habitantes)
+   - **distrito**: SOLO el PRIMER nivel del JSON de esa ciudad
+     * Para Madrid "Salamanca" → distrito: "Salamanca" ✅
+     * Para Madrid "Castellana" (barrio de Salamanca) → distrito: "Salamanca" ✅ (busca el distrito padre)
+     * Para Madrid "Chamberí" → distrito: "Chamberí" ✅
+     * Para Madrid "Gaztambide" (barrio de Chamberí) → distrito: "Chamberí" ✅ (busca el distrito padre)
    
-   EJEMPLOS:
-   - Si ves "San Blas - Madrid" → ciudad: "Madrid", distrito: "San Blas", provincia: "Madrid"
-   - Si ves "Salamanca, Madrid" → ciudad: "Madrid", distrito: "Salamanca", provincia: "Madrid"
-   - Si ves "Getafe" → ciudad: "Getafe", provincia: "Madrid", distrito: null
-   - Si ves "Centro, Murcia" → ciudad: "Murcia", distrito: "Centro", provincia: "Murcia"
+   - Si mencionan un BARRIO (segundo nivel), encuentra su DISTRITO padre (primer nivel)
+   - Si la ciudad NO tiene distritos en el JSON → distrito: null
+   - Si la ciudad tiene <300k habitantes → distrito: null
+
+🔴 **EJEMPLOS CORRECTOS**:
+   - "Castellana, Madrid" → ciudad: "Madrid", distrito: "Salamanca", provincia: "Madrid"
+   - "Gaztambide, Madrid" → ciudad: "Madrid", distrito: "Chamberí", provincia: "Madrid"
+   - "Chamberí, Madrid" → ciudad: "Madrid", distrito: "Chamberí", provincia: "Madrid"
+   - "Barrio del Pilar, Madrid" → ciudad: "Madrid", distrito: "Fuencarral-El Pardo", provincia: "Madrid"
+   - "Getafe" → ciudad: "Getafe", distrito: null, provincia: "Madrid"
+   - "Centro, Murcia" → ciudad: "Murcia", distrito: "Centro", provincia: "Murcia"
 
 1. **Tipo de Propiedad**: Normaliza a UNO de estos valores EXACTOS:
    - "piso" | "chalet" | "duplex" | "atico" | "casa" | "estudio" | "otro"
