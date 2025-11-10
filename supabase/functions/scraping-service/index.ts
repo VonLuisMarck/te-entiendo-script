@@ -115,6 +115,26 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
 
   for (const propiedad of data.propiedades) {
     try {
+      // Clasificar ubicación con IA antes de insertar
+      console.log(`[Webhook] Clasificando ubicación: ${propiedad.ubicacion}`);
+      const { data: locationData, error: locationError } = await supabase.functions.invoke('classify-location', {
+        body: { ubicacion: propiedad.ubicacion }
+      });
+
+      let ciudad = null;
+      let distrito = null;
+      let provincia = null;
+
+      if (locationError) {
+        console.error('[Webhook] Error clasificando ubicación:', locationError);
+        errores.push(`Error clasificando ubicación ${propiedad.ubicacion}: ${locationError.message}`);
+      } else if (locationData) {
+        ciudad = locationData.ciudad;
+        distrito = locationData.distrito;
+        provincia = locationData.provincia;
+        console.log(`[Webhook] Ubicación clasificada: ${ciudad} ${distrito ? `(${distrito})` : ''}, ${provincia}`);
+      }
+
       const { data: existing } = await supabase
         .from('propiedades')
         .select('id')
@@ -122,16 +142,24 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
         .eq('portal_origen', propiedad.portal_origen)
         .maybeSingle();
 
+      const propiedadConUbicacion = {
+        ...propiedad,
+        ciudad,
+        distrito,
+        provincia,
+        activo: true
+      };
+
       if (existing) {
         await supabase
           .from('propiedades')
-          .update({ ...propiedad, activo: true })
+          .update(propiedadConUbicacion)
           .eq('id', existing.id);
         propiedadesActualizadas++;
       } else {
         await supabase
           .from('propiedades')
-          .insert({ ...propiedad, activo: true });
+          .insert(propiedadConUbicacion);
         propiedadesNuevas++;
       }
     } catch (error) {
