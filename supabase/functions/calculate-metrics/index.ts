@@ -178,111 +178,12 @@ serve(async (req) => {
 function agruparPorProvinciaDistrito(propiedades: any[]): Record<string, any[]> {
   const grupos: Record<string, any[]> = {};
 
-  // Distritos conocidos de Murcia capital (AMPLIOS)
-  const distritosMurciaCapital = [
-    'Centro', 'Norte', 'Sur', 'Este', 'Oeste', 'Pedanías'
-  ];
-
-  // Municipios de la provincia de Murcia (son ciudades)
-  const municipiosMurcia = [
-    'Calabardina', 'Santiago de La Ribera', 'San Javier', 'Los Alcázares',
-    'Águilas', 'Cartagena', 'Lorca', 'Mazarrón', 'Torre Pacheco',
-    'La Manga', 'San Pedro del Pinatar', 'Cabo de Palos'
-  ];
-
-  // Distritos conocidos de Madrid capital (AMPLIOS)
-  const distritosMadridCapital = [
-    'Centro', 'Arganzuela', 'Retiro', 'Salamanca', 'Chamartín',
-    'Tetuán', 'Chamberí', 'Fuencarral-El Pardo', 'Moncloa-Aravaca',
-    'Latina', 'Carabanchel', 'Usera', 'Puente de Vallecas',
-    'Moratalaz', 'Ciudad Lineal', 'Hortaleza', 'Villaverde',
-    'Villa de Vallecas', 'Vicálvaro', 'San Blas-Canillejas', 'Barajas'
-  ];
-
-  // Municipios del área metropolitana de Madrid
-  const municipiosMadrid = [
-    'Alcalá de Henares', 'Alcobendas', 'Alcorcón', 'Aranjuez', 'Arganda del Rey',
-    'Collado Villalba', 'Coslada', 'Fuenlabrada', 'Getafe', 'Leganés',
-    'Majadahonda', 'Móstoles', 'Parla', 'Pinto', 'Pozuelo de Alarcón',
-    'Rivas-Vaciamadrid', 'San Fernando de Henares', 'San Sebastián de los Reyes',
-    'Torrejón de Ardoz', 'Tres Cantos', 'Valdemoro', 'Las Rozas', 'Boadilla del Monte'
-  ];
-
   for (const prop of propiedades) {
-    const ubicacion = prop.ubicacion || '';
-    const titulo = prop.titulo || '';
+    // Usar campos normalizados directamente (ya clasificados por la IA)
+    const provincia = prop.provincia || 'Desconocida';
+    const ciudad = prop.ciudad || '';
+    const distrito = prop.distrito || '';
     
-    let provincia = '';
-    let ciudad = '';
-    let distrito = '';
-    
-    // CASO 1: Formato "Distrito, Ciudad" (típico de Fotocasa)
-    if (ubicacion.includes(',')) {
-      const partes = ubicacion.split(',').map((p: string) => p.trim());
-      distrito = partes[0];
-      ciudad = partes[1];
-      provincia = ciudad; // Por ahora provincia = ciudad
-      console.log(`✓ Completo: "${ubicacion}" -> Prov: ${provincia}, Ciudad: ${ciudad}, Distrito: ${distrito}`);
-    }
-    // CASO 2: Solo ubicación genérica (típico de Pisos.com)
-    else {
-      const ubicacionLimpia = ubicacion.trim();
-      provincia = ubicacionLimpia || 'Desconocida';
-      ciudad = ''; // Por defecto vacío
-      distrito = ''; // Por defecto vacío
-      
-      // Para Murcia, intentar extraer distrito/ciudad del título
-      if (provincia === 'Murcia') {
-        const distritoEncontrado = distritosMurciaCapital.find(d => 
-          titulo.toLowerCase().includes(d.toLowerCase())
-        );
-        
-        if (distritoEncontrado) {
-          ciudad = 'Murcia';
-          distrito = distritoEncontrado;
-          console.log(`✓ Distrito de capital: "${titulo}" -> Prov: Murcia, Ciudad: Murcia, Distrito: ${distrito}`);
-        } else {
-          const municipioEncontrado = municipiosMurcia.find(m => 
-            titulo.toLowerCase().includes(m.toLowerCase())
-          );
-          
-          if (municipioEncontrado) {
-            ciudad = municipioEncontrado;
-            console.log(`✓ Municipio: "${titulo}" -> Prov: Murcia, Ciudad: ${ciudad}, Distrito: (vacío)`);
-          } else {
-            console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Murcia, Ciudad: (vacío), Distrito: (vacío)`);
-          }
-        }
-      }
-      // Para Madrid
-      else if (provincia === 'Madrid') {
-        const distritoEncontrado = distritosMadridCapital.find(d => 
-          titulo.toLowerCase().includes(d.toLowerCase())
-        );
-        
-        if (distritoEncontrado) {
-          ciudad = 'Madrid';
-          distrito = distritoEncontrado;
-          console.log(`✓ Distrito de capital: "${titulo}" -> Prov: Madrid, Ciudad: Madrid, Distrito: ${distrito}`);
-        } else {
-          const municipioEncontrado = municipiosMadrid.find(m => 
-            titulo.toLowerCase().includes(m.toLowerCase())
-          );
-          
-          if (municipioEncontrado) {
-            ciudad = municipioEncontrado;
-            console.log(`✓ Municipio: "${titulo}" -> Prov: Madrid, Ciudad: ${ciudad}, Distrito: (vacío)`);
-          } else {
-            console.log(`⚠ Sin detalle: "${titulo}" -> Solo Prov: Madrid, Ciudad: (vacío), Distrito: (vacío)`);
-          }
-        }
-      }
-      else {
-        // Otras provincias sin detalles
-        console.log(`⚠ Provincia genérica: "${ubicacion}" -> Prov: ${provincia}, Ciudad: (vacío), Distrito: (vacío)`);
-      }
-    }
-
     // Clave única: provincia|ciudad|distrito
     const key = `${provincia}|${ciudad}|${distrito}`;
     if (!grupos[key]) grupos[key] = [];
@@ -298,7 +199,16 @@ function agruparPorProvinciaDistrito(propiedades: any[]): Record<string, any[]> 
 }
 
 function calcularMetricas(propiedades: any[]) {
-  const preciosM2 = propiedades.map(p => p.precio_m2).filter(p => p > 0).sort((a, b) => a - b);
+  // PASO 1: Filtrar outliers usando IQR (Interquartile Range)
+  const preciosM2Raw = propiedades.map(p => p.precio_m2).filter(p => p > 0).sort((a, b) => a - b);
+  
+  // Calcular outliers ANTES de cualquier cálculo
+  const preciosM2Limpios = filtrarOutliers(preciosM2Raw);
+  
+  console.log(`[Métricas] Propiedades: ${propiedades.length}, Outliers eliminados: ${preciosM2Raw.length - preciosM2Limpios.length}`);
+  
+  // Usar solo precios limpios para cálculos
+  const preciosM2 = preciosM2Limpios.sort((a, b) => a - b);
   const precios = propiedades.map(p => p.precio).filter(p => p > 0);
   
   // Filtrar por tipo
@@ -323,13 +233,13 @@ function calcularMetricas(propiedades: any[]) {
     precio_m2_percentil_50: percentil(preciosM2, 0.50),
     precio_m2_percentil_75: percentil(preciosM2, 0.75),
 
-    // Por tipo de propiedad
+    // Por tipo de propiedad (también filtrar outliers)
     metros_medio_piso: avg(pisos.map(p => p.metros)),
     metros_medio_chalet: avg(chalets.map(p => p.metros)),
     precio_medio_piso: avg(pisos.map(p => p.precio)),
     precio_medio_chalet: avg(chalets.map(p => p.precio)),
-    precio_m2_medio_piso: avg(pisos.map(p => p.precio_m2).filter(p => p > 0)),
-    precio_m2_medio_chalet: avg(chalets.map(p => p.precio_m2).filter(p => p > 0)),
+    precio_m2_medio_piso: avg(filtrarOutliers(pisos.map(p => p.precio_m2).filter(p => p > 0))),
+    precio_m2_medio_chalet: avg(filtrarOutliers(chalets.map(p => p.precio_m2).filter(p => p > 0))),
 
     // Volumen
     total_propiedades: propiedades.length,
@@ -341,6 +251,28 @@ function calcularMetricas(propiedades: any[]) {
     tendencia: 'estable',
     variacion_mensual: null,
   };
+}
+
+// Función para filtrar outliers usando método IQR (Interquartile Range)
+function filtrarOutliers(valores: number[]): number[] {
+  if (valores.length < 4) return valores; // No suficientes datos para filtrar
+  
+  const sorted = [...valores].sort((a, b) => a - b);
+  
+  // Calcular cuartiles
+  const q1Index = Math.floor(sorted.length * 0.25);
+  const q3Index = Math.floor(sorted.length * 0.75);
+  
+  const q1 = sorted[q1Index];
+  const q3 = sorted[q3Index];
+  const iqr = q3 - q1;
+  
+  // Definir límites (1.5 * IQR es el estándar para outliers)
+  const lowerBound = q1 - 1.5 * iqr;
+  const upperBound = q3 + 1.5 * iqr;
+  
+  // Filtrar valores fuera de los límites
+  return valores.filter(v => v >= lowerBound && v <= upperBound);
 }
 
 function avg(arr: number[]): number | null {

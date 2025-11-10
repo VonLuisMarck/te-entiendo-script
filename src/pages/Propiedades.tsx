@@ -15,6 +15,9 @@ interface Propiedad {
   descripcion: string;
   precio: number;
   ubicacion: string;
+  ciudad: string | null;
+  distrito: string | null;
+  provincia: string | null;
   tipo_propiedad: string;
   dormitorios: number;
   banos: number;
@@ -25,6 +28,19 @@ interface Propiedad {
   url: string;
   fecha_scraping: string;
 }
+
+// Función para formatear ubicación de forma legible
+const formatearUbicacion = (propiedad: Propiedad): string => {
+  if (propiedad.ciudad) {
+    // Si tenemos datos normalizados, usarlos
+    if (propiedad.distrito) {
+      return `${propiedad.distrito}, ${propiedad.ciudad}`;
+    }
+    return `${propiedad.ciudad}${propiedad.provincia ? `, ${propiedad.provincia}` : ''}`;
+  }
+  // Fallback al campo ubicacion original
+  return propiedad.ubicacion;
+};
 
 const Propiedades = () => {
   const [propiedades, setPropiedades] = useState<Propiedad[]>([]);
@@ -89,8 +105,8 @@ const Propiedades = () => {
         .eq("clientes.user_id", session.user.id)
         .maybeSingle();
 
-      // Buscar métricas de la zona (solo ciudad, sin distrito)
-      const [ciudad] = propiedad.ubicacion.split(',').map(s => s.trim());
+      // Buscar métricas de la zona usando los campos normalizados
+      const ciudad = propiedad.ciudad || propiedad.ubicacion.split(',')[0]?.trim();
       
       const { data: metrica } = await supabase
         .from("metricas_barrios")
@@ -130,11 +146,16 @@ const Propiedades = () => {
     }
   };
 
-  const filteredPropiedades = propiedades.filter(
-    (prop) =>
-      prop.titulo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      prop.ubicacion.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredPropiedades = propiedades.filter((prop) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      prop.titulo.toLowerCase().includes(searchLower) ||
+      prop.ubicacion.toLowerCase().includes(searchLower) ||
+      prop.ciudad?.toLowerCase().includes(searchLower) ||
+      prop.distrito?.toLowerCase().includes(searchLower) ||
+      prop.provincia?.toLowerCase().includes(searchLower)
+    );
+  });
 
   const handleDescargarPresupuesto = async (propiedad: Propiedad) => {
     setGeneratingPresupuesto(propiedad.id);
@@ -221,7 +242,7 @@ const Propiedades = () => {
                   <CardTitle className="text-lg line-clamp-2">{propiedad.titulo}</CardTitle>
                   <CardDescription className="flex items-start gap-1 mt-2">
                     <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                    <span className="line-clamp-2">{propiedad.ubicacion}</span>
+                    <span className="line-clamp-2">{formatearUbicacion(propiedad)}</span>
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
