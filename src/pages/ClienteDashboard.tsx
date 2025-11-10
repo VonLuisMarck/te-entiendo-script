@@ -9,6 +9,7 @@ import { useSubscription } from '@/contexts/SubscriptionContext';
 import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Check, LogOut, CreditCard, Settings, BarChart3 } from 'lucide-react';
+import { UsageLimitsCard } from '@/components/UsageLimitsCard';
 
 const ClienteDashboard = () => {
   const navigate = useNavigate();
@@ -174,6 +175,11 @@ const ClienteDashboard = () => {
               Cerrar Sesión
             </Button>
           </div>
+        </div>
+
+        {/* Usage Limits Card */}
+        <div className="mb-8">
+          <UsageLimitsCard />
         </div>
 
         {/* Current Subscription Status */}
