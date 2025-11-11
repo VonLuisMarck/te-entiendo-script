@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_config: {
+        Row: {
+          activo: boolean | null
+          created_at: string | null
+          id: string
+          nombre: string
+          recibir_alertas: boolean | null
+          telefono: string
+          updated_at: string | null
+        }
+        Insert: {
+          activo?: boolean | null
+          created_at?: string | null
+          id?: string
+          nombre: string
+          recibir_alertas?: boolean | null
+          telefono: string
+          updated_at?: string | null
+        }
+        Update: {
+          activo?: boolean | null
+          created_at?: string | null
+          id?: string
+          nombre?: string
+          recibir_alertas?: boolean | null
+          telefono?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       ai_cost_config: {
         Row: {
           created_at: string | null
@@ -1175,6 +1205,36 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      whatsapp_alerts_log: {
+        Row: {
+          created_at: string | null
+          enviado_exitosamente: boolean | null
+          id: string
+          mensaje: string
+          metadata: Json | null
+          telefono_destino: string
+          tipo_alerta: string
+        }
+        Insert: {
+          created_at?: string | null
+          enviado_exitosamente?: boolean | null
+          id?: string
+          mensaje: string
+          metadata?: Json | null
+          telefono_destino: string
+          tipo_alerta: string
+        }
+        Update: {
+          created_at?: string | null
+          enviado_exitosamente?: boolean | null
+          id?: string
+          mensaje?: string
+          metadata?: Json | null
+          telefono_destino?: string
+          tipo_alerta?: string
+        }
+        Relationships: []
       }
     }
     Views: {
