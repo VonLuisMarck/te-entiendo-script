@@ -64,6 +64,38 @@ def normalize_items(data):
                 return data["data"][key]
     return []
 
+def send_page_to_webhook(propiedades, webhook_url, webhook_auth):
+    """Envía una página de propiedades al webhook inmediatamente"""
+    if not webhook_url or not propiedades:
+        return
+    
+    try:
+        webhook_data = {
+            'propiedades': propiedades,
+            'metadata': {
+                'portal': 'fotocasa',
+                'ubicacion': None,
+                'total_encontradas': len(propiedades)
+            }
+        }
+        
+        response = requests.post(
+            webhook_url,
+            json=webhook_data,
+            headers={
+                'Content-Type': 'application/json',
+                'X-Scraper-Secret': webhook_auth
+            },
+            timeout=60
+        )
+        
+        if response.status_code == 200:
+            print(f"✅ Webhook: {len(propiedades)} propiedades enviadas")
+        else:
+            print(f"⚠️ Webhook error: HTTP {response.status_code}")
+    except Exception as e:
+        print(f"⚠️ Error enviando al webhook: {e}")
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--city", default="murcia-capital")
@@ -72,6 +104,8 @@ def main():
     ap.add_argument("--size", type=int, default=30)
     ap.add_argument("--max-pages", type=int, default=50)
     ap.add_argument("--sleep", type=float, default=1.0)
+    ap.add_argument("--webhook-url", default=None, help="URL del webhook para enviar resultados")
+    ap.add_argument("--webhook-auth", default=None, help="Token de autenticación del webhook")
     args = ap.parse_args()
 
     output_file = args.output
@@ -131,6 +165,9 @@ def main():
             for item in found:
                 f.write(json.dumps(item, ensure_ascii=False) + "\n")
         print(f"💾 Página 1: {len(found)} propiedades guardadas")
+        
+        # Enviar al webhook inmediatamente
+        send_page_to_webhook(found, args.webhook_url, args.webhook_auth)
 
     # Resto de páginas - guardar cada una inmediatamente
     for page in range(2, total_pages + 1):
@@ -167,6 +204,9 @@ def main():
                     f.write(json.dumps(item, ensure_ascii=False) + "\n")
             print(f"💾 Página {page}: {len(new)} propiedades nuevas guardadas")
             seen.update(str(a.get("id")) for a in new)
+            
+            # Enviar al webhook inmediatamente
+            send_page_to_webhook(new, args.webhook_url, args.webhook_auth)
         
         time.sleep(args.sleep)
     

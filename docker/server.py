@@ -611,7 +611,9 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
             '--output', output_file,
             '--max-pages', str(max_pages) if max_pages else '999999',
             '--transaction', '1',
-            '--sleep', '1.0'
+            '--sleep', '1.0',
+            '--webhook-url', webhook_url,
+            '--webhook-auth', webhook_auth
         ]
         
         print(f"[RUN] {' '.join(cmd)}")
@@ -675,17 +677,12 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
         
         print(f"[OK] Total: {len(propiedades)} properties (New: {nuevas}, Updates: {actualizadas})")
         
-        if propiedades:
-            send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth)
-            jobs[job_id]['status'] = 'completed'
-            jobs[job_id]['propiedades_encontradas'] = len(propiedades)
-            jobs[job_id]['propiedades_nuevas'] = nuevas
-            jobs[job_id]['propiedades_actualizadas'] = actualizadas
-        else:
-            jobs[job_id]['status'] = 'completed'
-            jobs[job_id]['propiedades_encontradas'] = 0
-            jobs[job_id]['propiedades_nuevas'] = 0
-            jobs[job_id]['propiedades_actualizadas'] = 0
+        # Las propiedades ya fueron enviadas página por página al webhook
+        # Solo actualizamos el estado del job
+        jobs[job_id]['status'] = 'completed'
+        jobs[job_id]['propiedades_encontradas'] = len(propiedades)
+        jobs[job_id]['propiedades_nuevas'] = nuevas
+        jobs[job_id]['propiedades_actualizadas'] = actualizadas
         
         if os.path.exists(output_file):
             os.remove(output_file)
