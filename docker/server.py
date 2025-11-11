@@ -606,11 +606,12 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
         print(f"[OK] Output file: {output_file}")
         
         cmd = [
-            'python', 'fotocasa_scraper.py',
+            'python3', 'fotocasa_scraper.py',
             '--city', 'murcia-capital',
             '--output', output_file,
-            '--max-pages', str(max_pages) if max_pages else '999999',  # Sin límite
-            '--transaction', '1'
+            '--max-pages', str(max_pages) if max_pages else '50',
+            '--transaction', '1',
+            '--sleep', '1.0'
         ]
         
         print(f"[RUN] {' '.join(cmd)}")
