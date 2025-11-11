@@ -1,5 +1,11 @@
 project_id = "mtjomlpwpiuhflwmgctk"
 
+[functions.whatsapp-admin-bot]
+verify_jwt = false
+
+[functions.whatsapp-scraper-alerts]
+verify_jwt = false
+
 [functions.batch-classify-properties]
 verify_jwt = false
 
