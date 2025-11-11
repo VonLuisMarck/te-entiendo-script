@@ -160,7 +160,7 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
           await supabase
             .from('propiedades_raw')
             .update({
-              raw_data: propiedad,
+              raw_data: rawData.raw_data,
               updated_at: new Date().toISOString()
             })
             .eq('id', existing.id);
