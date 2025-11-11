@@ -70,20 +70,29 @@ def send_page_to_webhook(propiedades_raw, webhook_url, webhook_auth):
         return
     
     try:
-        # Formato esperado por el webhook
+        # Construir payload simplificado - enviar raw data directamente
         propiedades_formato = []
         for item in propiedades_raw:
-            # Construir URL completa
-            uris = item.get('uris', [])
-            url = f"https://www.fotocasa.es{uris[0].get('value')}" if uris else f"https://www.fotocasa.es/propiedad/{item.get('id')}"
+            # Construir URL completa de forma segura
+            try:
+                uris = item.get('uris', [])
+                if uris and isinstance(uris, list) and len(uris) > 0:
+                    url = f"https://www.fotocasa.es{uris[0].get('value', '')}"
+                else:
+                    url = f"https://www.fotocasa.es/propiedad/{item.get('id', 'unknown')}"
+            except:
+                url = f"https://www.fotocasa.es/propiedad/{item.get('id', 'unknown')}"
             
             prop = {
                 'external_id': f"fotocasa-{item.get('id')}",
                 'portal_origen': 'fotocasa',
                 'url': url,
-                'raw_data': item  # CRÍTICO: Guardar el objeto completo sin transformar
+                'raw_data': item  # Objeto JSON completo sin transformar
             }
             propiedades_formato.append(prop)
+        
+        # Log para debug
+        print(f"📤 Enviando {len(propiedades_formato)} propiedades al webhook...")
         
         webhook_data = {
             'propiedades': propiedades_formato,
@@ -105,11 +114,12 @@ def send_page_to_webhook(propiedades_raw, webhook_url, webhook_auth):
         )
         
         if response.status_code == 200:
-            print(f"✅ Webhook: {len(propiedades_formato)} propiedades RAW enviadas")
+            print(f"✅ Webhook OK: {len(propiedades_formato)} propiedades guardadas")
         else:
-            print(f"⚠️ Webhook error: HTTP {response.status_code} - {response.text}")
+            print(f"⚠️ Webhook error: HTTP {response.status_code}")
+            print(f"   Response: {response.text[:200]}")
     except Exception as e:
-        print(f"⚠️ Error enviando al webhook: {e}")
+        print(f"⚠️ Error enviando al webhook: {str(e)}")
 
 def main():
     ap = argparse.ArgumentParser()
@@ -210,7 +220,7 @@ def main():
             print(f"⚠️ Sin resultados en página {page}, finalizando...")
             break
             
-        # Filtrar duplicados
+        # Filtrar duplicados para el archivo local
         new = [a for a in items if str(a.get("id")) not in seen]
         if new:
             # Append a archivo existente
@@ -219,9 +229,10 @@ def main():
                     f.write(json.dumps(item, ensure_ascii=False) + "\n")
             print(f"💾 Página {page}: {len(new)} propiedades nuevas guardadas")
             seen.update(str(a.get("id")) for a in new)
-            
-            # Enviar al webhook inmediatamente
-            send_page_to_webhook(new, args.webhook_url, args.webhook_auth)
+        
+        # IMPORTANTE: Enviar TODOS los items al webhook (no solo new)
+        # El webhook/propiedades_raw maneja los duplicados con upsert
+        send_page_to_webhook(items, args.webhook_url, args.webhook_auth)
         
         time.sleep(args.sleep)
     
