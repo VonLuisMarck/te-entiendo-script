@@ -71,6 +71,7 @@ def main():
     ap.add_argument("--transaction", type=int, default=1, help="1=venta, 2=alquiler")
     ap.add_argument("--size", type=int, default=30)
     ap.add_argument("--max-pages", type=int, default=50)
+    ap.add_argument("--sleep", type=float, default=1.0)
     args = ap.parse_args()
 
     output_file = args.output
@@ -90,30 +91,39 @@ def main():
     payload = {
         "combinedLocations": [combined],
         "transactionType": args.transaction,
-        "page": 1,
-        "size": args.size,
+        "platformId": 1,
         "sort": {"order": "desc", "type": "publicationDate"},
+        "page": {"number": 1, "size": args.size},
+        "from": 0,
         "filters": {}
     }
 
-    # Preparar archivo de salida para modo append
-    ensure_dir(os.path.dirname(output_file))
-    
     # Primera página
     print("🔹 Página 1")
     r = s.post(SEARCH_V1, json=payload)
+    print(f"   Respuesta: {r.status_code}")
+    
+    if r.status_code != 200:
+        print(f"⚠️ Error HTTP {r.status_code}, abortando...")
+        return
+    
     data = r.json()
 
-    total_count = data.get("totalCount") or data.get("data", {}).get("totalCount")
-    page_info = data.get("page", {})
-    total_pages = page_info.get("total") or math.ceil(total_count / args.size) if total_count else 1
+    total_items = data.get("totalItems", 0)
+    page_size = data.get("page", {}).get("size", args.size)
+    total_pages = math.ceil(total_items / page_size) if total_items else 1
+    
+    # Limitar al max-pages configurado
+    total_pages = min(total_pages, args.max_pages)
 
-    print(f"📊 Total propiedades: {total_count}")
-    print(f"📄 Páginas detectadas: {total_pages}")
+    print(f"📊 Total propiedades: {total_items}")
+    print(f"📄 Páginas a procesar: {total_pages}")
 
     # Procesar primera página
     found = normalize_items(data)
     seen = set(str(a.get("id")) for a in found if isinstance(a, dict))
+    
+    print(f"→ Página 1 devolvió {len(found)} resultados")
     
     # Guardar primera página inmediatamente
     if found:
@@ -123,18 +133,27 @@ def main():
         print(f"💾 Página 1: {len(found)} propiedades guardadas")
 
     # Resto de páginas - guardar cada una inmediatamente
-    for page in range(2, min(total_pages, args.max_pages) + 1):
-        payload["page"] = page
+    for page in range(2, total_pages + 1):
+        payload["page"]["number"] = page
+        payload["from"] = (page - 1) * page_size
         print(f"🔹 Página {page}")
         
         try:
             r = s.post(SEARCH_V1, json=payload)
+            print(f"   Respuesta: {r.status_code}")
+            
+            if r.status_code != 200:
+                print(f"⚠️ Error HTTP {r.status_code}, deteniendo...")
+                break
+            
             data = r.json()
         except Exception as e:
             print(f"⚠️ Error en página {page}: {e}")
             break
             
         items = normalize_items(data)
+        print(f"   {len(items)} resultados en esta página")
+        
         if not items:
             print(f"⚠️ Sin resultados en página {page}, finalizando...")
             break
@@ -146,14 +165,10 @@ def main():
             with open(output_file, "a", encoding="utf-8") as f:
                 for item in new:
                     f.write(json.dumps(item, ensure_ascii=False) + "\n")
-            print(f"💾 Página {page}: {len(new)} propiedades guardadas")
+            print(f"💾 Página {page}: {len(new)} propiedades nuevas guardadas")
             seen.update(str(a.get("id")) for a in new)
         
-        if len(items) < args.size:
-            print(f"⚠️ Página {page} tiene menos resultados que el tamaño esperado, finalizando...")
-            break
-            
-        time.sleep(1.0)
+        time.sleep(args.sleep)
     
     print(f"✅ Completado: {len(seen)} propiedades totales guardadas")
 
