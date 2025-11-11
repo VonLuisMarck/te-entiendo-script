@@ -609,7 +609,7 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
             'python3', 'fotocasa_scraper.py',
             '--city', 'murcia-capital',
             '--output', output_file,
-            '--max-pages', str(max_pages) if max_pages else '50',
+            '--max-pages', str(max_pages) if max_pages else '999999',
             '--transaction', '1',
             '--sleep', '1.0'
         ]
