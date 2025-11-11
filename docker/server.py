@@ -253,6 +253,11 @@ def transform_item_pisos(item):
         }
     }
 
+# ==============================================================================
+# FUNCIONES DE TRANSFORMACIÓN LEGACY - Ya no se usan en el flujo de scraping
+# Los scrapers envían datos RAW → propiedades_raw → batch processing con IA
+# ==============================================================================
+
 def transform_item(item):
     """Transforma item del nuevo formato de Fotocasa al formato del backend"""
     # Extraer ubicación
@@ -651,38 +656,24 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
             jobs[job_id]['propiedades_encontradas'] = 0
             return
         
-        # Procesar archivo línea por línea
-        propiedades = []
-        nuevas = 0
-        actualizadas = 0
-        print(f"[READ] Reading results from {output_file}")
+        # Las propiedades ya fueron enviadas página por página como RAW data al webhook
+        # El scraper envía directamente durante la ejecución
+        # Solo contamos para actualizar el estado del job
+        print(f"[OK] Checking output file: {output_file}")
         
-        with open(output_file, 'r', encoding='utf-8') as f:
-            for line_num, line in enumerate(f, 1):
-                if line.strip():
-                    try:
-                        item = json.loads(line)
-                        prop = transform_item(item)
-                        external_id = prop.get('external_id')
-                        
-                        # Verificar si ya existe (para stats)
-                        if external_id in existing_ids_set:
-                            actualizadas += 1
-                        else:
-                            nuevas += 1
-                        
-                        propiedades.append(prop)
-                    except Exception as e:
-                        print(f"[WARN] Line {line_num} error: {e}")
+        total_propiedades = 0
+        if os.path.exists(output_file):
+            with open(output_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    if line.strip():
+                        total_propiedades += 1
         
-        print(f"[OK] Total: {len(propiedades)} properties (New: {nuevas}, Updates: {actualizadas})")
+        print(f"[OK] Total: {total_propiedades} properties scraped and sent as RAW data")
         
-        # Las propiedades ya fueron enviadas página por página al webhook
-        # Solo actualizamos el estado del job
         jobs[job_id]['status'] = 'completed'
-        jobs[job_id]['propiedades_encontradas'] = len(propiedades)
-        jobs[job_id]['propiedades_nuevas'] = nuevas
-        jobs[job_id]['propiedades_actualizadas'] = actualizadas
+        jobs[job_id]['propiedades_encontradas'] = total_propiedades
+        jobs[job_id]['propiedades_nuevas'] = total_propiedades  # Se determina en batch processing
+        jobs[job_id]['propiedades_actualizadas'] = 0
         
         if os.path.exists(output_file):
             os.remove(output_file)

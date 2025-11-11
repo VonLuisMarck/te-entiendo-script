@@ -129,7 +129,7 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
       const rawData = {
         external_id: propiedad.external_id,
         portal_origen: propiedad.portal_origen,
-        raw_data: propiedad, // Guardar toda la propiedad como JSON
+        raw_data: propiedad.raw_data || propiedad, // Priorizar raw_data si existe, sino toda la propiedad
         url: propiedad.url,
         procesado: false,
         intentos_procesamiento: 0,

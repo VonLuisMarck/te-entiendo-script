@@ -64,18 +64,33 @@ def normalize_items(data):
                 return data["data"][key]
     return []
 
-def send_page_to_webhook(propiedades, webhook_url, webhook_auth):
-    """Envía una página de propiedades al webhook inmediatamente"""
-    if not webhook_url or not propiedades:
+def send_page_to_webhook(propiedades_raw, webhook_url, webhook_auth):
+    """Envía una página de propiedades RAW al webhook para guardar en propiedades_raw"""
+    if not webhook_url or not propiedades_raw:
         return
     
     try:
+        # Formato esperado por el webhook
+        propiedades_formato = []
+        for item in propiedades_raw:
+            # Construir URL completa
+            uris = item.get('uris', [])
+            url = f"https://www.fotocasa.es{uris[0].get('value')}" if uris else f"https://www.fotocasa.es/propiedad/{item.get('id')}"
+            
+            prop = {
+                'external_id': f"fotocasa-{item.get('id')}",
+                'portal_origen': 'fotocasa',
+                'url': url,
+                'raw_data': item  # CRÍTICO: Guardar el objeto completo sin transformar
+            }
+            propiedades_formato.append(prop)
+        
         webhook_data = {
-            'propiedades': propiedades,
+            'propiedades': propiedades_formato,
             'metadata': {
                 'portal': 'fotocasa',
                 'ubicacion': None,
-                'total_encontradas': len(propiedades)
+                'total_encontradas': len(propiedades_formato)
             }
         }
         
@@ -90,9 +105,9 @@ def send_page_to_webhook(propiedades, webhook_url, webhook_auth):
         )
         
         if response.status_code == 200:
-            print(f"✅ Webhook: {len(propiedades)} propiedades enviadas")
+            print(f"✅ Webhook: {len(propiedades_formato)} propiedades RAW enviadas")
         else:
-            print(f"⚠️ Webhook error: HTTP {response.status_code}")
+            print(f"⚠️ Webhook error: HTTP {response.status_code} - {response.text}")
     except Exception as e:
         print(f"⚠️ Error enviando al webhook: {e}")
 
