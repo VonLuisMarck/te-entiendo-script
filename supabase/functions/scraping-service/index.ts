@@ -14,7 +14,16 @@ const ScrapingRequestSchema = z.object({
   max_pages: z.number().int().min(1).nullish(),  // Acepta null, undefined o número
 });
 
-const PropiedadSchema = z.object({
+// Schema para propiedades con raw_data (formato simplificado desde scrapers)
+const PropiedadRawSchema = z.object({
+  external_id: z.string(),
+  portal_origen: z.string(),
+  url: z.string(),
+  raw_data: z.any(), // Cualquier objeto JSON
+});
+
+// Schema para propiedades transformadas (formato completo, legacy)
+const PropiedadTransformadaSchema = z.object({
   external_id: z.string(),
   portal_origen: z.string(),
   titulo: z.string(),
@@ -40,6 +49,9 @@ const PropiedadSchema = z.object({
   fecha_scraping: z.string().nullable().optional(),
   fecha_publicacion: z.string().nullable().optional(),
 });
+
+// Schema unión: acepta ambos formatos
+const PropiedadSchema = z.union([PropiedadRawSchema, PropiedadTransformadaSchema]);
 
 const WebhookDataSchema = z.object({
   propiedades: z.array(PropiedadSchema),
@@ -116,7 +128,13 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
   // NUEVO FLUJO: Guardar en propiedades_raw sin procesar (batch processing)
   for (const propiedad of data.propiedades) {
     try {
-      console.log(`[Webhook] Guardando RAW: ${propiedad.titulo?.substring(0, 50)}...`);
+      // Type guard: verificar si es formato raw o transformado
+      const isRawFormat = 'raw_data' in propiedad;
+      const displayName = isRawFormat 
+        ? propiedad.external_id
+        : (propiedad as any).titulo?.substring(0, 50) || propiedad.external_id;
+      
+      console.log(`[Webhook] Guardando RAW: ${displayName}...`);
 
       // Verificar si ya existe en propiedades_raw
       const { data: existing } = await supabase
@@ -129,7 +147,7 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
       const rawData = {
         external_id: propiedad.external_id,
         portal_origen: propiedad.portal_origen,
-        raw_data: propiedad.raw_data || propiedad, // Priorizar raw_data si existe, sino toda la propiedad
+        raw_data: isRawFormat ? (propiedad as any).raw_data : propiedad, // Priorizar raw_data si existe, sino toda la propiedad
         url: propiedad.url,
         procesado: false,
         intentos_procesamiento: 0,
