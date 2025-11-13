@@ -45,6 +45,7 @@ const Scraper = () => {
     horaInicio: 2,  // hora por defecto 2am
     portal: "fotocasa",
     ubicacion: "murcia",
+    max_pages: null as number | null,
     scraping_mode: "single" as "single" | "all"
   });
   const navigate = useNavigate();
@@ -132,6 +133,27 @@ const Scraper = () => {
     }
   };
 
+  const executeAllScrapers = async () => {
+    setLoadingCron(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('execute-all-scrapers');
+      
+      if (error) throw error;
+      
+      if (data?.success) {
+        toast.success(`✅ ${data.exitosos} scrapers ejecutados correctamente`);
+        if (data.fallidos > 0) {
+          toast.warning(`⚠️ ${data.fallidos} scrapers fallaron`);
+        }
+        setTimeout(() => loadLogs(), 5000);
+      }
+    } catch (error: any) {
+      toast.error("Error ejecutando scrapers: " + error.message);
+    } finally {
+      setLoadingCron(false);
+    }
+  };
+
   const createTrigger = async () => {
     if (!newTrigger.nombre) {
       toast.error("Ingresa un nombre para el trigger");
@@ -146,6 +168,7 @@ const Scraper = () => {
           cron_expression: intervalToCron(newTrigger.intervalo, newTrigger.horaInicio),
           portal: newTrigger.portal,
           ubicacion: newTrigger.scraping_mode === "all" ? null : newTrigger.ubicacion,
+          max_pages: newTrigger.max_pages,
           scraping_mode: newTrigger.scraping_mode,
           activo: true
         });
@@ -160,6 +183,7 @@ const Scraper = () => {
         horaInicio: 2,
         portal: "fotocasa",
         ubicacion: "murcia",
+        max_pages: null,
         scraping_mode: "single"
       });
       loadCronJobs();
@@ -551,20 +575,31 @@ const Scraper = () => {
                       </Badge>
                     )}
                   </div>
-                  <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button size="sm" className="gap-2">
-                        <Plus className="h-4 w-4" />
-                        Nuevo
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Crear Trigger Automático</DialogTitle>
-                        <DialogDescription>
-                          Configura un scraping que se ejecute automáticamente
-                        </DialogDescription>
-                      </DialogHeader>
+                  <div className="flex gap-2">
+                    <Button 
+                      size="sm" 
+                      variant="outline"
+                      onClick={executeAllScrapers}
+                      disabled={loadingCron || cronJobs.filter(j => j.activo).length === 0}
+                      className="hover:bg-primary/10"
+                    >
+                      <Play className={`h-4 w-4 mr-1 ${loadingCron ? 'animate-spin' : ''}`} />
+                      Ejecutar Todos
+                    </Button>
+                    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button size="sm" className="gap-2">
+                          <Plus className="h-4 w-4" />
+                          Nuevo
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Crear Trigger Automático</DialogTitle>
+                          <DialogDescription>
+                            Configura un scraping que se ejecute automáticamente
+                          </DialogDescription>
+                        </DialogHeader>
                       <div className="space-y-4">
                         <div>
                           <Label>Nombre del Trigger</Label>
@@ -672,6 +707,23 @@ const Scraper = () => {
                             </Select>
                           </div>
                         )}
+
+                        <div>
+                          <Label>Límite de páginas (opcional)</Label>
+                          <Input
+                            type="number"
+                            placeholder="Sin límite (scraping completo)"
+                            value={newTrigger.max_pages || ''}
+                            onChange={(e) => setNewTrigger({
+                              ...newTrigger,
+                              max_pages: e.target.value ? parseInt(e.target.value) : null
+                            })}
+                            min="1"
+                          />
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Dejar vacío para scrapear todas las páginas disponibles
+                          </p>
+                        </div>
                         
                         <Button className="w-full" onClick={createTrigger}>
                           ✨ Crear Trigger
@@ -684,6 +736,7 @@ const Scraper = () => {
                       </div>
                     </DialogContent>
                   </Dialog>
+                  </div>
                 </div>
                 <CardDescription>
                   Configura scrapers para que se ejecuten automáticamente
