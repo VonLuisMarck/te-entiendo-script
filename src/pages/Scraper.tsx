@@ -736,12 +736,12 @@ const Scraper = () => {
                       </div>
                     </DialogContent>
                   </Dialog>
-                  </div>
                 </div>
-                <CardDescription>
-                  Configura scrapers para que se ejecuten automáticamente
-                </CardDescription>
-              </CardHeader>
+              </div>
+              <CardDescription>
+                Configura scrapers para que se ejecuten automáticamente
+              </CardDescription>
+            </CardHeader>
               <CardContent>
                 {cronJobs.length > 0 ? (
                   <div className="space-y-2 max-h-64 overflow-y-auto">
