@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
+import { authorize } from "../_shared/security.ts";
+import { serve } from "../_shared/runtime.ts";
+import { createClient } from "@supabase/supabase-js";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,6 +8,8 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  const denied = await authorize(req, 'admin');
+  if (denied) return denied;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -58,14 +61,14 @@ serve(async (req) => {
           }
         });
 
-        if (error) {
+        if (error || !data?.success || !data?.job_id) {
           console.error(`[Execute All Scrapers] Error en ${trigger.nombre}:`, error);
           resultados.push({
             trigger: trigger.nombre,
             portal: trigger.portal,
             ubicacion: trigger.ubicacion,
             success: false,
-            error: error.message,
+            error: error?.message || data?.error || 'No se confirmó el inicio del scraper',
           });
         } else {
           console.log(`[Execute All Scrapers] ✓ ${trigger.nombre} iniciado correctamente`);
@@ -78,11 +81,13 @@ serve(async (req) => {
           });
         }
 
+        if (!error && data?.success && data?.job_id) {
         // Actualizar ultima_ejecucion
         await supabase
           .from('scraping_triggers')
           .update({ ultima_ejecucion: new Date().toISOString() })
           .eq('id', trigger.id);
+        }
 
       } catch (error) {
         const errorMsg = error instanceof Error ? error.message : 'Unknown error';
@@ -104,7 +109,7 @@ serve(async (req) => {
 
     return new Response(
       JSON.stringify({
-        success: true,
+        success: fallidos === 0,
         message: `Ejecutados ${triggers.length} scrapers`,
         exitosos,
         fallidos,
@@ -127,3 +132,4 @@ serve(async (req) => {
     );
   }
 });
+

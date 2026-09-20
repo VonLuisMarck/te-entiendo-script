@@ -1,3 +1,4 @@
+import { ClientProperties } from "@/components/ClientProperties";
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,7 +18,7 @@ const ClienteDashboard = () => {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const { subscribed, tier, subscriptionEnd, loading: subLoading, checkSubscription } = useSubscription();
+  const { subscribed, billingEnabled, tier, subscriptionEnd, loading: subLoading, checkSubscription } = useSubscription();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
 
@@ -28,8 +29,8 @@ const ClienteDashboard = () => {
 
     if (success === 'true') {
       toast({
-        title: "¡Suscripción exitosa!",
-        description: "Tu suscripción ha sido activada correctamente.",
+        title: "Comprobando el estado de tu pago",
+        description: "Tu plan se actualizará cuando confirmemos el estado del pago.",
       });
       checkSubscription();
       // Clean URL
@@ -152,14 +153,14 @@ const ClienteDashboard = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 p-4">
       <div className="container mx-auto max-w-6xl">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
           <div>
             <h1 className="text-4xl font-bold">Portal de Cliente</h1>
             <p className="text-muted-foreground mt-2">
               Bienvenido, {user?.email}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {(tier === 'investor' || tier === 'investor_platino') && (
               <Button onClick={() => navigate('/cliente/metricas')} variant="outline">
                 <BarChart3 className="mr-2 h-4 w-4" />
@@ -182,16 +183,14 @@ const ClienteDashboard = () => {
         </div>
 
         {/* Usage Limits Card */}
-        <div className="mb-8">
-          <UsageLimitsCard />
-        </div>
+        {billingEnabled && <div className="mb-8"><UsageLimitsCard /></div>}
 
         {/* Current Subscription Status */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>Tu Suscripción Actual</CardTitle>
+            <CardTitle>{billingEnabled || subscribed ? 'Tu suscripción' : 'Piloto gratuito'}</CardTitle>
             <CardDescription>
-              {tier === 'free' && 'Plan gratuito - Actualiza para desbloquear más funciones'}
+              {tier === 'free' && (billingEnabled ? 'Plan gratuito' : 'Configura tu búsqueda y guarda los inmuebles que te interesen.')}
               {tier === 'basic' && 'Plan Básico - Acceso a funciones principales'}
               {tier === 'investor' && 'Plan Inversor - Funcionalidades avanzadas'}
               {tier === 'investor_platino' && 'Plan Inversor Premium - Acceso completo'}
@@ -226,7 +225,10 @@ const ClienteDashboard = () => {
           </CardContent>
         </Card>
 
+        <ClientProperties />
+
         {/* Subscription Plans */}
+        {billingEnabled ? <>
         <h2 className="text-2xl font-bold mb-4">Planes Disponibles</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {Object.entries(SUBSCRIPTION_TIERS).filter(([key]) => key !== 'free').map(([key, plan]) => {
@@ -274,9 +276,11 @@ const ClienteDashboard = () => {
             );
           })}
         </div>
+        </> : <p className="rounded-lg border p-4 text-sm text-muted-foreground">Estás en el piloto gratuito. Te avisaremos cuando estén disponibles los planes de pago.</p>}
       </div>
     </div>
   );
 };
 
 export default ClienteDashboard;
+

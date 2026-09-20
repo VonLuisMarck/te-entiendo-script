@@ -1,5 +1,5 @@
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { authorize } from "../_shared/security.ts";
+import { serve } from "../_shared/runtime.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -7,6 +7,8 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
+  const denied = await authorize(req, 'admin');
+  if (denied) return denied;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -213,3 +215,4 @@ Responde SOLO con un objeto JSON válido, sin markdown ni explicaciones:`;
     );
   }
 });
+

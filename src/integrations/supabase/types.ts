@@ -244,6 +244,8 @@ export type Database = {
       }
       criterios_busqueda: {
         Row: {
+          banos_min: number | null
+          flexibilidad_presupuesto: number
           ano_construccion_min: number | null
           cliente_id: string | null
           condition: string[] | null
@@ -260,6 +262,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          banos_min?: number | null
+          flexibilidad_presupuesto?: number
           ano_construccion_min?: number | null
           cliente_id?: string | null
           condition?: string[] | null
@@ -276,6 +280,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          banos_min?: number | null
+          flexibilidad_presupuesto?: number
           ano_construccion_min?: number | null
           cliente_id?: string | null
           condition?: string[] | null
@@ -1241,6 +1247,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      ensure_cliente_profile: { Args: Record<PropertyKey, never>; Returns: string }
       archivar_propiedades_inactivas: { Args: never; Returns: number }
       assign_admin_role: { Args: { user_email: string }; Returns: Json }
       desactivar_propiedades_no_vistas: {
@@ -1402,3 +1409,4 @@ export const Constants = {
     },
   },
 } as const
+

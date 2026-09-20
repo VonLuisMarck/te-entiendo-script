@@ -140,7 +140,7 @@ const Scraper = () => {
       
       if (error) throw error;
       
-      if (data?.success) {
+      if (data && typeof data.exitosos === "number") {
         toast.success(`✅ ${data.exitosos} scrapers ejecutados correctamente`);
         if (data.fallidos > 0) {
           toast.warning(`⚠️ ${data.fallidos} scrapers fallaron`);
@@ -500,7 +500,8 @@ const Scraper = () => {
                         const { error } = await supabase.functions.invoke('manage-cron-jobs', {
                           body: { action: 'stop_scrapers' }
                         });
-                        if (!error) toast.success("Scrapers detenidos");
+                        if (error) toast.error("La programación automática no está configurada. No se cambió ningún horario.");
+                        else toast.success("Scrapers detenidos");
                       }}
                     >
                       <PowerOff className="h-4 w-4 mr-2" />
@@ -514,10 +515,11 @@ const Scraper = () => {
                   <div className="flex items-center justify-between mb-3">
                     <div>
                       <Label className="text-base font-medium">Limpieza Automática</Label>
-                      <p className="text-sm text-muted-foreground">Archiva propiedades inactivas</p>
+                      <p className="text-sm text-muted-foreground">Pendiente de configurar y verificar en el servidor</p>
                     </div>
                     <Switch
-                      defaultChecked={true}
+                      checked={false}
+                      disabled
                       onCheckedChange={async (checked) => {
                         const { error } = await supabase.functions.invoke('manage-cron-jobs', {
                           body: { 
@@ -534,6 +536,7 @@ const Scraper = () => {
                   <div className="space-y-2">
                     <Label className="text-sm">Frecuencia</Label>
                     <Select
+                      disabled
                       defaultValue="0 */2 * * *"
                       onValueChange={async (frequency) => {
                         const { error } = await supabase.functions.invoke('manage-cron-jobs', {
@@ -950,3 +953,4 @@ const Scraper = () => {
 };
 
 export default Scraper;
+

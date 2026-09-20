@@ -1,10 +1,11 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
 import { SUBSCRIPTION_TIERS, SubscriptionTier } from '@/lib/subscription-tiers';
 
 interface SubscriptionContextType {
   subscribed: boolean;
+  billingEnabled: boolean;
   tier: SubscriptionTier;
   productId: string | null;
   subscriptionEnd: string | null;
@@ -19,18 +20,21 @@ const SubscriptionContext = createContext<SubscriptionContextType | undefined>(u
 
 export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
   const [subscribed, setSubscribed] = useState(false);
+  const [billingEnabled, setBillingEnabled] = useState(false);
   const [tier, setTier] = useState<SubscriptionTier>('free');
   const [productId, setProductId] = useState<string | null>(null);
   const [subscriptionEnd, setSubscriptionEnd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
+  const requestGeneration = useRef(0);
 
   const checkSubscription = async () => {
+    const generation = ++requestGeneration.current;
     try {
-      setLoading(true);
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session) {
+        setBillingEnabled(false);
         setSubscribed(false);
         setTier('free');
         setProductId(null);
@@ -38,35 +42,12 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Primero consultar la tabla clientes
-      console.log('Checking subscription for user:', session.user.id);
-      const { data: clienteData, error: clienteError } = await supabase
-        .from('clientes')
-        .select('tipo_suscripcion')
-        .eq('user_id', session.user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      console.log('Cliente data:', clienteData);
-      console.log('Cliente error:', clienteError);
-
-      if (!clienteError && clienteData?.tipo_suscripcion) {
-        // Si hay suscripción en la tabla clientes, usar esa
-        const subscriptionTier = clienteData.tipo_suscripcion as SubscriptionTier;
-        setSubscribed(subscriptionTier !== 'free');
-        setTier(subscriptionTier);
-        setProductId(null);
-        setSubscriptionEnd(null);
-        console.log('✅ Subscription loaded from database:', subscriptionTier);
-        return;
-      }
-
-      // Si no hay en clientes, verificar con Stripe
       const { data, error } = await supabase.functions.invoke('check-subscription');
       
+      if (generation !== requestGeneration.current) return;
       if (error || !data) {
         console.error('Error checking subscription:', error);
+        setBillingEnabled(false);
         setSubscribed(false);
         setTier('free');
         setProductId(null);
@@ -74,17 +55,22 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
+      setBillingEnabled(data.billing_enabled === true);
       setSubscribed(data.subscribed || false);
-      setTier(data.tier || 'free');
+      setTier(data.tier in SUBSCRIPTION_TIERS ? data.tier : 'free');
       setProductId(data.product_id || null);
       setSubscriptionEnd(data.subscription_end || null);
       console.log('Subscription loaded from Stripe:', data.tier);
     } catch (error) {
+      if (generation !== requestGeneration.current) return;
       console.error('Error in checkSubscription:', error);
+      setBillingEnabled(false);
       setSubscribed(false);
       setTier('free');
+      setProductId(null);
+      setSubscriptionEnd(null);
     } finally {
-      setLoading(false);
+      if (generation === requestGeneration.current) setLoading(false);
     }
   };
 
@@ -130,8 +116,11 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        checkSubscription();
+        setTimeout(() => { void checkSubscription(); }, 0);
       } else if (event === 'SIGNED_OUT') {
+        requestGeneration.current++;
+        setLoading(false);
+        setBillingEnabled(false);
         setSubscribed(false);
         setTier('free');
         setProductId(null);
@@ -154,6 +143,7 @@ export const SubscriptionProvider = ({ children }: { children: ReactNode }) => {
     <SubscriptionContext.Provider
       value={{
         subscribed,
+        billingEnabled,
         tier,
         productId,
         subscriptionEnd,
@@ -175,3 +165,4 @@ export const useSubscription = () => {
   }
   return context;
 };
+

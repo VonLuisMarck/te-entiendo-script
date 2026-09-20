@@ -1,3 +1,4 @@
+import { ensureClientProfile } from "@/lib/client-profile";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -54,11 +55,12 @@ const Auth = () => {
         // Verificar si el cliente tiene criterios configurados
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
+          await ensureClientProfile();
           const { data: cliente } = await supabase
             .from('clientes')
             .select('id')
             .eq('user_id', user.id)
-            .single();
+            .order('created_at').order('id').limit(1).maybeSingle();
 
           if (cliente) {
             const { data: criterios } = await supabase
@@ -92,20 +94,15 @@ const Auth = () => {
 
         if (signUpError) throw signUpError;
 
-        if (authData.user) {
-          const { error: clienteError } = await supabase
-            .from("clientes")
-            .insert({
-              user_id: authData.user.id,
-              nombre: validated.nombre,
-              email: validated.email,
-            });
-
-          if (clienteError) throw clienteError;
-
-          toast.success("¡Cuenta creada! Ahora configura tus preferencias");
-          navigate("/cliente/onboarding");
+        if (!authData.session) {
+          toast.success("Revisa tu correo y confirma la cuenta. Después podrás iniciar sesión.");
+          setIsLogin(true);
+          setPassword("");
+          return;
         }
+        await ensureClientProfile();
+        toast.success("¡Cuenta creada! Ahora configura tus preferencias");
+        navigate("/cliente/onboarding");
       }
     } catch (error: any) {
       if (error instanceof z.ZodError) {
@@ -189,3 +186,4 @@ const Auth = () => {
 };
 
 export default Auth;
+

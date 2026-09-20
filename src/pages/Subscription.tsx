@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 
 export default function Subscription() {
   const navigate = useNavigate();
-  const { tier, subscribed, loading: contextLoading, checkSubscription, upgradeUrl, manageSubscription } = useSubscription();
+  const { tier, subscribed, billingEnabled, loading: contextLoading, checkSubscription, upgradeUrl, manageSubscription } = useSubscription();
   const [loadingCheckout, setLoadingCheckout] = useState<string | null>(null);
   const [loadingPortal, setLoadingPortal] = useState(false);
 
@@ -68,6 +68,8 @@ export default function Subscription() {
       </div>
     );
   }
+
+  if (!billingEnabled) return <main className="max-w-xl mx-auto p-8 space-y-4"><h1 className="text-2xl font-bold">Piloto gratuito</h1><p>Los planes de pago todavía no están disponibles.</p><Button onClick={() => navigate('/cliente/dashboard')}>Volver a mis inmuebles</Button></main>;
 
   const tiers = Object.entries(SUBSCRIPTION_TIERS).filter(([key]) => key !== 'free');
 
@@ -180,3 +182,4 @@ export default function Subscription() {
     </div>
   );
 }
+

@@ -1,6 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { authorize, cors } from "../_shared/security.ts";
+import { serve } from "../_shared/runtime.ts";
+import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -8,10 +9,10 @@ const corsHeaders = {
 };
 
 const ScrapingRequestSchema = z.object({
-  portal: z.string().min(1).max(50),
-  ubicacion: z.string().min(1).max(200).optional(),
+  portal: z.enum(['fotocasa', 'pisos']),
+  ubicacion: z.string().trim().min(1).max(120),
   tipo_propiedad: z.string().min(1).max(50).optional(),
-  max_pages: z.number().int().min(1).nullish(),  // Acepta null, undefined o número
+  max_pages: z.number().int().min(1).max(50).nullish(),  // Acepta null, undefined o número
 });
 
 // Schema para propiedades con raw_data (formato simplificado desde scrapers)
@@ -54,7 +55,7 @@ const PropiedadTransformadaSchema = z.object({
 const PropiedadSchema = z.union([PropiedadRawSchema, PropiedadTransformadaSchema]);
 
 const WebhookDataSchema = z.object({
-  propiedades: z.array(PropiedadSchema),
+  propiedades: z.array(PropiedadSchema).min(1).max(100),
   metadata: z.object({
     portal: z.string(),
     ubicacion: z.string().nullable().optional(),
@@ -76,6 +77,8 @@ serve(async (req) => {
     if (requestBody.propiedades && Array.isArray(requestBody.propiedades)) {
       // ===== WEBHOOK desde Python Scraper =====
       // Validar secret token en vez de JWT
+      const denied = await authorize(req, 'scraper');
+      if (denied) return denied;
       const scraperSecret = Deno.env.get('SCRAPER_SECRET');
       const providedSecret = req.headers.get('X-Scraper-Secret');
       
@@ -89,7 +92,8 @@ serve(async (req) => {
       
     } else {
       // ===== REQUEST normal desde Dashboard =====
-      // No requiere autenticación (ya que verify_jwt = false en config.toml)
+      const denied = await authorize(req, 'admin');
+      if (denied) return denied;
       console.log('[Trigger] Recibiendo petición de scraping desde dashboard');
       
       // Usar service role key para operaciones de base de datos
@@ -125,69 +129,32 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
   let propiedadesActualizadas = 0;
   const errores: string[] = [];
 
-  // NUEVO FLUJO: Guardar en propiedades_raw sin procesar (batch processing)
+  let sinCambios = 0;
   for (const propiedad of data.propiedades) {
     try {
-      // Type guard: verificar si es formato raw o transformado
-      const isRawFormat = 'raw_data' in propiedad;
-      const displayName = isRawFormat 
-        ? propiedad.external_id
-        : (propiedad as any).titulo?.substring(0, 50) || propiedad.external_id;
-      
-      console.log(`[Webhook] Guardando RAW: ${displayName}...`);
-
-      // Verificar si ya existe en propiedades_raw
-      const { data: existing } = await supabase
-        .from('propiedades_raw')
-        .select('id, procesado')
-        .eq('external_id', propiedad.external_id)
-        .eq('portal_origen', propiedad.portal_origen)
-        .maybeSingle();
-
-      const rawData = {
-        external_id: propiedad.external_id,
-        portal_origen: propiedad.portal_origen,
-        raw_data: isRawFormat ? (propiedad as any).raw_data : propiedad, // Priorizar raw_data si existe, sino toda la propiedad
-        url: propiedad.url,
-        procesado: false,
-        intentos_procesamiento: 0,
-        error_procesamiento: null
-      };
-
-      if (existing) {
-        // Si ya existe y no está procesada, actualizar raw_data
-        if (!existing.procesado) {
-          await supabase
-            .from('propiedades_raw')
-            .update({
-              raw_data: rawData.raw_data,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', existing.id);
-          propiedadesActualizadas++;
-          console.log(`[Webhook] ✅ Actualizada en raw: ${propiedad.external_id}`);
-        } else {
-          console.log(`[Webhook] ⏭️ Ya procesada, skipping: ${propiedad.external_id}`);
-        }
-      } else {
-        // Nueva propiedad, insertar en raw
-        await supabase
-          .from('propiedades_raw')
-          .insert(rawData);
-        propiedadesNuevas++;
-        console.log(`[Webhook] ✅ Nueva en raw: ${propiedad.external_id}`);
-      }
+      if (propiedad.portal_origen !== data.metadata.portal || !['fotocasa', 'pisos'].includes(propiedad.portal_origen)) throw new Error('Portal inconsistente');
+      const url = new URL(propiedad.url);
+      const domain = propiedad.portal_origen === 'fotocasa' ? 'fotocasa.es' : 'pisos.com';
+      if (url.protocol !== 'https:' || !(url.hostname === domain || url.hostname === `www.${domain}`) || url.username || url.password) throw new Error('URL de anuncio inválida');
+      if (!propiedad.external_id.startsWith(`${propiedad.portal_origen}-`) || /-(undefined|null|None|unknown)$/.test(propiedad.external_id)) throw new Error('Identificador de anuncio inválido');
+      const { data: outcome, error } = await supabase.rpc('ingest_raw_property', {
+        p_external_id: propiedad.external_id, p_portal: propiedad.portal_origen, p_url: propiedad.url,
+        p_raw: 'raw_data' in propiedad ? propiedad.raw_data : propiedad,
+      });
+      if (error) throw error;
+      if (outcome === 'inserted') propiedadesNuevas++;
+      else if (outcome === 'updated') propiedadesActualizadas++;
+      else if (outcome === 'unchanged') sinCambios++;
+      else throw new Error('Respuesta de ingesta inesperada');
     } catch (error) {
-      const errorMsg = error instanceof Error ? error.message : 'Unknown error';
-      errores.push(`Error guardando raw ${propiedad.external_id}: ${errorMsg}`);
-      console.error('[Webhook] Error guardando propiedad raw:', error);
+      errores.push(`Error guardando ${propiedad.external_id}: ${error instanceof Error ? error.message : 'Error de base de datos'}`);
     }
   }
 
   const duracionSegundos = Math.floor((Date.now() - startTime) / 1000);
 
   // Registrar log
-  await supabase.from('scraping_logs').insert({
+  const { error: logError } = await supabase.from('scraping_logs').insert({
     portal: data.metadata.portal,
     ubicacion: data.metadata.ubicacion || null,
     propiedades_encontradas: data.metadata.total_encontradas,
@@ -198,35 +165,37 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
     status: errores.length === 0 ? 'success' : 'partial',
   });
 
+  if (logError) throw logError;
+
   console.log(`[Webhook] Guardadas en raw: ${propiedadesNuevas} nuevas, ${propiedadesActualizadas} actualizadas`);
   console.log(`[Webhook] ⚡ Usa Batch Processing para procesarlas y ahorrar 90% en costes IA`);
 
   return new Response(
     JSON.stringify({
-      success: true,
-      propiedades_guardadas_raw: data.propiedades.length,
+      success: errores.length === 0,
+      propiedades_guardadas_raw: propiedadesNuevas + propiedadesActualizadas + sinCambios,
+      sin_cambios: sinCambios,
       propiedades_nuevas: propiedadesNuevas,
       propiedades_actualizadas: propiedadesActualizadas,
       message: 'Propiedades guardadas en raw. Usa Batch Processing para procesarlas.',
       errores,
     }),
-    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    { status: errores.length ? 503 : 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
   );
 }
 
 // Función para triggerar el scraper Docker
 async function triggerDockerScraper(supabase: any, request: z.infer<typeof ScrapingRequestSchema>) {
   const { portal, ubicacion, tipo_propiedad, max_pages } = request;
-  console.log(`[Trigger] Solicitando scraping: ${portal}${ubicacion ? ` - ${ubicacion}` : ' - Toda España'}${max_pages ? ` (max ${max_pages} páginas)` : ' (sin límite)'}`);
+  console.log(`[Trigger] Solicitando scraping: ${portal} - ${ubicacion} (max ${max_pages ?? 5} páginas)`);
   const startTime = Date.now();
   
   const scraperUrl = Deno.env.get('PYTHON_SCRAPER_URL');
   
   if (!scraperUrl) {
-    console.log('[Trigger] PYTHON_SCRAPER_URL no configurado. Registrando job pendiente...');
+    console.log('[Trigger] PYTHON_SCRAPER_URL no configurado; no se ha iniciado un job');
     
-    // Registrar log como "pendiente" para procesamiento manual
-    await supabase.from('scraping_logs').insert({
+    const logged = await supabase.from('scraping_logs').insert({
       portal,
       ubicacion: ubicacion || null,
       propiedades_encontradas: 0,
@@ -234,8 +203,9 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
       propiedades_actualizadas: 0,
       errores: ['Contenedor Docker no configurado. Configura PYTHON_SCRAPER_URL en secrets.'],
       duracion_segundos: 0,
-      status: 'pending',
+      status: 'error',
     });
+    if (logged.error) console.error('[Trigger] Could not record missing configuration');
     
     return new Response(
       JSON.stringify({
@@ -243,24 +213,12 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
         message: 'Contenedor Docker no configurado',
         instructions: 'Debes configurar PYTHON_SCRAPER_URL en los secrets con la URL del contenedor Docker',
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 
-  // NUEVO: Obtener IDs de propiedades existentes para scraping incremental
-  console.log('[Trigger] Obteniendo IDs de propiedades existentes para scraping incremental...');
-  const { data: existingProperties, error: fetchError } = await supabase
-    .from("propiedades")
-    .select("external_id")
-    .eq("portal_origen", portal)
-    .range(0, 99999); // Sin límite práctico para obtener todos los IDs
-
-  if (fetchError) {
-    console.error('[Trigger] Error obteniendo propiedades existentes:', fetchError);
-  }
-
-  const existingIds = existingProperties?.map((p: any) => p.external_id) || [];
-  console.log(`[Trigger] Encontradas ${existingIds.length} propiedades existentes en BD`);
+  const scraperApiKey = Deno.env.get('SCRAPER_API_KEY');
+  if (!scraperApiKey) return Response.json({ error: 'SCRAPER_API_KEY no configurado' }, { status: 503, headers: cors });
 
   try {
     // Triggear el scraper Python/Docker
@@ -268,15 +226,14 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${scraperApiKey}`,
       },
+      signal: AbortSignal.timeout(15000),
       body: JSON.stringify({
         portal,
-        ubicacion: ubicacion || 'murcia',
-        max_pages: max_pages || null,  // null = sin límite
-        webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/scraping-service`,
-        webhook_auth: Deno.env.get('SCRAPER_SECRET'),
-        supabase_url: Deno.env.get('SUPABASE_URL'),
-        existing_ids: existingIds,  // Pasar IDs existentes para scraping incremental
+        ubicacion,
+        max_pages: max_pages ?? 5,
+        existing_ids: [],
       }),
     });
 
@@ -285,6 +242,7 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
     }
 
     const result = await response.json();
+    if (typeof result.job_id !== 'string' || !result.job_id) throw new Error('Worker did not confirm a job');
     
     return new Response(
       JSON.stringify({

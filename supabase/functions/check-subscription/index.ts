@@ -1,111 +1,17 @@
-import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
-
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
-
-const logStep = (step: string, details?: any) => {
-  const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
-  console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
-};
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  const supabaseClient = createClient(
-    Deno.env.get("SUPABASE_URL") ?? "",
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    { auth: { persistSession: false } }
-  );
-
+import { serve } from '../_shared/runtime.ts';
+import { authorize, cors } from '../_shared/security.ts';
+import { subscriptionState } from '../_shared/billing.ts';
+import { database, stripeClient, currentUser, syncBilling } from '../_shared/billing-service.ts';
+serve(async req => {
+  const denied = await authorize(req, 'user'); if (denied) return denied;
   try {
-    logStep("Function started");
-
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
-
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
-    logStep("Authorization header found");
-
-    const token = authHeader.replace("Bearer ", "");
-    logStep("Authenticating user with token");
-    
-    const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
-    const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
-    logStep("User authenticated", { userId: user.id, email: user.email });
-
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    if (customers.data.length === 0) {
-      logStep("No customer found, user is on free tier");
-      return new Response(JSON.stringify({ 
-        subscribed: false, 
-        tier: 'free',
-        product_id: null,
-        subscription_end: null
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
-    }
-
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
-
-    const subscriptions = await stripe.subscriptions.list({
-      customer: customerId,
-      status: "active",
-      limit: 1,
-    });
-    
-    const hasActiveSub = subscriptions.data.length > 0;
-    let productId = null;
-    let tier = 'free';
-    let subscriptionEnd = null;
-
-    if (hasActiveSub) {
-      const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      productId = subscription.items.data[0].price.product as string;
-      
-      // Map product ID to tier
-      const productToTier: Record<string, string> = {
-        'prod_TKAF23fhblkfJU': 'basic',
-        'prod_TKAFdxpTBCEdel': 'investor',
-        'prod_TKAGwOzkUFemBK': 'investor_platino'
-      };
-      
-      tier = productToTier[productId] || 'free';
-      logStep("Active subscription found", { subscriptionId: subscription.id, tier, endDate: subscriptionEnd });
-    } else {
-      logStep("No active subscription found");
-    }
-
-    return new Response(JSON.stringify({
-      subscribed: hasActiveSub,
-      tier,
-      product_id: productId,
-      subscription_end: subscriptionEnd
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 200,
-    });
+    const db = database(), user = await currentUser(req, db);
+    const mapping = await db.from('stripe_customers').select('stripe_customer_id').eq('user_id', user.id).maybeSingle();
+    if (mapping.error) throw mapping.error;
+    const state = mapping.data ? await syncBilling(db, stripeClient(), mapping.data.stripe_customer_id) : subscriptionState([]);
+    return Response.json({ ...state, billing_enabled: Deno.env.get('BILLING_ENABLED') === 'true' }, { headers: cors });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    logStep("ERROR in check-subscription", { message: errorMessage });
-    return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
-    });
+    console.error('[check-subscription]', error);
+    return Response.json({ error: 'No se pudo verificar la suscripción' }, { status: 503, headers: cors });
   }
 });

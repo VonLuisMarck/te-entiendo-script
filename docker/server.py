@@ -7,6 +7,9 @@ import sys
 import os
 import json
 import uuid
+import hmac
+import re
+from threading import Lock
 import subprocess
 from flask import Flask, request, jsonify
 from threading import Thread
@@ -32,6 +35,20 @@ except Exception as e:
 
 app = Flask(__name__)
 jobs = {}
+job_lock = Lock()
+app.config['MAX_CONTENT_LENGTH'] = 1_000_000
+
+@app.before_request
+def authenticate_worker():
+    if request.path == '/health':
+        return None
+    expected = os.environ.get('SCRAPER_API_KEY')
+    if not expected:
+        return jsonify({'error': 'Worker authentication is not configured'}), 503
+    actual = request.headers.get('Authorization', '')
+    if not hmac.compare_digest(actual, 'Bearer ' + expected):
+        return jsonify({'error': 'Unauthorized'}), 401
+
 
 def transform_item_pisos(item):
     """Transforma item del scraper de pisos.com al formato del backend"""
@@ -436,44 +453,13 @@ def transform_item(item):
     }
 
 def send_to_webhook(job_id, portal, propiedades, webhook_url, webhook_auth):
-    """Envia propiedades al webhook"""
-    try:
-        webhook_data = {
-            'propiedades': propiedades,
-            'metadata': {
-                'portal': portal,
-                'ubicacion': None,
-                'total_encontradas': len(propiedades)
-            }
-        }
-        
-        print(f"[WEBHOOK] Job {job_id[:8]} Sending {len(propiedades)} properties...")
-        
-        response = requests.post(
-            webhook_url,
-            json=webhook_data,
-            headers={
-                'Content-Type': 'application/json',
-                'X-Scraper-Secret': webhook_auth
-            },
-            timeout=60
-        )
-        
-        print(f"[WEBHOOK] Job {job_id[:8]} Response: {response.status_code}")
-        
-        if response.status_code == 200:
-            jobs[job_id]['status'] = 'completed'
-            jobs[job_id]['propiedades_encontradas'] = len(propiedades)
-            print(f"[OK] Job {job_id[:8]} Webhook success")
-        else:
-            jobs[job_id]['status'] = 'error'
-            jobs[job_id]['error'] = f'Webhook error: {response.status_code}'
-            print(f"[ERROR] Job {job_id[:8]} Webhook failed: {response.text}")
-            
-    except Exception as e:
-        jobs[job_id]['status'] = 'error'
-        jobs[job_id]['error'] = f'Webhook error: {str(e)}'
-        print(f"[ERROR] Job {job_id[:8]} Webhook exception: {e}")
+    response = requests.post(webhook_url,
+        json={'propiedades': propiedades, 'metadata': {'portal': portal, 'ubicacion': None, 'total_encontradas': len(propiedades)}},
+        headers={'Content-Type': 'application/json', 'X-Scraper-Secret': webhook_auth}, timeout=60)
+    response.raise_for_status()
+    if response.json().get('success') is not True:
+        raise RuntimeError('Ingestion did not confirm persistence')
+
 
 def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, supabase_url=None, existing_ids=None):
     """Ejecuta el scraper de pisos.com directamente, enviando página por página"""
@@ -544,7 +530,9 @@ def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, s
             
             for item in page_items:
                 try:
-                    prop = transform_item_pisos(item)
+                    source_id = item.get('id')
+                    if source_id is None: raise ValueError('Listing has no source ID')
+                    prop = {'external_id': f'pisos-{source_id}', 'portal_origen': 'pisos', 'url': item['url'], 'raw_data': item}
                     external_id = prop.get('external_id')
                     
                     # Verificar si ya existe (para stats y decisión de parada)
@@ -557,7 +545,7 @@ def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, s
                     propiedades_pagina.append(prop)
                     print(f"[PISOS] Property scraped: {prop.get('titulo', 'No title')[:50]}...")
                 except Exception as e:
-                    print(f"[WARN] Error transforming item: {e}")
+                    raise RuntimeError("Invalid source listing") from e
             
             # Enviar TODAS las propiedades de esta página al webhook
             if propiedades_pagina:
@@ -566,10 +554,6 @@ def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, s
                 send_to_webhook(job_id, 'pisos', propiedades_pagina, webhook_url, webhook_auth)
                 print(f"[PISOS] Total so far: {total_propiedades} ({nuevas_propiedades} new, {actualizadas_propiedades} updates)")
                 
-                # SCRAPING INCREMENTAL: Si toda la página ya existía, parar
-                if all_already_exist and page_count > 1:
-                    print(f"[PISOS] ✓ Incremental: página {page_count} completa ya existía, deteniendo...")
-                    break
             else:
                 print(f"[PISOS] Page {page_count} had no valid properties")
         
@@ -587,7 +571,7 @@ def run_pisos_scraper(job_id, ubicacion, max_pages, webhook_url, webhook_auth, s
         import traceback
         traceback.print_exc()
 
-def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth, supabase_url=None, existing_ids=None):
+def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth, supabase_url=None, existing_ids=None, ubicacion=None):
     """Ejecuta el scraper de Python como subprocess"""
     # Configurar SUPABASE_URL global para que transform_item pueda usarla
     if supabase_url:
@@ -612,22 +596,22 @@ def run_scraper_subprocess(job_id, portal, max_pages, webhook_url, webhook_auth,
         
         cmd = [
             'python3', 'fotocasa_scraper.py',
-            '--city', 'murcia-capital',
+            '--city', ubicacion,
             '--output', output_file,
             '--max-pages', str(max_pages) if max_pages else '999999',
             '--transaction', '1',
             '--sleep', '1.0',
-            '--webhook-url', webhook_url,
-            '--webhook-auth', webhook_auth
+            '--webhook-url', webhook_url
         ]
         
-        print(f"[RUN] {' '.join(cmd)}")
+        print(f'[RUN] Starting scraper for {ubicacion}')
         
         result = subprocess.run(
             cmd,
             capture_output=True,
             text=True,
-            cwd='/app',
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+            env={**os.environ, 'SCRAPER_SECRET': webhook_auth},
             timeout=300
         )
         
@@ -703,29 +687,37 @@ def scrape():
     
     try:
         data = request.json
-        print(f"[DATA] {data}")
+        print('[DATA] Scraping request received')
         
         if not data:
             return jsonify({'error': 'No data provided'}), 400
         
         portal = data.get('portal')
-        ubicacion = data.get('ubicacion', 'murcia')  # Por defecto Murcia
-        max_pages = data.get('max_pages')  # None = sin límite
-        webhook_url = data.get('webhook_url')
-        webhook_auth = data.get('webhook_auth')
-        supabase_url = data.get('supabase_url')  # URL de Supabase para llamar a classify-location
-        existing_ids = data.get('existing_ids', [])  # IDs de propiedades ya existentes
+        ubicacion = data.get('ubicacion')
+        max_pages = data.get('max_pages', 5)
+        if max_pages is None: max_pages = 5
+        supabase_base = os.environ.get('SUPABASE_URL', '').rstrip('/')
+        webhook_url = supabase_base + '/functions/v1/scraping-service' if supabase_base else None
+        webhook_auth = os.environ.get('SCRAPER_SECRET')
+        supabase_url = supabase_base  # URL de Supabase para llamar a classify-location
+        existing_ids = []  # IDs de propiedades ya existentes
         
         if not all([portal, webhook_url, webhook_auth]):
             return jsonify({'error': 'Missing required fields'}), 400
         
-        job_id = str(uuid.uuid4())
-        jobs[job_id] = {
-            'status': 'pending',
-            'portal': portal,
-            'ubicacion': ubicacion,
-            'max_pages': max_pages,
-        }
+        if portal not in ('fotocasa', 'pisos') or not isinstance(ubicacion, str) or not re.fullmatch(r"[\w -]{1,120}", ubicacion):
+            return jsonify({'error': 'Invalid portal or location'}), 400
+        if type(max_pages) is not int or not 1 <= max_pages <= 50:
+            return jsonify({'error': 'max_pages must be between 1 and 50'}), 400
+        with job_lock:
+            if sum(j.get('status') in ('pending','running') for j in jobs.values()) >= int(os.environ.get('MAX_CONCURRENT_JOBS', '2')):
+                return jsonify({'error': 'Worker busy; retry later'}), 429
+            # Bound completed in-memory history. The staging pilot is single-worker.
+            for old_id in list(jobs):
+                if len(jobs) < 200: break
+                if jobs[old_id].get('status') not in ('pending','running'): jobs.pop(old_id)
+            job_id = str(uuid.uuid4())
+            jobs[job_id] = {'status': 'pending', 'portal': portal, 'ubicacion': ubicacion, 'max_pages': max_pages}
         
         print(f"[JOB] Created: {job_id} - {portal} - {ubicacion}")
         
@@ -738,7 +730,7 @@ def scrape():
         else:  # fotocasa
             thread = Thread(
                 target=run_scraper_subprocess,
-                args=(job_id, portal, max_pages, webhook_url, webhook_auth, supabase_url, existing_ids)
+                args=(job_id, portal, max_pages, webhook_url, webhook_auth, supabase_url, existing_ids, ubicacion)
             )
         
         thread.daemon = True
@@ -795,3 +787,4 @@ if __name__ == '__main__':
         import traceback
         traceback.print_exc()
         sys.exit(1)
+

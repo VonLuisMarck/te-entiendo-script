@@ -106,7 +106,7 @@ const Matchings = () => {
 
       if (error) throw error;
       
-      toast.success("Cálculo de matchings iniciado. Se procesarán en segundo plano.");
+      toast.success("Cálculo de matchings completado.");
       
       // Recargar después de un breve delay para ver los resultados
       setTimeout(() => {
@@ -640,3 +640,4 @@ const Matchings = () => {
 };
 
 export default Matchings;
+

@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 const ClienteSettings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { tier, checkSubscription } = useSubscription();
+  const { tier, subscribed, billingEnabled, checkSubscription } = useSubscription();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [portalLoading, setPortalLoading] = useState(false);
@@ -258,8 +258,8 @@ const ClienteSettings = () => {
                   </p>
                 </div>
 
-                <div className="flex flex-col gap-2">
-                  <Button onClick={handleManageSubscription} disabled={portalLoading}>
+                {(subscribed || billingEnabled) && <div className="flex flex-col gap-2">
+                  <Button onClick={handleManageSubscription} disabled={portalLoading || !subscribed}>
                     {portalLoading ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -275,10 +275,10 @@ const ClienteSettings = () => {
                   <Button variant="outline" onClick={() => navigate('/cliente/dashboard')}>
                     Ver Planes Disponibles
                   </Button>
-                </div>
+                </div>}
 
                 <p className="text-xs text-muted-foreground">
-                  Serás redirigido al portal de Stripe para gestionar tu suscripción, cambiar método de pago o cancelar.
+                  {subscribed ? 'Gestiona tu suscripción, método de pago o cancelación en el portal de Stripe.' : billingEnabled ? 'Consulta los planes disponibles desde tu panel.' : 'Estás en el piloto gratuito. Los cobros todavía no están activados.'}
                 </p>
               </CardContent>
             </Card>
@@ -290,3 +290,4 @@ const ClienteSettings = () => {
 };
 
 export default ClienteSettings;
+

@@ -34,24 +34,14 @@ def ensure_dir(p):
     os.makedirs(p, exist_ok=True)
 
 def get_combined_ids(session, city):
-    """Obtiene los IDs de ubicación combinados para una ciudad"""
-    try:
-        r = session.get(
-            URLLOCATIONSEGMENTS, 
-            params={
-                "location": city, 
-                "zone": "todas-las-zonas",
-                "culture": "es-ES"
-            }, 
-            timeout=20
-        )
-        r.raise_for_status()
-        data = r.json()
-        return data.get("ids") or data.get("combinedLocationIds") or "724,16,30,374,745,30030,0,0,0"
-    except Exception as e:
-        print(f"⚠️ Error obteniendo IDs de ubicación: {e}")
-        # Default: Murcia capital
-        return "724,16,30,374,745,30030,0,0,0"
+    """Unknown or unavailable locations fail instead of silently querying Murcia."""
+    r = session.get(URLLOCATIONSEGMENTS, params={'location': city, 'zone': 'todas-las-zonas', 'culture': 'es-ES'}, timeout=20)
+    r.raise_for_status()
+    data = r.json()
+    ids = data.get('ids') or data.get('combinedLocationIds')
+    if not ids: raise ValueError(f'No location IDs returned for {city}')
+    return ids
+
 
 def normalize_items(data):
     """Extrae la lista de propiedades del JSON de respuesta"""
@@ -62,7 +52,7 @@ def normalize_items(data):
         for key in ["realEstates", "ads", "items", "list"]:
             if isinstance(data["data"].get(key), list):
                 return data["data"][key]
-    return []
+    raise ValueError("Unrecognized portal response: refusing to report an empty success")
 
 def send_page_to_webhook(propiedades_raw, webhook_url, webhook_auth):
     """Envía una página de propiedades RAW al webhook para guardar en propiedades_raw"""
@@ -73,6 +63,7 @@ def send_page_to_webhook(propiedades_raw, webhook_url, webhook_auth):
         # Construir payload simplificado - enviar raw data directamente
         propiedades_formato = []
         for item in propiedades_raw:
+            if not (item.get('id') or item.get('propertyId')): raise ValueError('Listing has no source ID')
             # Construir URL completa de forma segura
             try:
                 uris = item.get('uris', [])
@@ -84,7 +75,7 @@ def send_page_to_webhook(propiedades_raw, webhook_url, webhook_auth):
                 url = f"https://www.fotocasa.es/propiedad/{item.get('id', 'unknown')}"
             
             prop = {
-                'external_id': f"fotocasa-{item.get('id')}",
+                'external_id': f"fotocasa-{item.get('id') or item.get('propertyId')}",
                 'portal_origen': 'fotocasa',
                 'url': url,
                 'raw_data': item  # Objeto JSON completo sin transformar
@@ -113,13 +104,12 @@ def send_page_to_webhook(propiedades_raw, webhook_url, webhook_auth):
             timeout=60
         )
         
-        if response.status_code == 200:
-            print(f"✅ Webhook OK: {len(propiedades_formato)} propiedades guardadas")
-        else:
-            print(f"⚠️ Webhook error: HTTP {response.status_code}")
-            print(f"   Response: {response.text[:200]}")
-    except Exception as e:
-        print(f"⚠️ Error enviando al webhook: {str(e)}")
+        response.raise_for_status()
+        if response.json().get('success') is not True:
+            raise RuntimeError('Ingestion did not confirm persistence')
+    except Exception:
+        raise
+
 
 def main():
     ap = argparse.ArgumentParser()
@@ -130,7 +120,7 @@ def main():
     ap.add_argument("--max-pages", type=int, default=50)
     ap.add_argument("--sleep", type=float, default=1.0)
     ap.add_argument("--webhook-url", default=None, help="URL del webhook para enviar resultados")
-    ap.add_argument("--webhook-auth", default=None, help="Token de autenticación del webhook")
+    ap.add_argument("--webhook-auth", default=os.environ.get("SCRAPER_SECRET"), help="Token de autenticación del webhook")
     args = ap.parse_args()
 
     output_file = args.output
@@ -141,7 +131,7 @@ def main():
     
     # Visitar homepage primero
     print("🏠 Visitando homepage...")
-    s.get(HOMEPAGE)
+    s.get(HOMEPAGE, timeout=20).raise_for_status()
 
     # Obtener IDs de ubicación
     combined = get_combined_ids(s, args.city)
@@ -159,12 +149,12 @@ def main():
 
     # Primera página
     print("🔹 Página 1")
-    r = s.post(SEARCH_V1, json=payload)
+    r = s.post(SEARCH_V1, json=payload, timeout=30)
     print(f"   Respuesta: {r.status_code}")
     
     if r.status_code != 200:
         print(f"⚠️ Error HTTP {r.status_code}, abortando...")
-        return
+        r.raise_for_status()
     
     data = r.json()
 
@@ -201,17 +191,17 @@ def main():
         print(f"🔹 Página {page}")
         
         try:
-            r = s.post(SEARCH_V1, json=payload)
+            r = s.post(SEARCH_V1, json=payload, timeout=30)
             print(f"   Respuesta: {r.status_code}")
             
             if r.status_code != 200:
                 print(f"⚠️ Error HTTP {r.status_code}, deteniendo...")
-                break
+                r.raise_for_status()
             
             data = r.json()
         except Exception as e:
             print(f"⚠️ Error en página {page}: {e}")
-            break
+            raise
             
         items = normalize_items(data)
         print(f"   {len(items)} resultados en esta página")
@@ -240,3 +230,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

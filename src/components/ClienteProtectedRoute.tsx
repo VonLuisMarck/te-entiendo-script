@@ -1,3 +1,4 @@
+import { ensureClientProfile } from "@/lib/client-profile";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,6 +17,7 @@ export const ClienteProtectedRoute = ({ children }: { children: React.ReactNode 
         return;
       }
 
+      try { await ensureClientProfile(); } catch { navigate("/auth"); return; }
       setLoading(false);
     };
 
@@ -40,3 +42,4 @@ export const ClienteProtectedRoute = ({ children }: { children: React.ReactNode 
 
   return <>{children}</>;
 };
+

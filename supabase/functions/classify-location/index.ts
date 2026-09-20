@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3';
+import { authorize } from "../_shared/security.ts";
+import { serve } from "../_shared/runtime.ts";
+import { createClient } from '@supabase/supabase-js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -43,6 +44,8 @@ async function getUbicaciones() {
 }
 
 serve(async (req) => {
+  const denied = await authorize(req, 'admin');
+  if (denied) return denied;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -352,3 +355,4 @@ ${raw_data.substring(0, 15000)}`; // Limitar a 15k caracteres para no exceder to
     );
   }
 });
+

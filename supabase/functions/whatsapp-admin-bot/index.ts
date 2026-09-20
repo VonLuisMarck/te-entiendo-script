@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { authorize } from "../_shared/security.ts";
+import { serve } from "../_shared/runtime.ts";
+import { createClient } from "@supabase/supabase-js";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +14,8 @@ interface TwilioWebhook {
 }
 
 serve(async (req) => {
+  const denied = await authorize(req, 'twilio');
+  if (denied) return denied;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -377,3 +380,4 @@ function getAyuda(): string {
     `❓ *Ayuda:*\n` +
     `• ayuda (h, ?) - Este mensaje`;
 }
+
