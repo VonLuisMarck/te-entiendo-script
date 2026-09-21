@@ -1,3 +1,5 @@
+> Documento histórico del prototipo. Para el estado operativo, las limitaciones y el despliegue actual, consulta README.md y docs/ del repositorio.
+
 # Arquitectura Portal Cliente - InmoFinder
 
 ## 1. Visión General
@@ -547,10 +549,11 @@ CREATE TABLE client_usage_stats (
 
 1. **Revisar y aprobar** esta arquitectura
 2. **Definir precios** y features finales de cada tier
-3. **Habilitar Stripe** en el proyecto Lovable
+3. **Habilitar Stripe** en el proyecto Supabase
 4. **Comenzar Fase 1**: Infraestructura base
 5. **Iterar** según feedback
 
 ---
 
 **Documento vivo - Última actualización: 2025-10-29**
+

@@ -10,7 +10,8 @@ const corsHeaders = {
 
 const ScrapingRequestSchema = z.object({
   portal: z.enum(['fotocasa', 'pisos']),
-  ubicacion: z.string().trim().min(1).max(120),
+  ubicacion: z.string().trim().max(120).default(''),
+  search_urls: z.array(z.string().url()).min(1).max(5),
   tipo_propiedad: z.string().min(1).max(50).optional(),
   max_pages: z.number().int().min(1).max(50).nullish(),  // Acepta null, undefined o número
 });
@@ -20,7 +21,7 @@ const PropiedadRawSchema = z.object({
   external_id: z.string(),
   portal_origen: z.string(),
   url: z.string(),
-  raw_data: z.any(), // Cualquier objeto JSON
+  raw_data: z.record(z.unknown()),
 });
 
 // Schema para propiedades transformadas (formato completo, legacy)
@@ -73,9 +74,9 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    // Detectar si es webhook de Python o request de trigger
+    // Detectar si es webhook de CDP o request de trigger
     if (requestBody.propiedades && Array.isArray(requestBody.propiedades)) {
-      // ===== WEBHOOK desde Python Scraper =====
+      // ===== WEBHOOK desde CDP Scraper =====
       // Validar secret token en vez de JWT
       const denied = await authorize(req, 'scraper');
       if (denied) return denied;
@@ -120,7 +121,7 @@ serve(async (req) => {
   }
 });
 
-// Función para recibir datos del scraper Python (webhook)
+// Función para recibir datos del scraper CDP (webhook)
 async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookDataSchema>) {
   console.log(`[Webhook] Recibiendo ${data.propiedades.length} propiedades de ${data.metadata.portal}`);
   const startTime = Date.now();
@@ -168,7 +169,7 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
   if (logError) throw logError;
 
   console.log(`[Webhook] Guardadas en raw: ${propiedadesNuevas} nuevas, ${propiedadesActualizadas} actualizadas`);
-  console.log(`[Webhook] ⚡ Usa Batch Processing para procesarlas y ahorrar 90% en costes IA`);
+  console.log(`[Webhook] ⚡ Usa Batch Processing para procesarlas y validar los datos de origen`);
 
   return new Response(
     JSON.stringify({
@@ -186,14 +187,14 @@ async function handleWebhookData(supabase: any, data: z.infer<typeof WebhookData
 
 // Función para triggerar el scraper Docker
 async function triggerDockerScraper(supabase: any, request: z.infer<typeof ScrapingRequestSchema>) {
-  const { portal, ubicacion, tipo_propiedad, max_pages } = request;
-  console.log(`[Trigger] Solicitando scraping: ${portal} - ${ubicacion} (max ${max_pages ?? 5} páginas)`);
+  const { portal, ubicacion, search_urls } = request;
+  console.log(`[Trigger] Solicitando scraping: ${portal} - ${ubicacion} (${search_urls.length} URLs)`);
   const startTime = Date.now();
   
-  const scraperUrl = Deno.env.get('PYTHON_SCRAPER_URL');
+  const scraperUrl = Deno.env.get('BROWSER_WORKER_URL');
   
   if (!scraperUrl) {
-    console.log('[Trigger] PYTHON_SCRAPER_URL no configurado; no se ha iniciado un job');
+    console.log('[Trigger] BROWSER_WORKER_URL no configurado; no se ha iniciado un job');
     
     const logged = await supabase.from('scraping_logs').insert({
       portal,
@@ -201,7 +202,7 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
       propiedades_encontradas: 0,
       propiedades_nuevas: 0,
       propiedades_actualizadas: 0,
-      errores: ['Contenedor Docker no configurado. Configura PYTHON_SCRAPER_URL en secrets.'],
+      errores: ['Contenedor Docker no configurado. Configura BROWSER_WORKER_URL en secrets.'],
       duracion_segundos: 0,
       status: 'error',
     });
@@ -211,7 +212,7 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
       JSON.stringify({
         success: false,
         message: 'Contenedor Docker no configurado',
-        instructions: 'Debes configurar PYTHON_SCRAPER_URL en los secrets con la URL del contenedor Docker',
+        instructions: 'Debes configurar BROWSER_WORKER_URL en los secrets con la URL del contenedor Docker',
       }),
       { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
@@ -221,7 +222,7 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
   if (!scraperApiKey) return Response.json({ error: 'SCRAPER_API_KEY no configurado' }, { status: 503, headers: cors });
 
   try {
-    // Triggear el scraper Python/Docker
+    // Triggear el scraper CDP/Docker
     const response = await fetch(`${scraperUrl}/scrape`, {
       method: 'POST',
       headers: {
@@ -232,8 +233,8 @@ async function triggerDockerScraper(supabase: any, request: z.infer<typeof Scrap
       body: JSON.stringify({
         portal,
         ubicacion,
-        max_pages: max_pages ?? 5,
-        existing_ids: [],
+        source_id: portal,
+        search_urls,
       }),
     });
 

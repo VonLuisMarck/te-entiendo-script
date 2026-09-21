@@ -34,3 +34,8 @@ coverage/
 artifacts/
 test-results/
 playwright-report/
+workers/browser/data/
+workers/browser/sources.local.json
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

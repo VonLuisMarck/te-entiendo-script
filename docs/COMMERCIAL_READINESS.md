@@ -1,3 +1,5 @@
+> Actualización 21-09-2026: el worker Python se sustituye por Node/Chromium CDP con cola SQLite persistente, visor de respuestas y reprocesamiento. El despliegue ya no necesita Lovable. Los ejemplos de fuente siguen sin adaptadores reales validados; falta recibir una traza HAR y verificar staging. Véanse BROWSER_WORKERS.md y QA_BROWSER_2026-09-21.md. Las referencias anteriores al worker Python describen el punto de partida.
+
 # Plan para comercializar InmoFinder
 
 Fecha de revisión: 20 de septiembre de 2026. Punto de partida: `main` en `5c4e9fb6b79c92b4726f04b6616dc2d0dbeeb5cc`.

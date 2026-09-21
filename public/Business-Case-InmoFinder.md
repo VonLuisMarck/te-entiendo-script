@@ -1,3 +1,5 @@
+> Documento histórico del prototipo. Para el estado operativo, las limitaciones y el despliegue actual, consulta README.md y docs/ del repositorio.
+
 # 📊 Business Case - InmoFinder
 
 ## Executive Summary
@@ -125,7 +127,7 @@ InmoFinder automatiza el ciclo completo:
 
 **Frontend**:
 - React + TypeScript (UI responsive)
-- Lovable Cloud (hosting + CI/CD)
+- Supabase (hosting + CI/CD)
 
 **Backend**:
 - Supabase (PostgreSQL + Edge Functions)
@@ -134,7 +136,7 @@ InmoFinder automatiza el ciclo completo:
 
 **Infraestructura**:
 - Railway/Render (scraper containerizado)
-- Lovable Cloud (Edge Functions serverless)
+- Supabase (Edge Functions serverless)
 - ~€50-150/mes en costes operativos hasta 500 usuarios
 
 ### Algoritmo de Scoring (PATENTABLE) 🔒
@@ -349,3 +351,4 @@ InmoFinder automatiza el ciclo completo:
 
 *Última actualización: Diciembre 2024*  
 *Documento confidencial - Solo para inversores potenciales*
+

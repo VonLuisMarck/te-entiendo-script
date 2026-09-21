@@ -85,3 +85,26 @@ test('customer sees recommendations, saves a favorite and can reopen the saved s
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(errors).toEqual([]); expect(state.unexpected).toEqual([]);
 });
+
+test('admin inspects captured response and reprocesses it without sending worker credentials', async ({ page }) => {
+  await fixture(page);
+  const id='00000000-0000-4000-8000-000000000050', captureId='a'.repeat(64);
+  const job={id,status:'captured',error:'adapter_not_configured',delivered:0,captures:1,created_at:Date.now(),request:{source_id:'pisos',ubicacion:'Murcia',search_urls:['https://www.pisos.com/venta/pisos-murcia_capital/']}};
+  const actions:string[]=[];
+  await page.route('https://fixture.supabase.co/rest/v1/user_roles*',route=>route.fulfill({contentType:'application/json',body:'{"role":"admin"}'}));
+  await page.route('https://fixture.supabase.co/functions/v1/browser-worker',async route=>{
+    const body=route.request().postDataJSON();actions.push(body.action);
+    expect(route.request().headers()['x-scraper-secret']).toBeUndefined();
+    const values:Record<string,unknown>={sources:{sources:[{id:'pisos',portal:'pisos',label:'Pisos.com',adapter_version:null}]},list:{jobs:[job]},get:{job,captures:[{id:captureId,response_url:'https://www.pisos.com/fixture-api',page_index:0,mime_type:'text/plain',bytes:23,captured_at:Date.now()}],preview:[],preview_error:'adapter_not_configured'},capture:{capture:{body:'',text:'{"datoSoloAPI":132456.78}',mime_type:'text/plain'}},replay:{success:true,job_id:id}};
+    await route.fulfill({contentType:'application/json',body:JSON.stringify(values[body.action])});
+  });
+  await page.goto('/scraper');
+  await expect(page.getByRole('heading',{name:'Búsquedas con navegador'})).toBeVisible();
+  await page.getByRole('button',{name:/pisos · Murcia/}).click();
+  await page.getByRole('button',{name:/fixture-api/}).click();
+  await expect(page.getByLabel('Respuesta original')).toContainText('132456.78');
+  await page.getByRole('button',{name:'Reprocesar bruto guardado'}).click();
+  await expect.poll(()=>actions.filter(action=>action==='replay').length).toBe(1);
+  expect(actions).not.toContain('create');
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
+});

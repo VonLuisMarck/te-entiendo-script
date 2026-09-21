@@ -9,14 +9,16 @@ Esta guía prepara un piloto; no autoriza ni describe un despliegue ya realizado
 | Frontend | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` | URL y clave pública del proyecto de staging; únicas variables del ejemplo `.env.example` |
 | Edge Functions | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` | Valores proporcionados por Supabase; nunca incluir la clave de servicio en el frontend |
 | Edge Functions | `APP_URL` | Origen HTTPS exacto del frontend, sin ruta, query o fragmento; localhost HTTP permitido en desarrollo |
-| Edge Functions | `PYTHON_SCRAPER_URL` | URL base HTTPS del worker |
+| Edge Functions | `BROWSER_WORKER_URL` | URL base HTTPS del worker |
 | Edge Functions y worker | `SCRAPER_API_KEY` | Secreto aleatorio compartido para invocar el worker mediante Bearer |
 | Edge Functions y worker | `SCRAPER_SECRET` | Secreto distinto para que el worker ingrese anuncios; no concede permisos de administración |
-| Worker | `SUPABASE_URL`, `PORT`, `MAX_CONCURRENT_JOBS` | Destino de callback fijado por configuración; puerto 8000 y concurrencia 2 por defecto |
+| Worker | `SUPABASE_URL`, `PORT`, `CDP_ENDPOINTS`, `SOURCES_FILE`, `WORKER_DB` | Destino de callback fijado por configuración; puerto 8000 y un navegador local por defecto |
 | Edge Functions | `BILLING_ENABLED` | `false` durante el piloto gratuito; ausencia equivale a desactivado |
 | Edge Functions | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Clave y secreto de endpoint de Stripe **test mode** mientras se valida |
 | Webhook Twilio administrativo | `TWILIO_AUTH_TOKEN`, `TWILIO_ADMIN_WEBHOOK_URL` | Validación de firma con URL pública exacta, incluido cualquier query configurado |
 | Webhook ElevenLabs | `ELEVENLABS_WEBHOOK_SECRET` | HMAC y tolerancia de timestamp de cinco minutos |
+
+El worker y su navegador se despliegan según [BROWSER_WORKERS.md](BROWSER_WORKERS.md).
 
 Configurar secretos desde el gestor del proveedor. No añadirlos a Git, URLs, comandos registrados ni variables `VITE_*`. Revisar también configuración/credenciales históricas y revocar o rotar las que hayan quedado expuestas; `.gitignore` no elimina archivos ya versionados ni su historial.
 
@@ -66,4 +68,13 @@ No revertir automáticamente las restricciones de acceso: reabriría vulnerabili
 
 ## Pruebas locales y CI
 
-El workflow `ci.yml` comprueba TypeScript, compilación, reglas de negocio, políticas y migraciones PostgreSQL, funciones Deno, worker Python y navegador con fixtures. No contiene credenciales reales. Las pruebas de navegador interceptan Supabase y no sustituyen los casos integrados anteriores. Ejecutar además la revisión de dependencias y configuración antes de una beta pública.
+El workflow `ci.yml` comprueba TypeScript, compilación, reglas de negocio, políticas y migraciones PostgreSQL, funciones Deno, worker CDP con Chromium real y servidor sintético, interfaz con fixtures y construcción de imágenes independientes. No contiene credenciales reales. Las pruebas de navegador interceptan Supabase y no sustituyen los casos integrados anteriores. Ejecutar además la revisión de dependencias y configuración antes de una beta pública.
+
+## Salida del entorno anterior
+
+1. Crear un proyecto Supabase bajo una cuenta propia y mantener el origen anterior disponible hasta verificar la migración. `project_id` local no fija un proveedor ni traslada la base. Vincular la CLI al nuevo proyecto con `supabase link --project-ref ID_DEL_PROYECTO` y revisar migraciones antes de `supabase db push`.
+2. Exportar y restaurar datos, usuarios/Auth y objetos de Storage mediante procedimientos compatibles con el proveedor. Inventariar secretos, plantillas de correo, redirecciones OAuth, tareas y webhooks. No hay un export de cuentas ni una restauración hecha en esta entrega.
+3. Compilar el frontend con URL y clave pública propias. El fichero `.env` histórico y el lockfile de Bun se retiran de la rama; usar el lockfile de npm y `.env.example`.
+4. Desplegar el worker Node y Chromium dedicados, aplicar los secretos y validar una traza de cada fuente. El worker Python anterior se ha retirado y los antiguos triggers por ciudad ya no se ejecutan.
+5. Desplegar las funciones actuales: `transform-property` y `classify-location` aceptan registros estructurados y normalización determinista; ya no aceptan HTML para inferencia. `generate-city-image` devuelve 410 al haberse retirado su proveedor anterior. No tenía consumidor en la interfaz.
+6. Probar con cuentas y datos de staging, conservar copia restaurable y verificar dominio, TLS y correo. Solo entonces cambiar el tráfico del dominio propio. No se ha cambiado DNS ni publicado producción en esta entrega.
