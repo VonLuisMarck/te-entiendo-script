@@ -48,3 +48,7 @@ El alcance, los riesgos conocidos y los criterios para abrir el servicio de pago
 El código de ejecución, la compilación y la normalización no requieren el editor, su tagger ni su gateway de IA. Frontend React estático, worker Node/Chromium y Supabase se configuran con cuentas e infraestructura propias. Hay `Dockerfile`, `compose.yaml` y CI. La cuenta y los datos del despliegue anterior **no se han migrado**.
 
 Consulta [BROWSER_WORKERS.md](docs/BROWSER_WORKERS.md) para arrancar el navegador, configurar captura de cualquier formato, importar un HAR y validar adaptadores. Los ejemplos de portales solo capturan; necesitan una traza real antes de publicar. [QA_BROWSER_2026-09-21.md](docs/QA_BROWSER_2026-09-21.md) distingue las visitas reales y las pruebas sintéticas.
+
+## Plan maestro de mejora
+
+[PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md) define el estado de referencia, las fases de producto, fuentes, datos, workers, inversión, seguridad y comercialización, con backlog priorizado, pruebas y criterios de cierre. Sus umbrales y esfuerzos son propuestas para validar, no funciones ya entregadas.
