@@ -1,16 +1,31 @@
+import { NotificationInbox } from "@/components/NotificationInbox";
 import { ClientProperties } from "@/components/ClientProperties";
-import { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { User } from '@supabase/supabase-js';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { useSubscription } from '@/contexts/SubscriptionContext';
-import { SUBSCRIPTION_TIERS } from '@/lib/subscription-tiers';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, Check, LogOut, CreditCard, Settings, BarChart3, Sparkles } from 'lucide-react';
-import { UsageLimitsCard } from '@/components/UsageLimitsCard';
+import { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Loader2,
+  Check,
+  LogOut,
+  CreditCard,
+  Settings,
+  BarChart3,
+  Sparkles,
+} from "lucide-react";
+import { UsageLimitsCard } from "@/components/UsageLimitsCard";
 
 const ClienteDashboard = () => {
   const navigate = useNavigate();
@@ -18,40 +33,50 @@ const ClienteDashboard = () => {
   const { toast } = useToast();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const { subscribed, billingEnabled, tier, subscriptionEnd, loading: subLoading, checkSubscription } = useSubscription();
+  const {
+    subscribed,
+    billingEnabled,
+    tier,
+    subscriptionEnd,
+    loading: subLoading,
+    checkSubscription,
+  } = useSubscription();
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
 
   useEffect(() => {
     // Check for success or canceled params
-    const success = searchParams.get('success');
-    const canceled = searchParams.get('canceled');
+    const success = searchParams.get("success");
+    const canceled = searchParams.get("canceled");
 
-    if (success === 'true') {
+    if (success === "true") {
       toast({
         title: "Comprobando el estado de tu pago",
-        description: "Tu plan se actualizará cuando confirmemos el estado del pago.",
+        description:
+          "Tu plan se actualizará cuando confirmemos el estado del pago.",
       });
       checkSubscription();
       // Clean URL
-      window.history.replaceState({}, '', '/cliente/dashboard');
-    } else if (canceled === 'true') {
+      window.history.replaceState({}, "", "/cliente/dashboard");
+    } else if (canceled === "true") {
       toast({
         title: "Pago cancelado",
         description: "No se ha procesado ningún pago.",
         variant: "destructive",
       });
       // Clean URL
-      window.history.replaceState({}, '', '/cliente/dashboard');
+      window.history.replaceState({}, "", "/cliente/dashboard");
     }
   }, []);
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
-        navigate('/auth');
+        navigate("/auth");
         return;
       }
 
@@ -65,8 +90,10 @@ const ClienteDashboard = () => {
   const handleCheckout = async (priceId: string) => {
     try {
       setCheckoutLoading(priceId);
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         toast({
           title: "Error",
@@ -76,12 +103,15 @@ const ClienteDashboard = () => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('create-checkout', {
-        body: { priceId },
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "create-checkout",
+        {
+          body: { priceId },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        },
+      );
 
       if (error) throw error;
 
@@ -89,10 +119,11 @@ const ClienteDashboard = () => {
         window.location.href = data.url;
       }
     } catch (error) {
-      console.error('Error creating checkout:', error);
+      console.error("Error creating checkout:", error);
       toast({
         title: "Error",
-        description: "No se pudo iniciar el proceso de pago. Inténtalo de nuevo.",
+        description:
+          "No se pudo iniciar el proceso de pago. Inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -103,8 +134,10 @@ const ClienteDashboard = () => {
   const handleManageSubscription = async () => {
     try {
       setPortalLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         toast({
           title: "Error",
@@ -114,22 +147,26 @@ const ClienteDashboard = () => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('customer-portal', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "customer-portal",
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        },
+      );
 
       if (error) throw error;
 
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.open(data.url, "_blank");
       }
     } catch (error) {
-      console.error('Error opening customer portal:', error);
+      console.error("Error opening customer portal:", error);
       toast({
         title: "Error",
-        description: "No se pudo abrir el portal de gestión. Inténtalo de nuevo.",
+        description:
+          "No se pudo abrir el portal de gestión. Inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -139,7 +176,7 @@ const ClienteDashboard = () => {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/auth');
+    navigate("/auth");
   };
 
   if (loading || subLoading) {
@@ -161,17 +198,32 @@ const ClienteDashboard = () => {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {(tier === 'investor' || tier === 'investor_platino') && (
-              <Button onClick={() => navigate('/cliente/metricas')} variant="outline">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/cliente/seguimiento")}
+            >
+              Mi seguimiento
+            </Button>
+            {(tier === "investor" || tier === "investor_platino") && (
+              <Button
+                onClick={() => navigate("/cliente/metricas")}
+                variant="outline"
+              >
                 <BarChart3 className="mr-2 h-4 w-4" />
                 Métricas
               </Button>
             )}
-            <Button onClick={() => navigate('/cliente/onboarding')} variant="outline">
+            <Button
+              onClick={() => navigate("/cliente/onboarding")}
+              variant="outline"
+            >
               <Sparkles className="mr-2 h-4 w-4" />
               Configurar
             </Button>
-            <Button onClick={() => navigate('/cliente/settings')} variant="outline">
+            <Button
+              onClick={() => navigate("/cliente/settings")}
+              variant="outline"
+            >
               <Settings className="mr-2 h-4 w-4" />
               Ajustes
             </Button>
@@ -183,36 +235,57 @@ const ClienteDashboard = () => {
         </div>
 
         {/* Usage Limits Card */}
-        {billingEnabled && <div className="mb-8"><UsageLimitsCard /></div>}
+        {billingEnabled && (
+          <div className="mb-8">
+            <UsageLimitsCard />
+          </div>
+        )}
 
         {/* Current Subscription Status */}
         <Card className="mb-8">
           <CardHeader>
-            <CardTitle>{billingEnabled || subscribed ? 'Tu suscripción' : 'Piloto gratuito'}</CardTitle>
+            <CardTitle>
+              {billingEnabled || subscribed
+                ? "Tu suscripción"
+                : "Piloto gratuito"}
+            </CardTitle>
             <CardDescription>
-              {tier === 'free' && (billingEnabled ? 'Plan gratuito' : 'Configura tu búsqueda y guarda los inmuebles que te interesen.')}
-              {tier === 'basic' && 'Plan Básico - Acceso a funciones principales'}
-              {tier === 'investor' && 'Plan Inversor - Funcionalidades avanzadas'}
-              {tier === 'investor_platino' && 'Plan Inversor Premium - Acceso completo'}
+              {tier === "free" &&
+                (billingEnabled
+                  ? "Plan gratuito"
+                  : "Configura tu búsqueda y guarda los inmuebles que te interesen.")}
+              {tier === "basic" &&
+                "Plan Básico - Acceso a funciones principales"}
+              {tier === "investor" &&
+                "Plan Inversor - Funcionalidades avanzadas"}
+              {tier === "investor_platino" &&
+                "Plan Inversor Premium - Acceso completo"}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <Badge variant={tier === 'free' ? 'secondary' : 'default'} className="text-lg px-4 py-2">
-                  {tier === 'free' && 'Free'}
-                  {tier === 'basic' && 'Básico'}
-                  {tier === 'investor' && 'Inversor'}
-                  {tier === 'investor_platino' && 'Inversor Premium'}
+                <Badge
+                  variant={tier === "free" ? "secondary" : "default"}
+                  className="text-lg px-4 py-2"
+                >
+                  {tier === "free" && "Free"}
+                  {tier === "basic" && "Básico"}
+                  {tier === "investor" && "Inversor"}
+                  {tier === "investor_platino" && "Inversor Premium"}
                 </Badge>
                 {subscriptionEnd && (
                   <p className="text-sm text-muted-foreground mt-2">
-                    Válido hasta: {new Date(subscriptionEnd).toLocaleDateString('es-ES')}
+                    Válido hasta:{" "}
+                    {new Date(subscriptionEnd).toLocaleDateString("es-ES")}
                   </p>
                 )}
               </div>
               {subscribed && (
-                <Button onClick={handleManageSubscription} disabled={portalLoading}>
+                <Button
+                  onClick={handleManageSubscription}
+                  disabled={portalLoading}
+                >
                   {portalLoading ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
@@ -225,62 +298,78 @@ const ClienteDashboard = () => {
           </CardContent>
         </Card>
 
+        <NotificationInbox />
         <ClientProperties />
 
         {/* Subscription Plans */}
-        {billingEnabled ? <>
-        <h2 className="text-2xl font-bold mb-4">Planes Disponibles</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {Object.entries(SUBSCRIPTION_TIERS).filter(([key]) => key !== 'free').map(([key, plan]) => {
-            const isCurrentPlan = tier === key;
+        {billingEnabled ? (
+          <>
+            <h2 className="text-2xl font-bold mb-4">Planes Disponibles</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {Object.entries(SUBSCRIPTION_TIERS)
+                .filter(([key]) => key !== "free")
+                .map(([key, plan]) => {
+                  const isCurrentPlan = tier === key;
 
-            return (
-              <Card key={key} className={isCurrentPlan ? 'border-primary border-2' : ''}>
-                <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <CardTitle>{plan.name}</CardTitle>
-                    {isCurrentPlan && (
-                      <Badge variant="default">Tu Plan</Badge>
-                    )}
-                  </div>
-                  <CardDescription className="text-2xl font-bold">€{plan.price}/mes</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-2 mb-6">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start">
-                        <Check className="h-5 w-5 text-primary mr-2 flex-shrink-0 mt-0.5" />
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button
-                    onClick={() => handleCheckout(plan.priceId!)}
-                    disabled={isCurrentPlan || checkoutLoading === plan.priceId}
-                    className="w-full"
-                    variant={isCurrentPlan ? 'secondary' : 'default'}
-                  >
-                    {checkoutLoading === plan.priceId ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Procesando...
-                      </>
-                    ) : isCurrentPlan ? (
-                      'Plan Actual'
-                    ) : (
-                      'Suscribirse'
-                    )}
-                  </Button>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-        </> : <p className="rounded-lg border p-4 text-sm text-muted-foreground">Estás en el piloto gratuito. Te avisaremos cuando estén disponibles los planes de pago.</p>}
+                  return (
+                    <Card
+                      key={key}
+                      className={isCurrentPlan ? "border-primary border-2" : ""}
+                    >
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <CardTitle>{plan.name}</CardTitle>
+                          {isCurrentPlan && (
+                            <Badge variant="default">Tu Plan</Badge>
+                          )}
+                        </div>
+                        <CardDescription className="text-2xl font-bold">
+                          €{plan.price}/mes
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ul className="space-y-2 mb-6">
+                          {plan.features.map((feature, idx) => (
+                            <li key={idx} className="flex items-start">
+                              <Check className="h-5 w-5 text-primary mr-2 flex-shrink-0 mt-0.5" />
+                              <span className="text-sm">{feature}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <Button
+                          onClick={() => handleCheckout(plan.priceId!)}
+                          disabled={
+                            isCurrentPlan || checkoutLoading === plan.priceId
+                          }
+                          className="w-full"
+                          variant={isCurrentPlan ? "secondary" : "default"}
+                        >
+                          {checkoutLoading === plan.priceId ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              Procesando...
+                            </>
+                          ) : isCurrentPlan ? (
+                            "Plan Actual"
+                          ) : (
+                            "Suscribirse"
+                          )}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+            </div>
+          </>
+        ) : (
+          <p className="rounded-lg border p-4 text-sm text-muted-foreground">
+            Estás en el piloto gratuito. Te avisaremos cuando estén disponibles
+            los planes de pago.
+          </p>
+        )}
       </div>
     </div>
   );
 };
 
 export default ClienteDashboard;
-

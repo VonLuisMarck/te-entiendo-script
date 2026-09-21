@@ -1,26 +1,42 @@
 # InmoFinder / Findoo
 
-Buscador inmobiliario con criterios personales, recomendaciones y favoritos. El código combina un portal de clientes y administración en React, Supabase y un worker Node que captura respuestas de un navegador conectado por CDP. La interfaz conserva la marca Findoo.
+Buscador inmobiliario independiente de Lovable: React, Supabase propio y workers Node conectados a Chromium por CDP. Captura respuestas de red, conserva el bruto y permite revisar, normalizar y reproducir la ingesta sin volver a visitar la fuente. La interfaz mantiene la marca Findoo.
 
-**Estado: preparación de un piloto supervisado.** Esta entrega refuerza el acceso a datos, hace verificable la ingestión y añade el recorrido de búsqueda del cliente. No acredita un lanzamiento comercial: faltan pruebas integradas en staging, validación de fuentes y operación, y validación del producto con usuarios.
+**Estado: núcleo del roadmap implementado para validar un piloto.** Hay pruebas automatizadas y despliegue reproducible; faltan un HAR/contrato real de fuente, la migración al entorno propio y la aceptación integrada con usuarios. No se han activado cobros ni envío de email.
 
 ## Empezar
 
-Requisitos: Node 22.13+ y Deno 2 para comprobar las funciones.
+Node 22.13+; Deno 2 para comprobar las funciones.
 
 ```bash
 npm ci --ignore-scripts
 cp .env.example .env.local
-# Completar únicamente las variables públicas de un proyecto Supabase de staging.
+# Configurar solo URL y clave pública de tu Supabase de staging.
 npm run dev
 ```
 
-Aplicar primero las migraciones y configurar los servicios según [DEPLOYMENT.md](docs/DEPLOYMENT.md). No utilizar credenciales de producción en las pruebas.
+Aplicar migraciones y configurar servicios según [DEPLOYMENT.md](docs/DEPLOYMENT.md). El frontend rechaza una clave de servicio al compilar. El worker utiliza otras credenciales, nunca variables públicas `VITE_*`.
+
+## Qué incluye
+
+- Búsqueda transaccional y versionada, borradores recuperables, requisitos y preferencias, radio geográfico y resultados explicables.
+- Ficha con evidencia e historial, favoritos, seguimiento, notas, visitas y motivos de descarte.
+- Comparación de 2–4 inmuebles, PDF y enlaces temporales revocables sin información privada.
+- Escenarios de inversión editables/versionados, financiación, gastos, vacancia y sensibilidad; sin estimar datos desconocidos.
+- Bandeja de avisos, preferencias y outbox de email preparada; recuperación, exportación y borrado de cuenta.
+- Workers con checkpoints, outbox durable, reintentos idempotentes, programación por intervalos, cuotas, pausas y métricas.
+- Modelo de anuncios/observaciones/inmuebles, evidencia por campo, eventos, revisión por registro y matching atómico que rechaza versiones antiguas.
+- Contenedores independientes, pipeline optativo, copias de seguridad y pruebas de fallos, seguridad, navegador y Compose.
+
+La captura no presupone JSON. Los decodificadores actuales admiten JSON/NDJSON; cualquier otro formato necesita su contrato. Los ejemplos de Fotocasa/Pisos siguen en modo captura sin un adaptador real validado. El sistema se detiene ante controles de acceso y no requiere el perfil personal del navegador.
+
+## Comprobar
 
 ```bash
 npm test
 npm run typecheck
 npm run build
+npm audit --audit-level=high
 deno check --no-lock --config supabase/functions/deno.json supabase/functions/*/index.ts
 npm ci --prefix workers/browser --ignore-scripts
 npx playwright install chromium
@@ -28,27 +44,15 @@ npm test --prefix workers/browser
 npm run test:browser
 ```
 
-Las pruebas PostgreSQL usan PGlite y ejecutan todo el historial de migraciones con roles que simulan Supabase. Las pruebas del portal de clientes usan respuestas simuladas y las del worker conectan un Chromium real a un servidor HTTP de prueba; no prueban la disponibilidad de portales externos, la entrega de correos ni pagos reales.
+Las pruebas SQL usan PostgreSQL/PGlite con roles simulados de Supabase. La interfaz usa fixtures; los workers prueban CDP con Chromium real y un servidor sintético. CI prueba también Compose, reinicio y persistencia. No equivalen a validar portales, Auth, correo o pagos reales.
 
-## Qué incluye este piloto
+## Documentación vigente
 
-- Alta con confirmación de correo y perfil creado de forma idempotente tras autenticarse.
-- Búsqueda editable: zona, presupuesto, margen, tipo, superficie, dormitorios, baños, estado, año, ascensor y parking.
-- Recomendaciones con origen, fecha de observación, favoritos y paginación. Se muestran anuncios activos observados en los últimos siete días.
-- Ingestión de cambios de precio, normalización de datos de la fuente y comparación explicable con requisitos obligatorios.
-- Administración protegida por rol, aislamiento por cliente y permisos limitados para los workers.
-- Preparación de Stripe con sincronización del estado actual y firma de webhooks. **Los cobros están desactivados por defecto.**
+- [Estado de las 63 tareas](docs/ROADMAP_IMPLEMENTATION.md): implementación, evidencia y dependencias pendientes.
+- [Roadmap original](docs/PRODUCT_ROADMAP.md): objetivos, prioridades y puertas de aceptación.
+- [Preparación comercial](docs/COMMERCIAL_READINESS.md): qué puede prometerse y qué falta antes de cobrar.
+- [Despliegue y migración](docs/DEPLOYMENT.md): entorno propio, secretos y secuencia de actualización.
+- [Workers y HAR](docs/BROWSER_WORKERS.md): captura, contratos, replay, programación y límites.
+- [Operación y recuperación](docs/OPERATIONS.md): incidentes, backup, retención y piloto.
 
-El operador inicia captura, revisión, procesamiento y matching. El nuevo panel permite inspeccionar respuestas originales y reprocesarlas. No hay programación automática activa. Las notificaciones e informes de clientes y las valoraciones de reforma están pausados con respuesta explícita 503 hasta completar su implementación y validación.
-
-El alcance, los riesgos conocidos y los criterios para abrir el servicio de pago están en [COMMERCIAL_READINESS.md](docs/COMMERCIAL_READINESS.md). Los documentos anteriores del repositorio describen el prototipo; no son evidencia de funciones operativas.
-
-## Fuera de Lovable
-
-El código de ejecución, la compilación y la normalización no requieren el editor, su tagger ni su gateway de IA. Frontend React estático, worker Node/Chromium y Supabase se configuran con cuentas e infraestructura propias. Hay `Dockerfile`, `compose.yaml` y CI. La cuenta y los datos del despliegue anterior **no se han migrado**.
-
-Consulta [BROWSER_WORKERS.md](docs/BROWSER_WORKERS.md) para arrancar el navegador, configurar captura de cualquier formato, importar un HAR y validar adaptadores. Los ejemplos de portales solo capturan; necesitan una traza real antes de publicar. [QA_BROWSER_2026-09-21.md](docs/QA_BROWSER_2026-09-21.md) distingue las visitas reales y las pruebas sintéticas.
-
-## Plan maestro de mejora
-
-[PRODUCT_ROADMAP.md](docs/PRODUCT_ROADMAP.md) define el estado de referencia, las fases de producto, fuentes, datos, workers, inversión, seguridad y comercialización, con backlog priorizado, pruebas y criterios de cierre. Sus umbrales y esfuerzos son propuestas para validar, no funciones ya entregadas.
+Los documentos históricos del prototipo describen estados anteriores; no acreditan funciones actuales. El código ya no depende del editor/tagger/gateway de Lovable. Las cuentas, datos y dominio del despliegue anterior todavía necesitan migrarse.

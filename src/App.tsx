@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +9,9 @@ import { ThemeProvider } from "next-themes";
 import { AdminProtectedRoute } from "@/components/AdminProtectedRoute";
 import { ClienteProtectedRoute } from "@/components/ClienteProtectedRoute";
 
+const ClienteWorkspace = lazy(() => import("./pages/ClienteWorkspace"));
+const SharedSelection = lazy(() => import("./pages/SharedSelection"));
+const PasswordRecovery = lazy(() => import("./pages/PasswordRecovery"));
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const AdminAuth = lazy(() => import("./pages/AdminAuth"));
@@ -43,38 +46,188 @@ const App = () => (
           <Toaster />
           <Sonner />
           <BrowserRouter>
-          <Suspense fallback={<p role="status" className="p-10 text-center">Cargando…</p>}><Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/admin/auth" element={<AdminAuth />} />
-            <Route path="/dashboard" element={<AdminProtectedRoute><Dashboard /></AdminProtectedRoute>} />
-            <Route path="/propiedades" element={<AdminProtectedRoute><Propiedades /></AdminProtectedRoute>} />
-            <Route path="/clientes" element={<AdminProtectedRoute><Clientes /></AdminProtectedRoute>} />
-            <Route path="/matchings" element={<AdminProtectedRoute><Matchings /></AdminProtectedRoute>} />
-            <Route path="/scraper" element={<AdminProtectedRoute><Scraper /></AdminProtectedRoute>} />
-            <Route path="/metricas" element={<AdminProtectedRoute><Metricas /></AdminProtectedRoute>} />
-            <Route path="/mercado-ciudades" element={<AdminProtectedRoute><MercadoCiudades /></AdminProtectedRoute>} />
-            <Route path="/historico" element={<AdminProtectedRoute><Historico /></AdminProtectedRoute>} />
-            <Route path="/ubicaciones" element={<AdminProtectedRoute><Ubicaciones /></AdminProtectedRoute>} />
-            <Route path="/reclassify-properties" element={<AdminProtectedRoute><ReclassifyProperties /></AdminProtectedRoute>} />
-            <Route path="/batch-processing" element={<AdminProtectedRoute><BatchProcessing /></AdminProtectedRoute>} />
-            <Route path="/propiedades-raw" element={<AdminProtectedRoute><PropiedadesRaw /></AdminProtectedRoute>} />
-            <Route path="/settings" element={<AdminProtectedRoute><Settings /></AdminProtectedRoute>} />
-            <Route path="/subscription" element={<ClienteProtectedRoute><Subscription /></ClienteProtectedRoute>} />
-            <Route path="/llamadas-ia" element={<AdminProtectedRoute><LlamadasIA /></AdminProtectedRoute>} />
-            <Route path="/cliente/onboarding" element={<ClienteProtectedRoute><ClienteOnboarding /></ClienteProtectedRoute>} />
-            <Route path="/cliente/dashboard" element={<ClienteProtectedRoute><ClienteDashboard /></ClienteProtectedRoute>} />
-            <Route path="/cliente/settings" element={<ClienteProtectedRoute><ClienteSettings /></ClienteProtectedRoute>} />
-            <Route path="/cliente/metricas" element={<ClienteProtectedRoute><ClienteMetricas /></ClienteProtectedRoute>} />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes></Suspense>
-        </BrowserRouter>
-      </TooltipProvider>
-    </SubscriptionProvider>
+            <Suspense
+              fallback={
+                <p role="status" className="p-10 text-center">
+                  Cargando…
+                </p>
+              }
+            >
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/seleccion/:token" element={<SharedSelection />} />
+                <Route
+                  path="/cliente/seguimiento"
+                  element={
+                    <ClienteProtectedRoute>
+                      <ClienteWorkspace />
+                    </ClienteProtectedRoute>
+                  }
+                />
+                <Route path="/auth/recovery" element={<PasswordRecovery />} />
+                <Route path="/auth" element={<Auth />} />
+                <Route path="/admin/auth" element={<AdminAuth />} />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <AdminProtectedRoute>
+                      <Dashboard />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/propiedades"
+                  element={
+                    <AdminProtectedRoute>
+                      <Propiedades />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/clientes"
+                  element={
+                    <AdminProtectedRoute>
+                      <Clientes />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/matchings"
+                  element={
+                    <AdminProtectedRoute>
+                      <Matchings />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/scraper"
+                  element={
+                    <AdminProtectedRoute>
+                      <Scraper />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/metricas"
+                  element={
+                    <AdminProtectedRoute>
+                      <Metricas />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/mercado-ciudades"
+                  element={
+                    <AdminProtectedRoute>
+                      <MercadoCiudades />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/historico"
+                  element={
+                    <AdminProtectedRoute>
+                      <Historico />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/ubicaciones"
+                  element={
+                    <AdminProtectedRoute>
+                      <Ubicaciones />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/reclassify-properties"
+                  element={
+                    <AdminProtectedRoute>
+                      <ReclassifyProperties />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/batch-processing"
+                  element={
+                    <AdminProtectedRoute>
+                      <BatchProcessing />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/propiedades-raw"
+                  element={
+                    <AdminProtectedRoute>
+                      <PropiedadesRaw />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <AdminProtectedRoute>
+                      <Settings />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/subscription"
+                  element={
+                    <ClienteProtectedRoute>
+                      <Subscription />
+                    </ClienteProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/llamadas-ia"
+                  element={
+                    <AdminProtectedRoute>
+                      <LlamadasIA />
+                    </AdminProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/cliente/onboarding"
+                  element={
+                    <ClienteProtectedRoute>
+                      <ClienteOnboarding />
+                    </ClienteProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/cliente/dashboard"
+                  element={
+                    <ClienteProtectedRoute>
+                      <ClienteDashboard />
+                    </ClienteProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/cliente/settings"
+                  element={
+                    <ClienteProtectedRoute>
+                      <ClienteSettings />
+                    </ClienteProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/cliente/metricas"
+                  element={
+                    <ClienteProtectedRoute>
+                      <ClienteMetricas />
+                    </ClienteProtectedRoute>
+                  }
+                />
+                {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </TooltipProvider>
+      </SubscriptionProvider>
     </ThemeProvider>
   </QueryClientProvider>
 );
 
 export default App;
-

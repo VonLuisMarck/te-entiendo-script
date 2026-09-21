@@ -76,3 +76,9 @@ verify_jwt = false
 # Signature verified against the raw request body inside the handler.
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.notification-dispatch]
+verify_jwt = false
+
+[functions.account-delete]
+verify_jwt = false

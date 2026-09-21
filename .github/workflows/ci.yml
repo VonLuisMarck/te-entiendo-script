@@ -8,7 +8,7 @@ permissions:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     env:
       VITE_SUPABASE_URL: https://fixture.supabase.co
       VITE_SUPABASE_PUBLISHABLE_KEY: fixture-public-key
@@ -16,9 +16,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: "22"
           cache: npm
       - run: npm ci --ignore-scripts
+      - run: npm audit --audit-level=high
       - run: npm test
       - run: npm run typecheck
       - run: npm run build
@@ -44,3 +45,22 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/assets/missing.js)" = 404
       - name: Worker production image
         run: docker build --target worker -f workers/browser/Dockerfile -t inmofinder-worker .
+
+      - name: Complete Compose, private CDP, restart and durable queue
+        env:
+          SCRAPER_API_KEY: isolated-ci-worker-key-not-a-production-secret
+        run: |
+          cp workers/browser/sources.example.json workers/browser/sources.local.json
+          cleanup() {
+            docker compose logs --tail=80
+            docker compose down --volumes
+          }
+          trap cleanup EXIT
+          docker compose up --build --wait --wait-timeout 120 -d
+          docker compose exec -T worker node src/compose-smoke.mjs
+          docker compose exec -T worker node src/backup.mjs --to data/ci-backup.sqlite
+          docker compose restart worker
+          docker compose up --wait --wait-timeout 60 -d
+          docker compose exec -T worker node src/compose-smoke.mjs --verify
+          docker compose exec -T worker node src/backup.mjs --verify data/ci-backup.sqlite
+          test -z "$(docker compose port browser 9222)"

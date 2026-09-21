@@ -1,35 +1,45 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useSubscription } from '@/contexts/SubscriptionContext';
-import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, CreditCard, Lock, User } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AccountTools } from "@/components/AccountTools";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useSubscription } from "@/contexts/SubscriptionContext";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, ArrowLeft, CreditCard, Lock, User } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const ClienteSettings = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { tier, subscribed, billingEnabled, checkSubscription } = useSubscription();
+  const { tier, subscribed, billingEnabled, checkSubscription } =
+    useSubscription();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
   const [portalLoading, setPortalLoading] = useState(false);
-  
+
   // Password change
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
-        navigate('/auth');
+        navigate("/auth");
         return;
       }
 
@@ -43,8 +53,10 @@ const ClienteSettings = () => {
   const handleManageSubscription = async () => {
     try {
       setPortalLoading(true);
-      const { data: { session } } = await supabase.auth.getSession();
-      
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
       if (!session) {
         toast({
           title: "Error",
@@ -54,22 +66,26 @@ const ClienteSettings = () => {
         return;
       }
 
-      const { data, error } = await supabase.functions.invoke('customer-portal', {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`
-        }
-      });
+      const { data, error } = await supabase.functions.invoke(
+        "customer-portal",
+        {
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        },
+      );
 
       if (error) throw error;
 
       if (data?.url) {
-        window.open(data.url, '_blank');
+        window.open(data.url, "_blank");
       }
     } catch (error) {
-      console.error('Error opening customer portal:', error);
+      console.error("Error opening customer portal:", error);
       toast({
         title: "Error",
-        description: "No se pudo abrir el portal de gestión. Inténtalo de nuevo.",
+        description:
+          "No se pudo abrir el portal de gestión. Inténtalo de nuevo.",
         variant: "destructive",
       });
     } finally {
@@ -79,7 +95,7 @@ const ClienteSettings = () => {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (newPassword !== confirmPassword) {
       toast({
         title: "Error",
@@ -102,7 +118,7 @@ const ClienteSettings = () => {
       setPasswordLoading(true);
 
       const { error } = await supabase.auth.updateUser({
-        password: newPassword
+        password: newPassword,
       });
 
       if (error) throw error;
@@ -112,9 +128,9 @@ const ClienteSettings = () => {
         description: "Tu contraseña ha sido cambiada exitosamente.",
       });
 
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (error: any) {
       toast({
         title: "Error",
@@ -138,12 +154,18 @@ const ClienteSettings = () => {
     <div className="min-h-screen bg-background p-4">
       <div className="container mx-auto max-w-4xl">
         <div className="flex items-center gap-4 mb-8">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/cliente/dashboard')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/cliente/dashboard")}
+          >
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div>
             <h1 className="text-3xl font-bold">Configuración</h1>
-            <p className="text-muted-foreground">Gestiona tu cuenta y preferencias</p>
+            <p className="text-muted-foreground">
+              Gestiona tu cuenta y preferencias
+            </p>
           </div>
         </div>
 
@@ -174,18 +196,23 @@ const ClienteSettings = () => {
               <CardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Email</Label>
-                  <Input value={user?.email || ''} disabled />
+                  <Input value={user?.email || ""} disabled />
                 </div>
                 <div className="space-y-2">
                   <Label>Plan Actual</Label>
-                  <Input 
+                  <Input
                     value={
-                      tier === 'free' ? 'Free' :
-                      tier === 'basic' ? 'Básico' :
-                      tier === 'investor' ? 'Inversor' :
-                      tier === 'investor_platino' ? 'Inversor Premium' : 'Free'
-                    } 
-                    disabled 
+                      tier === "free"
+                        ? "Free"
+                        : tier === "basic"
+                          ? "Básico"
+                          : tier === "investor"
+                            ? "Inversor"
+                            : tier === "investor_platino"
+                              ? "Inversor Premium"
+                              : "Free"
+                    }
+                    disabled
                   />
                 </div>
               </CardContent>
@@ -214,7 +241,9 @@ const ClienteSettings = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirm-password">Confirmar Contraseña</Label>
+                    <Label htmlFor="confirm-password">
+                      Confirmar Contraseña
+                    </Label>
                     <Input
                       id="confirm-password"
                       type="password"
@@ -231,7 +260,7 @@ const ClienteSettings = () => {
                         Actualizando...
                       </>
                     ) : (
-                      'Cambiar Contraseña'
+                      "Cambiar Contraseña"
                     )}
                   </Button>
                 </form>
@@ -251,43 +280,60 @@ const ClienteSettings = () => {
                 <div className="p-4 bg-muted rounded-lg">
                   <p className="text-sm mb-2">Plan Actual:</p>
                   <p className="text-xl font-bold">
-                    {tier === 'free' ? '🆓 Free' :
-                     tier === 'basic' ? '📱 Básico' :
-                     tier === 'investor' ? '💼 Inversor' :
-                     tier === 'investor_platino' ? '💎 Inversor Premium' : 'Free'}
+                    {tier === "free"
+                      ? "🆓 Free"
+                      : tier === "basic"
+                        ? "📱 Básico"
+                        : tier === "investor"
+                          ? "💼 Inversor"
+                          : tier === "investor_platino"
+                            ? "💎 Inversor Premium"
+                            : "Free"}
                   </p>
                 </div>
 
-                {(subscribed || billingEnabled) && <div className="flex flex-col gap-2">
-                  <Button onClick={handleManageSubscription} disabled={portalLoading || !subscribed}>
-                    {portalLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Cargando...
-                      </>
-                    ) : (
-                      <>
-                        <CreditCard className="mr-2 h-4 w-4" />
-                        Gestionar Suscripción y Pagos
-                      </>
-                    )}
-                  </Button>
-                  <Button variant="outline" onClick={() => navigate('/cliente/dashboard')}>
-                    Ver Planes Disponibles
-                  </Button>
-                </div>}
+                {(subscribed || billingEnabled) && (
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      onClick={handleManageSubscription}
+                      disabled={portalLoading || !subscribed}
+                    >
+                      {portalLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Cargando...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="mr-2 h-4 w-4" />
+                          Gestionar Suscripción y Pagos
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => navigate("/cliente/dashboard")}
+                    >
+                      Ver Planes Disponibles
+                    </Button>
+                  </div>
+                )}
 
                 <p className="text-xs text-muted-foreground">
-                  {subscribed ? 'Gestiona tu suscripción, método de pago o cancelación en el portal de Stripe.' : billingEnabled ? 'Consulta los planes disponibles desde tu panel.' : 'Estás en el piloto gratuito. Los cobros todavía no están activados.'}
+                  {subscribed
+                    ? "Gestiona tu suscripción, método de pago o cancelación en el portal de Stripe."
+                    : billingEnabled
+                      ? "Consulta los planes disponibles desde tu panel."
+                      : "Estás en el piloto gratuito. Los cobros todavía no están activados."}
                 </p>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
+        <AccountTools />
       </div>
     </div>
   );
 };
 
 export default ClienteSettings;
-

@@ -5,23 +5,40 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { toast } from "sonner";
 import { z } from "zod";
 import findooLogo from "@/assets/findoo-logo.png";
 
 const authSchema = z.object({
   email: z.string().email("Email inválido").max(255, "Email demasiado largo"),
-  password: z.string().min(8, "La contraseña debe tener al menos 8 caracteres").max(100, "Contraseña demasiado larga"),
-  nombre: z.string().trim().min(1, "El nombre es requerido").max(100, "Nombre demasiado largo").regex(/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/, "El nombre solo puede contener letras y espacios"),
+  password: z
+    .string()
+    .min(8, "La contraseña debe tener al menos 8 caracteres")
+    .max(100, "Contraseña demasiado larga"),
+  nombre: z
+    .string()
+    .trim()
+    .min(1, "El nombre es requerido")
+    .max(100, "Nombre demasiado largo")
+    .regex(
+      /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/,
+      "El nombre solo puede contener letras y espacios",
+    ),
 });
 
 const ERROR_MESSAGES: Record<string, string> = {
-  'User already registered': 'Esta dirección de correo ya está en uso',
-  'Invalid login credentials': 'Credenciales incorrectas',
-  'Email rate limit exceeded': 'Demasiados intentos. Inténtalo más tarde',
-  'Invalid email or password': 'Credenciales incorrectas',
-  'Email not confirmed': 'Por favor confirma tu email',
+  "User already registered": "Esta dirección de correo ya está en uso",
+  "Invalid login credentials": "Credenciales incorrectas",
+  "Email rate limit exceeded": "Demasiados intentos. Inténtalo más tarde",
+  "Invalid email or password": "Credenciales incorrectas",
+  "Email not confirmed": "Por favor confirma tu email",
 };
 
 const Auth = () => {
@@ -38,10 +55,10 @@ const Auth = () => {
 
     try {
       // Validate inputs
-      const validationData = isLogin 
+      const validationData = isLogin
         ? { email, password, nombre: "placeholder" }
         : { email, password, nombre };
-      
+
       const validated = authSchema.parse(validationData);
 
       if (isLogin) {
@@ -53,20 +70,25 @@ const Auth = () => {
         if (error) throw error;
 
         // Verificar si el cliente tiene criterios configurados
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
         if (user) {
           await ensureClientProfile();
           const { data: cliente } = await supabase
-            .from('clientes')
-            .select('id')
-            .eq('user_id', user.id)
-            .order('created_at').order('id').limit(1).maybeSingle();
+            .from("clientes")
+            .select("id")
+            .eq("user_id", user.id)
+            .order("created_at")
+            .order("id")
+            .limit(1)
+            .maybeSingle();
 
           if (cliente) {
             const { data: criterios } = await supabase
-              .from('criterios_busqueda')
-              .select('id')
-              .eq('cliente_id', cliente.id)
+              .from("criterios_busqueda")
+              .select("id")
+              .eq("cliente_id", cliente.id)
               .limit(1);
 
             // Si no tiene criterios, redirigir a onboarding
@@ -81,21 +103,24 @@ const Auth = () => {
         toast.success("¡Bienvenido de vuelta!");
         navigate("/cliente/dashboard");
       } else {
-        const { data: authData, error: signUpError } = await supabase.auth.signUp({
-          email: validated.email,
-          password: validated.password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/cliente/onboarding`,
-            data: {
-              nombre: validated.nombre,
+        const { data: authData, error: signUpError } =
+          await supabase.auth.signUp({
+            email: validated.email,
+            password: validated.password,
+            options: {
+              emailRedirectTo: `${window.location.origin}/cliente/onboarding`,
+              data: {
+                nombre: validated.nombre,
+              },
             },
-          },
-        });
+          });
 
         if (signUpError) throw signUpError;
 
         if (!authData.session) {
-          toast.success("Revisa tu correo y confirma la cuenta. Después podrás iniciar sesión.");
+          toast.success(
+            "Revisa tu correo y confirma la cuenta. Después podrás iniciar sesión.",
+          );
           setIsLogin(true);
           setPassword("");
           return;
@@ -108,7 +133,9 @@ const Auth = () => {
       if (error instanceof z.ZodError) {
         toast.error(error.errors[0].message);
       } else {
-        const userFriendlyError = ERROR_MESSAGES[error.message] || "Error en la autenticación. Por favor intenta de nuevo.";
+        const userFriendlyError =
+          ERROR_MESSAGES[error.message] ||
+          "Error en la autenticación. Por favor intenta de nuevo.";
         toast.error(userFriendlyError);
       }
     } finally {
@@ -121,11 +148,19 @@ const Auth = () => {
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
-            <img src={findooLogo} alt="Findoo" className="h-20 w-20 object-contain" />
+            <img
+              src={findooLogo}
+              alt="Findoo"
+              className="h-20 w-20 object-contain"
+            />
           </div>
-          <CardTitle className="text-2xl font-bold">Portal de Clientes</CardTitle>
+          <CardTitle className="text-2xl font-bold">
+            Portal de Clientes
+          </CardTitle>
           <CardDescription>
-            {isLogin ? "Inicia sesión en tu cuenta de cliente" : "Crea tu cuenta de cliente"}
+            {isLogin
+              ? "Inicia sesión en tu cuenta de cliente"
+              : "Crea tu cuenta de cliente"}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -167,16 +202,56 @@ const Auth = () => {
               />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "Procesando..." : isLogin ? "Iniciar Sesión" : "Crear Cuenta"}
+              {loading
+                ? "Procesando..."
+                : isLogin
+                  ? "Iniciar Sesión"
+                  : "Crear Cuenta"}
             </Button>
           </form>
+          {isLogin && (
+            <Button
+              variant="link"
+              disabled={loading}
+              className="w-full mt-3"
+              onClick={async () => {
+                if (!z.string().email().safeParse(email).success) {
+                  toast.error("Escribe tu email para recibir el enlace.");
+                  return;
+                }
+                setLoading(true);
+                try {
+                  const { error } = await supabase.auth.resetPasswordForEmail(
+                    email,
+                    { redirectTo: `${window.location.origin}/auth/recovery` },
+                  );
+                  if (error)
+                    toast.error(
+                      "No se pudo solicitar el enlace. Inténtalo más tarde.",
+                    );
+                  else
+                    toast.success(
+                      "Si la cuenta puede recuperarse, recibirás un enlace por correo.",
+                    );
+                } catch {
+                  toast.error("No se pudo solicitar el enlace.");
+                } finally {
+                  setLoading(false);
+                }
+              }}
+            >
+              He olvidado mi contraseña
+            </Button>
+          )}
           <div className="mt-4 text-center text-sm">
             <button
               type="button"
               onClick={() => setIsLogin(!isLogin)}
               className="text-primary hover:underline"
             >
-              {isLogin ? "¿No tienes cuenta? Regístrate" : "¿Ya tienes cuenta? Inicia sesión"}
+              {isLogin
+                ? "¿No tienes cuenta? Regístrate"
+                : "¿Ya tienes cuenta? Inicia sesión"}
             </button>
           </div>
         </CardContent>
@@ -186,4 +261,3 @@ const Auth = () => {
 };
 
 export default Auth;
-

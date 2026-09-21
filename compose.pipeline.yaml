@@ -1,0 +1,18 @@
+# Opt-in: requires your own staging project. Base Compose remains usable without it.
+services:
+  pipeline:
+    build:
+      context: .
+      dockerfile: workers/browser/Dockerfile
+      target: worker
+    command: ["node", "src/pipeline.mjs"]
+    init: true
+    restart: unless-stopped
+    mem_limit: 256m
+    cpus: 0.5
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:?Set your staging Supabase origin}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?Set a server-only staging credential}
+      PIPELINE_INTERVAL_SECONDS: ${PIPELINE_INTERVAL_SECONDS:-60}
+      EMAIL_ENABLED: ${EMAIL_ENABLED:-false}

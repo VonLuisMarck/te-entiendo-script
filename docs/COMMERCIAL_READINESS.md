@@ -1,72 +1,65 @@
-> Actualización 21-09-2026: el worker Python se sustituye por Node/Chromium CDP con cola SQLite persistente, visor de respuestas y reprocesamiento. El despliegue ya no necesita Lovable. Los ejemplos de fuente siguen sin adaptadores reales validados; falta recibir una traza HAR y verificar staging. Véanse BROWSER_WORKERS.md y QA_BROWSER_2026-09-21.md. Las referencias anteriores al worker Python describen el punto de partida.
+# Preparación comercial de InmoFinder
 
-# Plan para comercializar InmoFinder
+Revisión: 21 de septiembre de 2026. Este documento sustituye el inventario del prototipo Python y del matching anterior. El estado por tarea está en [ROADMAP_IMPLEMENTATION.md](ROADMAP_IMPLEMENTATION.md); las propuestas y gates originales se conservan en [PRODUCT_ROADMAP.md](PRODUCT_ROADMAP.md).
 
-Fecha de revisión: 20 de septiembre de 2026. Punto de partida: `main` en `5c4e9fb6b79c92b4726f04b6616dc2d0dbeeb5cc`.
+**Resultado: núcleo ampliado implementado y verificable; lanzamiento comercial todavía pendiente de validación externa.** El repositorio se compila y despliega sin Lovable. No se han migrado cuentas, Auth, datos, Storage ni dominio del entorno anterior. Los ejemplos de portales continúan sin un adaptador real: capturan respuestas, pero no acreditan búsquedas útiles de una fuente viva.
 
-## Producto inicial
+## Capacidades entregadas
 
-Hipótesis de trabajo basada en el producto existente: ayudar a compradores particulares a encontrar y guardar viviendas que respetan su búsqueda. Antes de ampliar a inversores o inmobiliarias, validar este recorrido en una zona y con un grupo pequeño de usuarios. El tamaño y los objetivos siguientes son criterios propuestos para el piloto, no resultados observados ni un compromiso de fecha.
+| Área               | Comportamiento actual                                                                                                           | Evidencia y límite                                                                                                     |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Seguridad          | Autorización de funciones, RLS, restricciones de columnas/RPC, separación de credenciales y validación de configuración pública | Pruebas negativas con dos clientes en PostgreSQL/PGlite; falta comprobar el gateway y Auth reales                      |
+| Dependencias       | Actualizados jsPDF, AutoTable, React Router, Vite y dependencias transitivas                                                    | `npm audit` sin avisos en la revisión; CI falla ante vulnerabilidades altas/críticas. No equivale a auditoría completa |
+| Navegador          | Chromium dedicado conectado mediante CDP; cuerpos de respuesta conservados como bytes con hash                                  | Chromium real contra servidor sintético. No extrae anuncios del HTML ni garantiza guardar antes del renderizado        |
+| Ejecución          | SQLite, leases, checkpoints, pausa/cancelación/prioridad, intervalos persistentes, cuotas por ámbito y pausa de fuente          | Fallos inyectados, reinicios y recuperación offline; un host, hasta cuatro navegadores                                 |
+| Entrega            | Outbox por lote, confirmación durable, payload inmutable e ingesta atómica idempotente                                          | Corte después del commit y antes de la respuesta probado; ningún contador confirmado se pierde al reintentar           |
+| Datos              | Anuncio separado de inmueble canónico, observaciones versionadas, eventos, evidencia y revisión por registro                    | Muestras sintéticas. Asociación canónica manual, reversible y auditada; no existe dedupe automático acreditado         |
+| Búsqueda           | Perfil y criterios en una transacción, control de versiones, requisitos separados de preferencias                               | Conflictos entre sesiones rechazados; borradores locales recuperables; una búsqueda actual por cliente                 |
+| Ranking            | Requisitos estrictos y preferencias explicadas; antigüedad y completitud separadas                                              | Puntuación de reglas, no probabilidad ni precio de mercado; mejora de relevancia aún sin medir                         |
+| Geografía          | Radio seleccionable y mapa; matching de radio/polígono sobre coordenadas exactas                                                | Datos aproximados/desconocidos no satisfacen un requisito espacial. Dibujo de polígonos y rutas pendientes             |
+| Espacio de cliente | Ficha, historia, favoritos, seguimiento, notas, visitas, descartes y valoración de utilidad                                     | Persistencia y aislamiento probados; los favoritos antiguos conservan su contexto                                      |
+| Comparación        | Dos a cuatro candidatos, campos homogéneos, PDF y enlace temporal revocable                                                     | El enlace contiene una instantánea de hechos seleccionados; no notas ni escenarios privados                            |
+| Inversión          | Supuestos explícitos, costes, financiación, vacancia, impago, cash flow y sensibilidad                                          | Fórmulas contrastadas con cálculos independientes en tests. No estima alquiler, fiscalidad, tasación ni comparables    |
+| Avisos             | Bandeja, deduplicación por evento, preferencias, pausa y outbox de email                                                        | Quiet hours y DST probados en SQL. Email desactivado; entrega real, rebotes y reputación sin validar                   |
+| Cuenta             | Recuperación de contraseña, cierre global de sesiones, exportación y borrado con reautenticación reciente                       | Rutas/SQL probados; Auth/SMTP reales, objetos históricos de Storage y ciclo completo pendientes                        |
+| Operación          | Métricas privadas, registro de costes, logs por trabajo/lote, backup consistente y runbooks                                     | Infraestructura reproducible y pruebas en CI; no hay operación sostenida ni margen medido                              |
 
-Promesa del piloto: criterios que se guardan, anuncios con procedencia y fecha, requisitos explicables, favoritos y revisión por el equipo. Evitar prometer alertas inmediatas, cobertura completa, oportunidades de inversión o rentabilidad sin medición y soporte operativo.
+## Condiciones antes del piloto
 
-## Primera entrega: cambios implementados
-
-| Problema observado en el código | Cambio | Validación disponible |
-| --- | --- | --- |
-| Funciones privilegiadas sin comprobación de identidad/rol; políticas «Service» aplicables a usuarios ordinarios | Autorización común y políticas reservadas a `service_role`; restricciones de campos y RPC sensibles | Pruebas de autenticación, firmas y SQL con dos clientes |
-| Asignación de administrador expuesta y endpoint con credenciales fijas | RPC restringido y endpoint de inicialización retirado (410) | Intentos de escalada rechazados en PostgreSQL |
-| Alta que intentaba escribir sin sesión al exigir confirmación | Esperar la confirmación y crear el perfil con RPC idempotente | Caso de navegador con alta sin sesión; aislamiento en SQL |
-| Portal centrado en venta de planes; criterios no recuperados al editar | Recomendaciones, favoritos, estados de carga/error y edición con datos guardados; retirar controles que no se persistían | Pruebas de navegador con datos simulados |
-| Matching que podía compensar una zona equivocada o superar el presupuesto; conjuntos truncados | Requisitos obligatorios, desconocidos sin asumir, lectura paginada, límite explícito antes de escribir | Casos de presupuesto, zona, datos ausentes y más de 1.000 filas |
-| Precios cambiados ignorados; errores de webhook tratados como éxito | Ingestión idempotente, invalidación de datos obsoletos, normalización determinista y confirmación atómica del registro | Pruebas SQL y Python, incluidas versiones concurrentes |
-| Suscripciones por email, redirecciones del cliente y estado desactualizado | Vinculación por usuario, origen configurado, estado canónico de Stripe, firma y repetición segura de webhooks, sesiones pendientes controladas | Pruebas de reglas y sincronización SQL; integración Stripe pendiente |
-| Cron que devolvía éxito sin crear una programación | Respuesta 501 explícita y controles de programación deshabilitados | Revisión del flujo; programación real pendiente |
-
-El scoring actual indica cumplimiento de requisitos (100 o 0); no representa una probabilidad, valoración de mercado ni un modelo entrenado. La normalización no utiliza un modelo para inventar precio, ubicación o atributos.
-
-## Condiciones antes de admitir usuarios al piloto
-
-1. Aplicar migraciones y desplegar frontend, funciones y worker en staging; verificar dos cuentas distintas y un administrador a través de la API real de Supabase.
-2. Verificar una muestra de anuncios con una fuente cuyo uso esté autorizado: precio, municipio, tipo, identidad, enlaces, fotos, cambios y retirada. Un formato no compatible debe generar un error revisable.
-3. Probar registro, confirmación de correo, inicio/cierre de sesión, guardar y editar búsqueda, ejecución del pipeline, favoritos y errores en móvil y escritorio.
-4. Asignar responsable y frecuencia de revisión, recuperar un fallo del worker y comprobar una restauración de backup. Avisar cuando no existan anuncios recientes.
-5. Revisar dependencias, configuración y credenciales del repositorio histórico, límites y registros. Los cambios de acceso no constituyen una auditoría completa de seguridad.
+1. **Entorno propio:** crear staging, aplicar migraciones pendientes, desplegar funciones/frontend/worker y probar dos usuarios y un administrador mediante API e interfaz. Registrar revisión, dominio, proyecto y resultado sin secretos.
+2. **Primera fuente:** recibir HAR con cuerpos y fechas, confirmar uso permitido, construir contrato versionado y evaluar muestras reservadas. Contrastar precio, operación, divisa, filtros, páginas, identidad, localización, duplicados y cambios. No activar publicación solo porque se pueda decodificar JSON.
+3. **Cadena completa:** observar captura → lote confirmado → normalización → matching → ficha → aviso en el proyecto real. Una captura incompleta o un campo esencial dudoso exige revisión.
+4. **Recuperación:** restaurar PostgreSQL y SQLite en destinos aislados; comparar recuentos, relaciones, decisiones, sesiones y estados de entrega. Conciliar acciones externas posteriores al backup.
+5. **Uso real:** comprobar móvil físico, teclado y lector de pantalla, y realizar sesiones con participantes. Las pruebas con viewport móvil no acreditan Safari/iOS ni accesibilidad completa.
+6. **Responsables:** elegir primera cohorte, zona, responsable de fuente, responsable operativo y canal de soporte. Acordar cómo responder a cero resultados, cola bloqueada, fuente pausada y bajas de usuarios.
 
 ## Condiciones antes de cobrar
 
-| Área | Trabajo pendiente | Evidencia para aprobar |
-| --- | --- | --- |
-| Valor para el cliente | Piloto propuesto de 10–20 compradores en una zona durante dos semanas; entrevistas y revisión de recomendaciones | Medir activación, criterios completos, tiempo hasta primer anuncio útil, favoritos, motivos de descarte y voluntad de pago; acordar los umbrales antes de empezar |
-| Datos | Validar condiciones de uso/licencia, cobertura, deduplicación entre portales y calidad de parsers | Fuente autorizada y muestra revisada; errores y anuncios obsoletos medidos |
-| Operación | Cola persistente, programación efectiva, reintentos con idempotencia, límites, alertas y métricas | Un reinicio no pierde trabajos; fallos visibles y recuperables; sin cobros ni avisos duplicados |
-| Pagos | Configurar productos/precios y portal Stripe de prueba; validar alta, renovación, impago, cancelación y webhooks repetidos/desordenados | Casos completos en test mode; ningún cliente obtiene acceso pagado por modificar el navegador o su perfil |
-| Planes y cuotas | Definir una oferta inicial y aplicar límites atómicos en servidor | Concurrencia y consumo real verificados; cada prestación anunciada existe y está disponible |
-| Comunicación | Destinatario verificado, preferencias/consentimiento, plantillas, límites e idempotencia para WhatsApp/email | Entrega y baja probadas; sin mensajes arbitrarios ni envíos duplicados |
-| Confianza y soporte | Identidad y contacto del prestador, documentos y flujos de privacidad, condiciones, eliminación/exportación de cuenta y soporte | Revisión adecuada al mercado elegido y pruebas de las solicitudes; los enlaces y responsables existen |
+| Puerta               | Evidencia todavía necesaria                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Utilidad             | Piloto de 2–4 semanas y entrevistas: candidatos útiles, tiempo ahorrado, causas de descarte y oferta aceptada |
+| Fuente y datos       | Muestra revisada, uso autorizado, cobertura y frescura medidas; incidentes de contrato gestionados            |
+| Operación            | Restauración acreditada, alertas operativas conectadas a un responsable, capacidad y costes representativos   |
+| Pagos y cuotas       | Precios propios, Stripe test mode completo, reconciliación y límites de cada prestación aplicados en servidor |
+| Privacidad y soporte | Documentos y contacto reales del prestador, revisión adecuada al mercado, exportación/baja verificadas        |
+| Comunicación         | Dominio de envío verificado, consentimiento, destinatario confirmado, baja, reintentos y rebotes probados     |
 
-Los importes e identificadores de planes heredados son configuración del prototipo, no precios comercialmente validados. `BILLING_ENABLED=true` exige completar las condiciones de pago y prestaciones; no es una certificación automática de preparación comercial.
+`BILLING_ENABLED=false` y `EMAIL_ENABLED=false` siguen siendo los valores seguros por defecto. Las tablas de planes/IDs heredadas no son una oferta validada y no deben activarse sin sustituirlas y cerrar estas puertas. Los presupuestos atómicos añadidos son infraestructura para consumo futuro; no limitan todavía todas las prestaciones de los planes antiguos.
 
-## Límites explícitos de esta entrega
+## Límites que deben seguir visibles
 
-- No se ha accedido ni desplegado a producción, procesado un pago, enviado comunicaciones o realizado scraping real.
-- PGlite comprueba PostgreSQL y políticas; no reproduce el gateway, Auth, extensiones, servicio de correo o configuración real de Supabase.
-- El worker actual guarda trabajos en memoria y usa el servidor Flask de desarrollo. Debe pasar a un servidor WSGI y una cola persistente antes de una operación comercial. El piloto requiere supervisión y un único proceso del worker.
-- Matching: máximo de 10.000 registros por conjunto y 50.000 pares por ejecución; fuera de ese alcance falla explícitamente. Requiere ejecutar por cliente o desarrollar trabajos paginados persistentes. No hay recálculo automático tras editar criterios; el equipo debe ejecutarlo.
-- Las escrituras masivas de matching no forman una transacción única ni comprueban una versión de criterios por lote. Un fallo parcial o cambios de criterios/anuncios durante el cálculo requieren repetir la ejecución; la cola persistente y la publicación con comprobación de versiones quedan pendientes. Supervisar este caso en el piloto.
-- Las reglas de normalización deben contrastarse con muestras reales de cada portal. No se han comprobado los identificadores numéricos de tipos y prestaciones contra el portal vivo.
-- Los informes/WhatsApp de clientes y la valoración de reformas se han cerrado temporalmente: las versiones anteriores no garantizaban cuotas, destinatarios o persistencia. Las herramientas administrativas de IA heredadas permanecen solo para administradores y necesitan su propia validación.
-- Falta completar la recuperación de contraseña y el borrado/exportación de cuenta antes de la beta pública.
-- La edición del perfil y de los criterios son dos escrituras comprobadas, no una única transacción. Ante un fallo, se muestra error y puede repetirse; conviene consolidarlas antes de escalar.
+- Fuente real, datos de mercado, calidad longitudinal, carga representativa, rentabilidad del servicio y disposición de pago no están demostrados.
+- Solo hay decodificadores JSON/NDJSON. Otros cuerpos se preservan, pero SSE/WebSocket, protobuf y demás formatos necesitan una implementación basada en una traza.
+- La planificación usa intervalos transcurridos en UTC, con zona IANA para mostrarlos. No promete una hora local fija a través del cambio de hora.
+- El matching procesa hasta 20 búsquedas por ciclo y 5.000 candidatos prefiltados por búsqueda. Si excede el límite, falla de forma explícita y conserva la tarea; hay que reducir alcance o paginar el cálculo antes de escalar.
+- La cola es SQLite de un host, no una cola distribuida. La supervisión del contenedor no sustituye una prueba de carga o un supervisor que recicle automáticamente un proceso vivo bloqueado.
+- El proveedor de email puede aceptar un envío sin entregarlo. Se conserva la distinción `accepted`/`uncertain`/`failed`; no hay confirmaciones de entrega ni tratamiento integrado de rebotes.
+- Borrar la cuenta exige resolver antes una suscripción activa. Archivos históricos que impidan el borrado requieren revisión operativa; un error no se presenta como borrado completado. Un JWT ya emitido puede seguir vigente hasta expirar, aunque se cierren sus sesiones de refresco.
+- Permanecen desactivados los ejecutores heredados de llamadas con IA, WhatsApp, informes externos y valoración automática de reformas. No consumen proveedores por activar el pipeline nuevo.
+- IA de lenguaje natural/resúmenes, comparables, valoración de mercado, tiempos de desplazamiento, segunda fuente y producto B2B quedan condicionados a datos y demanda. No se anuncian como entregados.
 
-## Referencias técnicas contrastadas
+## Qué prueban las comprobaciones
 
-- [Supabase: seguridad por fila](https://supabase.com/docs/guides/database/postgres/row-level-security) y [privilegios por columna](https://supabase.com/docs/guides/database/postgres/column-level-security).
-- [Stripe: recepción de webhooks](https://docs.stripe.com/webhooks), incluido tratamiento de duplicados y orden de eventos; [periodos por item en Basil](https://docs.stripe.com/changelog/basil/2025-03-31/deprecate-subscription-current-period-start-and-end).
-- [Twilio: validación de peticiones](https://www.twilio.com/docs/usage/security) y [ElevenLabs: webhooks posteriores a llamadas](https://elevenlabs.io/docs/eleven-agents/workflows/post-call-webhooks).
+Las pruebas Node/PGlite ejecutan las migraciones y comprueban transacciones, privilegios, aislamiento, historia, conflictos, cuotas, avisos y fórmulas. Las del worker conectan Chromium real a un servidor propio y fuerzan cortes. Playwright comprueba interfaz de escritorio y móvil simulado con Supabase interceptado. CI añade las imágenes y el conjunto Compose con CDP privado, reinicio y backup.
 
-## Resultado de esta revisión local
-
-24 comprobaciones Node/PostgreSQL, 8 de Python y 4 casos de navegador aprobados. TypeScript, las 24 Edge Functions en Deno y la compilación de producción pasan. Navegador: Chromium 153, escritorio y viewport móvil emulado; Supabase interceptado con fixtures. La ejecución remota de CI y los servicios reales de staging no están acreditados por estas pruebas.
-
-La carga inicial de JavaScript se ha dividido por rutas: el bundle principal pasa de aproximadamente 1,98 MB a 494 kB antes de gzip (comparación de builds locales); las herramientas administrativas se cargan al visitar su ruta. Esto no equivale a una medición de velocidad en dispositivos reales.
+Estas pruebas no usan credenciales de clientes, no visitan portales para producir anuncios y no envían correos o pagos reales. El resultado del workflow de la revisión concreta, junto con las evidencias del staging y del piloto, determina qué puede darse por aceptado.
