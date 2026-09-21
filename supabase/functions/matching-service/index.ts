@@ -1,636 +1,161 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
-const MatchingRequestSchema = z.object({
+import { serve } from "../_shared/runtime.ts";
+import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
+import { authorize, cors } from "../_shared/security.ts";
+import { scoreProperty, readAll } from "../_shared/matching.ts";
+const schema = z.object({
   cliente_id: z.string().uuid().optional(),
   propiedad_id: z.string().uuid().optional(),
   recalcular_todos: z.boolean().optional(),
 });
-
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
+  const denied = await authorize(req, "admin");
+  if (denied) return denied;
+  const db = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+  );
+  let lock: string | null = null;
   try {
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
-    const requestBody = await req.json();
-    const { cliente_id, propiedad_id, recalcular_todos } = MatchingRequestSchema.parse(requestBody);
-    
-    console.log('[Matching Service] Iniciando cálculo de matchings avanzado');
-
-    const processMatchings = async () => {
-      const startTime = Date.now();
-      let matchingsCreados = 0;
-
-      try {
-        const { data: clientes } = await supabase
-          .from('clientes')
-          .select(`
-            id,
-            perfil,
-            presupuesto_min,
-            presupuesto_max,
-            criterios_busqueda (*)
-          `)
-          .eq('activo', true)
-          .eq(cliente_id ? 'id' : 'activo', cliente_id || true)
-          .limit(20);
-
-        const { data: propiedades } = await supabase
-          .from('propiedades')
-          .select('*')
-          .eq('activo', true)
-          .eq(propiedad_id ? 'id' : 'activo', propiedad_id || true)
-          .limit(100);
-        
-        // Cargar feedback histórico para ML
-        const { data: feedbackData } = await supabase
-          .from('matching_feedback')
-          .select('cliente_id, propiedad_id, feedback_type');
-
-        if (!clientes || !propiedades) {
-          console.error('[Matching Service] No se encontraron clientes o propiedades');
-          return;
-        }
-
-        console.log(`[Matching Service] Procesando ${clientes.length} clientes x ${propiedades.length} propiedades`);
-
-        // Pre-cargar métricas de mercado
-        const { data: todasMetricas } = await supabase
-          .from('metricas_barrios')
-          .select('*');
-
-        const metricasMap = new Map();
-        if (todasMetricas) {
-          todasMetricas.forEach((metrica: any) => {
-            const key = `${metrica.ciudad}|${metrica.distrito || 'ciudad'}`;
-            metricasMap.set(key, metrica);
-          });
-        }
-
-        // Organizar feedback por cliente para ML
-        const feedbackMap = new Map<string, any[]>();
-        if (feedbackData) {
-          feedbackData.forEach((fb: any) => {
-            if (!feedbackMap.has(fb.cliente_id)) {
-              feedbackMap.set(fb.cliente_id, []);
-            }
-            feedbackMap.get(fb.cliente_id)!.push(fb);
-          });
-        }
-
-        const BATCH_SIZE = 50;
-        const matchingsToUpsert: any[] = [];
-
-        for (const cliente of clientes) {
-          const criterios = cliente.criterios_busqueda?.[0];
-          const clienteFeedback = feedbackMap.get(cliente.id) || [];
-          
-          for (const propiedad of propiedades) {
-            // Nuevo algoritmo exhaustivo de scoring con ML
-            const resultado = calcularScoreExhaustivo(cliente, criterios, propiedad, metricasMap);
-            
-            // Aplicar ajuste ML basado en feedback histórico
-            const ajusteML = calcularAjusteML(propiedad, clienteFeedback);
-            const scoreFinal = Math.max(0, Math.min(100, resultado.score + ajusteML));
-            
-            if (scoreFinal >= 60) {
-              matchingsToUpsert.push({
-                cliente_id: cliente.id,
-                propiedad_id: propiedad.id,
-                score: scoreFinal,
-                criterios_cumplidos: resultado.criteriosCumplidos,
-                analisis_mercado: {
-                  ...resultado.analisisMercado,
-                  ajuste_ml: ajusteML
-                },
-              });
-
-              if (matchingsToUpsert.length >= BATCH_SIZE) {
-                await supabase
-                  .from('matchings')
-                  .upsert(matchingsToUpsert, {
-                    onConflict: 'cliente_id,propiedad_id',
-                    ignoreDuplicates: false
-                  });
-                matchingsCreados += matchingsToUpsert.length;
-                matchingsToUpsert.length = 0;
-              }
-            }
-          }
-        }
-
-        if (matchingsToUpsert.length > 0) {
-          await supabase
-            .from('matchings')
-            .upsert(matchingsToUpsert, {
-              onConflict: 'cliente_id,propiedad_id',
-              ignoreDuplicates: false
-            });
-          matchingsCreados += matchingsToUpsert.length;
-        }
-
-        const duracionSegundos = Math.floor((Date.now() - startTime) / 1000);
-        console.log(`[Matching Service] Completado: ${matchingsCreados} matchings en ${duracionSegundos}s`);
-      } catch (error) {
-        console.error('[Matching Service] Error:', error);
+    const input = schema.parse(await req.json());
+    const lease = await db.rpc("acquire_processing_lock", {
+      p_name: "matching",
+      p_seconds: 300,
+    });
+    if (lease.error) throw lease.error;
+    lock = lease.data;
+    if (!lock)
+      return Response.json(
+        { error: "Ya hay un cálculo en marcha" },
+        { status: 409, headers: cors },
+      );
+    if (input.cliente_id) {
+      const queued = await db.rpc("queue_matching", {
+        p_client: input.cliente_id,
+        p_reason: "operator.requested",
+      });
+      if (queued.error) throw queued.error;
+    } else if (input.recalcular_todos || input.propiedad_id) {
+      const clients = await db
+        .from("clientes")
+        .select("id")
+        .eq("activo", true)
+        .limit(501);
+      if (clients.error) throw clients.error;
+      if (clients.data.length > 500)
+        throw new Error("Solicita recálculo por cliente");
+      for (const c of clients.data) {
+        const r = await db.rpc("queue_matching", {
+          p_client: c.id,
+          p_reason: "operator.requested",
+        });
+        if (r.error) throw r.error;
       }
-    };
-
-    // @ts-ignore
-    EdgeRuntime.waitUntil(processMatchings());
-
-    return new Response(
-      JSON.stringify({
+    }
+    const queue = await db
+      .from("matching_queue")
+      .select("*")
+      .order("requested_at")
+      .limit(20);
+    if (queue.error) throw queue.error;
+    let evaluated = 0,
+      recommended = 0,
+      published = 0,
+      stale = 0;
+    for (const task of queue.data) {
+      const state = await db
+        .from("search_state")
+        .select("*")
+        .eq("cliente_id", task.cliente_id)
+        .single();
+      if (state.error) throw state.error;
+      const client = state.data.snapshot,
+        criteria = client.criteria;
+      const properties = await readAll(async (after) => {
+        let q = db
+          .from("propiedades")
+          .select("*")
+          .eq("activo", true)
+          .gte("last_seen", new Date(Date.now() - 7 * 86400000).toISOString())
+          .order("id")
+          .limit(500);
+        if (client.presupuesto_min != null)
+          q = q.gte("precio", client.presupuesto_min);
+        if (client.presupuesto_max != null)
+          q = q.lte(
+            "precio",
+            client.presupuesto_max *
+              (1 + (criteria?.flexibilidad_presupuesto ?? 0) / 100),
+          );
+        if (after) q = q.gt("id", after);
+        const { data, error } = await q;
+        if (error) throw error;
+        return data ?? [];
+      }, 5000);
+      const matches = properties.map((property) => {
+        const result = scoreProperty(client, criteria, property);
+        evaluated++;
+        if (result.eligible) recommended++;
+        return {
+          propiedad_id: property.id,
+          property_version: property.data_version,
+          score: result.score,
+          criterios_cumplidos: {
+            ...result.checks,
+            motivos: result.reasons,
+            preferences: result.preferences,
+            preference_reasons: result.preferenceReasons,
+            completeness: result.completeness,
+            age_days: result.age_days,
+            version: result.ranking_version,
+          },
+        };
+      });
+      const result = await db.rpc("publish_matching", {
+        p_client: task.cliente_id,
+        p_search_version: state.data.version,
+        p_generation: task.generation,
+        p_matches: matches,
+      });
+      if (result.error?.code === "40001") {
+        stale++;
+        continue;
+      }
+      if (result.error) throw result.error;
+      published++;
+    }
+    return Response.json(
+      {
         success: true,
-        message: 'Cálculo de matchings iniciado (algoritmo exhaustivo)',
-        status: 'processing'
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        status: "completed",
+        clientes: published,
+        evaluados: evaluated,
+        recomendados: recommended,
+        recalculo_pendiente: stale,
+      },
+      { headers: cors },
     );
-  } catch (error: any) {
-    console.error('[Matching Service] Error:', error.message);
-    
-    return new Response(
-      JSON.stringify({ 
-        error: 'Failed to process matching'
+  } catch (error) {
+    console.error(
+      JSON.stringify({
+        component: "matching",
+        code:
+          error instanceof z.ZodError ? "invalid_input" : "processing_failed",
       }),
-      { 
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      }
     );
+    return Response.json(
+      {
+        success: false,
+        error:
+          "No se publicó el cálculo. La cola conserva los trabajos pendientes.",
+      },
+      { status: error instanceof z.ZodError ? 400 : 500, headers: cors },
+    );
+  } finally {
+    if (lock)
+      await db.rpc("release_processing_lock", {
+        p_name: "matching",
+        p_token: lock,
+      });
   }
 });
-
-/**
- * ALGORITMO EXHAUSTIVO DE SCORING
- * Considera todos los criterios del perfilado completo del cliente
- */
-function calcularScoreExhaustivo(
-  cliente: any, 
-  criterios: any, 
-  propiedad: any,
-  metricasMap: Map<string, any>
-): { score: number; criteriosCumplidos: any; analisisMercado: any } {
-  
-  let scoreTotal = 0;
-  const pesos: any = {};
-  const cumplimiento: any = {};
-
-  // ==========================================
-  // 1. PRESUPUESTO (25 puntos) - CRÍTICO - SISTEMA RELATIVO
-  // ==========================================
-  pesos.presupuesto = 25;
-  const flexibilidad = 0.10; // 10% de flexibilidad por defecto
-  const presupuestoMinFlex = (cliente.presupuesto_min || 0) * (1 - flexibilidad);
-  const presupuestoMaxFlex = (cliente.presupuesto_max || Infinity) * (1 + flexibilidad);
-
-  if (propiedad.precio >= presupuestoMinFlex && propiedad.precio <= presupuestoMaxFlex) {
-    const rangoTotal = presupuestoMaxFlex - presupuestoMinFlex;
-    const posicion = (propiedad.precio - presupuestoMinFlex) / rangoTotal;
-    
-    // Score base: Inversamente proporcional a la posición en el rango (0-15 puntos)
-    // Cuanto más cerca del mínimo, más puntos
-    const scoreBase = 15 * (1 - posicion); // 15 en el mínimo, 0 en el máximo
-    
-    // Bonus por precio vs mercado (0-10 puntos)
-    let bonusMercado = 0;
-    const metricasKey = propiedad.ciudad ? `${propiedad.ciudad}|${propiedad.distrito || 'ciudad'}` : null;
-    const metricas = metricasKey ? metricasMap.get(metricasKey) : null;
-    
-    if (metricas && metricas.precio_medio && propiedad.precio) {
-      const relacionPrecio = propiedad.precio / metricas.precio_medio;
-      
-      if (relacionPrecio <= 0.70) bonusMercado = 10; // 30%+ más barato que mercado
-      else if (relacionPrecio <= 0.80) bonusMercado = 8; // 20-30% más barato
-      else if (relacionPrecio <= 0.85) bonusMercado = 6; // 15-20% más barato
-      else if (relacionPrecio <= 0.90) bonusMercado = 5; // 10-15% más barato
-      else if (relacionPrecio <= 0.95) bonusMercado = 3; // 5-10% más barato
-      else if (relacionPrecio <= 1.00) bonusMercado = 2; // En mercado o ligeramente más barato
-      else if (relacionPrecio <= 1.05) bonusMercado = 1; // Hasta 5% más caro
-      // Más del 5% sobre mercado: 0 puntos
-    }
-    
-    scoreTotal += Math.min(25, scoreBase + bonusMercado);
-    cumplimiento.presupuesto = true;
-  } else {
-    scoreTotal += 5; // Penalización severa
-    cumplimiento.presupuesto = false;
-  }
-
-  if (!criterios) {
-    return {
-      score: Math.round(scoreTotal),
-      criteriosCumplidos: cumplimiento,
-      analisisMercado: { disponible: false }
-    };
-  }
-
-  // ==========================================
-  // 2. UBICACIÓN (20 puntos) - MUY IMPORTANTE
-  // ==========================================
-  pesos.ubicacion = 20;
-  if (criterios.ubicaciones && matchUbicacion(criterios.ubicaciones, propiedad.ubicacion)) {
-    scoreTotal += 20;
-    cumplimiento.ubicacion = true;
-  } else {
-    cumplimiento.ubicacion = false;
-  }
-
-  // ==========================================
-  // 3. TIPO DE PROPIEDAD (15 puntos)
-  // ==========================================
-  pesos.tipoPropiedad = 15;
-  if (criterios.tipo_propiedad?.includes(propiedad.tipo_propiedad)) {
-    scoreTotal += 15;
-    cumplimiento.tipoPropiedad = true;
-  } else {
-    cumplimiento.tipoPropiedad = false;
-  }
-
-  // ==========================================
-  // 4. SUPERFICIE (12 puntos)
-  // ==========================================
-  pesos.superficie = 12;
-  const metrosMin = criterios.metros_min || 0;
-  const metrosMax = criterios.metros_max || Infinity;
-  
-  if (propiedad.metros >= metrosMin && propiedad.metros <= metrosMax) {
-    // Score progresivo según cercanía al ideal
-    const rangoMetros = metrosMax - metrosMin;
-    if (rangoMetros > 0) {
-      const posicionMetros = (propiedad.metros - metrosMin) / rangoMetros;
-      if (posicionMetros >= 0.4 && posicionMetros <= 0.7) {
-        scoreTotal += 12; // Rango ideal (centro del rango)
-      } else if (posicionMetros >= 0.2 && posicionMetros <= 0.9) {
-        scoreTotal += 10; // Rango bueno
-      } else {
-        scoreTotal += 7; // En los extremos
-      }
-    } else {
-      scoreTotal += 10;
-    }
-    cumplimiento.superficie = true;
-  } else {
-    const desviacion = Math.min(
-      Math.abs(propiedad.metros - metrosMin),
-      Math.abs(propiedad.metros - metrosMax)
-    );
-    scoreTotal += Math.max(0, 12 - (desviacion / 10));
-    cumplimiento.superficie = false;
-  }
-
-  // ==========================================
-  // 5. DORMITORIOS (10 puntos)
-  // ==========================================
-  pesos.dormitorios = 10;
-  const dormitoriosMin = criterios.dormitorios_min || 0;
-  
-  if (propiedad.dormitorios >= dormitoriosMin) {
-    const exceso = propiedad.dormitorios - dormitoriosMin;
-    if (exceso === 0 || exceso === 1) scoreTotal += 10;
-    else if (exceso === 2) scoreTotal += 8;
-    else scoreTotal += 6;
-    cumplimiento.dormitorios = true;
-  } else {
-    cumplimiento.dormitorios = false;
-  }
-
-  // ==========================================
-  // 6. ESTADO/CONDICIÓN (8 puntos)
-  // ==========================================
-  pesos.condicion = 8;
-  if (!criterios.condition || criterios.condition.length === 0 || 
-      criterios.condition.includes(propiedad.condition)) {
-    scoreTotal += 8;
-    cumplimiento.condicion = true;
-  } else {
-    // Penalización menor si está cercano
-    const estadosOrdenados = ['para reformar', 'buen estado', 'reformado', 'obra nueva'];
-    const indexProp = estadosOrdenados.indexOf(propiedad.condition);
-    const indexesCriterio = criterios.condition.map((c: string) => estadosOrdenados.indexOf(c));
-    
-    if (indexesCriterio.some((idx: number) => Math.abs(idx - indexProp) <= 1)) {
-      scoreTotal += 4; // Estado cercano al deseado
-    }
-    cumplimiento.condicion = false;
-  }
-
-  // ==========================================
-  // 7. CARACTERÍSTICAS ESENCIALES (10 puntos total)
-  // ==========================================
-  pesos.caracteristicas = 10;
-  let caracteristicasScore = 0;
-  let caracteristicasTotal = 0;
-
-  // Ascensor (3 puntos)
-  if (criterios.tiene_ascensor === true) {
-    caracteristicasTotal += 3;
-    if (propiedad.tiene_ascensor) {
-      caracteristicasScore += 3;
-      cumplimiento.ascensor = true;
-    } else {
-      cumplimiento.ascensor = false;
-    }
-  }
-
-  // Parking (3 puntos)
-  if (criterios.tiene_parking === true) {
-    caracteristicasTotal += 3;
-    if (propiedad.tiene_parking) {
-      caracteristicasScore += 3;
-      cumplimiento.parking = true;
-    } else {
-      cumplimiento.parking = false;
-    }
-  }
-
-  // Trastero (2 puntos)
-  if (propiedad.tiene_trastero) {
-    caracteristicasScore += 2;
-    cumplimiento.trastero = true;
-  }
-
-  // Normalizar características a 10 puntos
-  if (caracteristicasTotal > 0) {
-    scoreTotal += (caracteristicasScore / caracteristicasTotal) * 10;
-  } else {
-    scoreTotal += caracteristicasScore;
-  }
-
-  // ==========================================
-  // 8. AÑO DE CONSTRUCCIÓN (5 puntos)
-  // ==========================================
-  pesos.anoConstruccion = 5;
-  if (criterios.ano_construccion_min) {
-    if (propiedad.ano_construccion && propiedad.ano_construccion >= criterios.ano_construccion_min) {
-      const antiguedad = new Date().getFullYear() - propiedad.ano_construccion;
-      if (antiguedad <= 5) scoreTotal += 5; // Muy nuevo
-      else if (antiguedad <= 15) scoreTotal += 4; // Relativamente nuevo
-      else if (antiguedad <= 30) scoreTotal += 3; // Aceptable
-      else scoreTotal += 2;
-      cumplimiento.anoConstruccion = true;
-    } else {
-      cumplimiento.anoConstruccion = false;
-    }
-  } else {
-    scoreTotal += 3; // No es criterio, valor neutral
-  }
-
-  // ==========================================
-  // 9. ANÁLISIS DE MERCADO (hasta +15 puntos bonus)
-  // ==========================================
-  const analisisMercado = analizarPrecioMercado(propiedad, metricasMap);
-  
-  if (analisisMercado.disponible) {
-    const bonusMercado = calcularBonusMercado(
-      cliente.perfil,
-      analisisMercado.desviacion_porcentaje,
-      analisisMercado.nivel_oportunidad
-    );
-    scoreTotal += bonusMercado;
-    cumplimiento.analisisMercado = analisisMercado;
-  }
-
-  // ==========================================
-  // 10. AJUSTE POR PERFIL DE INVERSOR
-  // ==========================================
-  const ajustePerfil = calcularAjustePorPerfil(cliente.perfil, propiedad, analisisMercado);
-  scoreTotal += ajustePerfil;
-
-  const scoreFinal = Math.max(0, Math.min(100, Math.round(scoreTotal)));
-
-  return {
-    score: scoreFinal,
-    criteriosCumplidos: cumplimiento,
-    analisisMercado: analisisMercado
-  };
-}
-
-/**
- * Analizar precio vs mercado
- */
-function analizarPrecioMercado(propiedad: any, metricasMap: Map<string, any>): any {
-  if (!propiedad.precio_m2 || !propiedad.ubicacion) {
-    return { disponible: false };
-  }
-
-  const partes = propiedad.ubicacion.split(',').map((p: string) => p.trim());
-  const ciudad = partes[0];
-  const distrito = partes[1] || null;
-
-  let metricasUsadas = metricasMap.get(`${ciudad}|${distrito}`);
-  if (!metricasUsadas) {
-    metricasUsadas = metricasMap.get(`${ciudad}|ciudad`);
-  }
-
-  if (!metricasUsadas || !metricasUsadas.precio_m2_medio) {
-    return { disponible: false };
-  }
-
-  const precioM2Propiedad = propiedad.precio_m2;
-  const precioM2Mercado = metricasUsadas.precio_m2_medio;
-  const desviacionPorcentaje = ((precioM2Propiedad - precioM2Mercado) / precioM2Mercado) * 100;
-
-  let nivelOportunidad = 'normal';
-  let esChollo = false;
-
-  if (desviacionPorcentaje <= -20) {
-    nivelOportunidad = 'chollazo';
-    esChollo = true;
-  } else if (desviacionPorcentaje <= -10) {
-    nivelOportunidad = 'buena_oportunidad';
-    esChollo = true;
-  } else if (desviacionPorcentaje <= -5) {
-    nivelOportunidad = 'oportunidad';
-  } else if (desviacionPorcentaje >= 20) {
-    nivelOportunidad = 'sobrevalorado';
-  } else if (desviacionPorcentaje >= 10) {
-    nivelOportunidad = 'caro';
-  }
-
-  return {
-    disponible: true,
-    precio_m2_propiedad: precioM2Propiedad,
-    precio_m2_mercado: precioM2Mercado,
-    desviacion_porcentaje: Math.round(desviacionPorcentaje * 10) / 10,
-    nivel_oportunidad: nivelOportunidad,
-    es_chollo: esChollo,
-    metricas_usadas: distrito ? 'distrito' : 'ciudad',
-    total_propiedades_comparadas: metricasUsadas.total_propiedades,
-  };
-}
-
-/**
- * Calcular bonus por oportunidad de mercado
- */
-function calcularBonusMercado(perfil: string, desviacion: number, nivel: string): number {
-  switch (perfil) {
-    case 'reformar':
-      // Flippers necesitan chollos significativos
-      if (desviacion <= -30) return 15;
-      if (desviacion <= -25) return 12;
-      if (desviacion <= -20) return 10;
-      if (desviacion <= -15) return 7;
-      if (desviacion <= -10) return 4;
-      return 0;
-
-    case 'alquilar':
-      // Inversores de alquiler valoran chollos y precio justo
-      if (desviacion <= -30) return 13;
-      if (desviacion <= -25) return 11;
-      if (desviacion <= -20) return 9;
-      if (desviacion <= -15) return 7;
-      if (desviacion <= -10) return 5;
-      if (desviacion <= -5) return 3;
-      if (Math.abs(desviacion) <= 5) return 2;
-      return 0;
-
-    case 'vivir':
-    default:
-      // Vivienda habitual: cualquier descuento es positivo
-      if (desviacion <= -30) return 12;
-      if (desviacion <= -20) return 10;
-      if (desviacion <= -15) return 8;
-      if (desviacion <= -10) return 6;
-      if (desviacion <= -5) return 4;
-      if (desviacion <= 0) return 2;
-      return 0;
-  }
-}
-
-/**
- * Ajuste adicional según perfil de inversor
- */
-function calcularAjustePorPerfil(perfil: string, propiedad: any, analisis: any): number {
-  let ajuste = 0;
-
-  switch (perfil) {
-    case 'reformar':
-      // Flippers prefieren propiedades para reformar con potencial
-      if (propiedad.condition === 'para reformar') ajuste += 3;
-      if (analisis.disponible && analisis.es_chollo) ajuste += 2;
-      break;
-
-    case 'alquilar':
-      // Inversores de alquiler prefieren propiedades en buen estado
-      if (propiedad.condition === 'buen estado' || propiedad.condition === 'reformado') ajuste += 2;
-      if (propiedad.tiene_ascensor) ajuste += 1;
-      if (propiedad.tiene_parking) ajuste += 1;
-      break;
-
-    case 'vivir':
-      // Vivienda habitual: valora comodidades
-      if (propiedad.condition === 'obra nueva' || propiedad.condition === 'reformado') ajuste += 2;
-      if (propiedad.tiene_ascensor) ajuste += 1;
-      break;
-  }
-
-  return ajuste;
-}
-
-/**
- * Calcular ajuste ML basado en feedback histórico del cliente
- */
-function calcularAjusteML(propiedad: any, feedbackHistorico: any[]): number {
-  if (!feedbackHistorico || feedbackHistorico.length === 0) return 0;
-
-  let ajuste = 0;
-  let pesoTotal = 0;
-
-  // Analizar patrones de feedback previo
-  for (const fb of feedbackHistorico) {
-    // Peso decrece con el tiempo (feedback reciente es más relevante)
-    const diasDesde = (Date.now() - new Date(fb.created_at).getTime()) / (1000 * 60 * 60 * 24);
-    const pesoTemporal = Math.max(0.1, 1 - (diasDesde / 365)); // Decae en 1 año
-
-    // Calcular similitud con la propiedad evaluada
-    // (simplificado - en producción usaríamos embeddings o features más sofisticados)
-    let similitud = 0;
-    let factoresSimilitud = 0;
-
-    // Comparar características clave
-    if (fb.tipo_propiedad === propiedad.tipo_propiedad) {
-      similitud += 1;
-      factoresSimilitud++;
-    }
-    if (fb.ubicacion === propiedad.ubicacion) {
-      similitud += 2; // Ubicación pesa más
-      factoresSimilitud++;
-    }
-    if (fb.condition === propiedad.condition) {
-      similitud += 1;
-      factoresSimilitud++;
-    }
-
-    if (factoresSimilitud > 0) {
-      similitud = similitud / factoresSimilitud;
-
-      // Aplicar ajuste según tipo de feedback
-      let valorFeedback = 0;
-      switch (fb.feedback_type) {
-        case 'muy_relevante': valorFeedback = 10; break;
-        case 'relevante': valorFeedback = 5; break;
-        case 'neutral': valorFeedback = 0; break;
-        case 'irrelevante': valorFeedback = -5; break;
-        case 'muy_irrelevante': valorFeedback = -10; break;
-      }
-
-      ajuste += valorFeedback * similitud * pesoTemporal;
-      pesoTotal += pesoTemporal;
-    }
-  }
-
-  // Normalizar ajuste (máximo ±15 puntos)
-  if (pesoTotal > 0) {
-    ajuste = (ajuste / pesoTotal) * 1.5; // Factor de escala
-  }
-
-  return Math.max(-15, Math.min(15, ajuste));
-}
-
-/**
- * Match de ubicación (mismo que antes)
- */
-function matchUbicacion(ubicacionesCriterios: string[], ubicacionPropiedad: string): boolean {
-  if (!ubicacionPropiedad) return false;
-  
-  const normalizar = (texto: string) => texto
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim();
-  
-  const ubicacionPropNorm = normalizar(ubicacionPropiedad);
-  
-  return ubicacionesCriterios.some(ubicCriterio => {
-    const criterioNorm = normalizar(ubicCriterio);
-    
-    if (ubicacionPropNorm === criterioNorm) return true;
-    if (ubicacionPropNorm.includes(criterioNorm)) return true;
-    if (criterioNorm.includes(ubicacionPropNorm)) return true;
-    
-    const partesProp = ubicacionPropNorm.split(',').map(p => p.trim());
-    const partesCriterio = criterioNorm.split(',').map(p => p.trim());
-    
-    for (const parteProp of partesProp) {
-      for (const parteCrit of partesCriterio) {
-        if (parteProp === parteCrit) return true;
-        if (parteProp.includes(parteCrit) || parteCrit.includes(parteProp)) return true;
-      }
-    }
-    
-    return false;
-  });
-}

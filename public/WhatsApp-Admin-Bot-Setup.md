@@ -1,3 +1,5 @@
+> Documento histórico del prototipo. Para el estado operativo, las limitaciones y el despliegue actual, consulta README.md y docs/ del repositorio.
+
 # 🤖 Sistema de Gestión WhatsApp para InmoFinder
 
 Este sistema te permite gestionar scrapers y monitorear el estado de InmoFinder directamente desde WhatsApp, sin necesitar acceso a ordenador.
@@ -42,9 +44,9 @@ El sistema te envía alertas automáticas cuando:
 
 Primero, necesitas agregar tu número de WhatsApp a la base de datos como administrador.
 
-**Opción A: Desde Lovable Cloud (Recomendada)**
+**Opción A: Desde Supabase (Recomendada)**
 
-1. Ve a tu panel de Lovable Cloud → Database → Tables
+1. Ve a tu panel de Supabase → Database → Tables
 2. Busca la tabla `admin_config`
 3. Click en "Insert Row"
 4. Completa los campos:
@@ -375,10 +377,11 @@ Este sistema está en **Fase 1** y puede extenderse con:
 ## 📞 Soporte
 
 Para problemas o sugerencias:
-1. Revisa los logs de los edge functions en Lovable Cloud
+1. Revisa los logs de los edge functions en Supabase
 2. Consulta la tabla `whatsapp_alerts_log` para ver historial de mensajes
 3. Verifica configuración de Twilio y webhooks
 
 **¡Listo! 🚀**
 
 Ahora puedes gestionar InmoFinder desde cualquier lugar usando solo WhatsApp.
+

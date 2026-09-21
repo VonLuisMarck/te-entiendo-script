@@ -1,6 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { authorize } from "../_shared/security.ts";
+import { serve } from "../_shared/runtime.ts";
+import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +14,8 @@ const MetricsRequestSchema = z.object({
 });
 
 serve(async (req) => {
+  const denied = await authorize(req, 'admin');
+  if (denied) return denied;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }

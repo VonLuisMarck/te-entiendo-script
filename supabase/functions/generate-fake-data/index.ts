@@ -1,5 +1,6 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.38.4';
-import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
+import { authorize } from "../_shared/security.ts";
+import { createClient } from '@supabase/supabase-js';
+import { z } from "zod";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,6 +13,8 @@ const FakeDataRequestSchema = z.object({
 });
 
 Deno.serve(async (req) => {
+  const denied = await authorize(req, 'admin');
+  if (denied) return denied;
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -176,3 +179,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+

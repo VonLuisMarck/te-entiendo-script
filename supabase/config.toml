@@ -1,4 +1,7 @@
-project_id = "mtjomlpwpiuhflwmgctk"
+project_id = "inmofinder-local"
+
+[functions.browser-worker]
+verify_jwt = false
 
 [functions.whatsapp-admin-bot]
 verify_jwt = false
@@ -67,4 +70,15 @@ verify_jwt = true
 verify_jwt = false
 
 [functions.reclassify-properties]
+verify_jwt = false
+
+
+# Signature verified against the raw request body inside the handler.
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.notification-dispatch]
+verify_jwt = false
+
+[functions.account-delete]
 verify_jwt = false

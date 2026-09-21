@@ -22,3 +22,20 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+# Local credentials and test output
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+coverage/
+artifacts/
+test-results/
+playwright-report/
+workers/browser/data/
+workers/browser/sources.local.json
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal

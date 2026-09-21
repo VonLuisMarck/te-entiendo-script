@@ -74,9 +74,9 @@ const BatchProcessing = () => {
 
       if (error) throw error;
 
-      if (data.success) {
-        toast.success(
-          `✅ Batch completado: ${data.exitosas} exitosas, ${data.fallidas} fallidas`,
+      if (data && typeof data.exitosas === "number") {
+        (data.fallidas > 0 ? toast.warning : toast.success)(
+          `Lote completado: ${data.exitosas} exitosas, ${data.fallidas} fallidas`,
           { 
             description: `Duración: ${data.duracion_segundos}s | Coste estimado: $${data.coste_estimado_usd.toFixed(4)}`,
             duration: 5000 
@@ -189,7 +189,7 @@ const BatchProcessing = () => {
         <CardHeader>
           <CardTitle>Panel de Control</CardTitle>
           <CardDescription>
-            Procesa propiedades en lotes para optimizar costes. Cada batch procesa hasta {batchSize} propiedades en una sola llamada a la IA.
+            Normaliza hasta {batchSize} anuncios por lote usando los datos de origen. Los anuncios incompletos quedan señalados para revisión.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -290,22 +290,8 @@ const BatchProcessing = () => {
         </CardContent>
       </Card>
 
-      {/* Info Card */}
-      <Card className="border-blue-200 bg-blue-50/50">
-        <CardHeader>
-          <CardTitle className="text-blue-900">💰 Optimización de Costes</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-blue-800 space-y-2">
-          <p>
-            <strong>Procesamiento individual:</strong> 300,000 propiedades = ~$1,800 USD
-          </p>
-          <p>
-            <strong>Procesamiento batch (50 por llamada):</strong> 300,000 propiedades = ~$180 USD
-          </p>
-          <p className="text-lg font-bold text-green-600">
-            ✅ Ahorro estimado: 90% ($1,620 USD)
-          </p>
-        </CardContent>
+      <Card><CardHeader><CardTitle>Datos de origen verificables</CardTitle></CardHeader>
+        <CardContent className="text-sm text-muted-foreground">El procesamiento de este lote no llama a modelos de IA. Precio, superficie, ubicación e imágenes proceden del anuncio. Revisa los errores antes de recalcular las recomendaciones.</CardContent>
       </Card>
     </div>
   );

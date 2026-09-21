@@ -45,9 +45,9 @@ const Index = () => {
             Findoo
           </h1>
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto leading-relaxed">
-            Plataforma inteligente de matching de propiedades inmobiliarias. 
+            Encuentra viviendas que encajen con tu presupuesto y tu búsqueda.
             <span className="block mt-2 font-semibold text-foreground/80">
-              Turning data into home decisions.
+              Piloto gratuito de búsqueda inmobiliaria.
             </span>
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -57,7 +57,7 @@ const Index = () => {
               className="bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 min-w-[200px]"
             >
               <Zap className="mr-2 h-5 w-5" />
-              Comenzar Ahora
+              Crear mi búsqueda
             </Button>
             <Button 
               size="lg" 
@@ -78,9 +78,9 @@ const Index = () => {
                 <Search className="h-10 w-10 text-primary group-hover:scale-110 transition-transform duration-300" />
               </div>
             </div>
-            <h3 className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors duration-300">Scraping Automático</h3>
+            <h3 className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors duration-300">Anuncios en un solo lugar</h3>
             <p className="text-muted-foreground leading-relaxed">
-              Extrae propiedades de múltiples portales inmobiliarios automáticamente
+              Consulta los anuncios recopilados, su origen y la fecha en que se comprobaron.
             </p>
           </div>
 
@@ -90,9 +90,9 @@ const Index = () => {
                 <TrendingUp className="h-10 w-10 text-primary group-hover:scale-110 transition-transform duration-300" />
               </div>
             </div>
-            <h3 className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors duration-300">Scoring Inteligente</h3>
+            <h3 className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors duration-300">Tus requisitos, claros</h3>
             <p className="text-muted-foreground leading-relaxed">
-              Algoritmo de matching que calcula la compatibilidad entre clientes y propiedades
+              Compara zona, presupuesto y características sin dar por hecho los datos que faltan.
             </p>
           </div>
 
@@ -102,9 +102,9 @@ const Index = () => {
                 <Users className="h-10 w-10 text-primary group-hover:scale-110 transition-transform duration-300" />
               </div>
             </div>
-            <h3 className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors duration-300">Gestión de Clientes</h3>
+            <h3 className="text-2xl font-bold mb-3 group-hover:text-primary transition-colors duration-300">Tu selección personal</h3>
             <p className="text-muted-foreground leading-relaxed">
-              Define criterios de búsqueda personalizados para cada cliente
+              Guarda tus favoritos y ajusta la búsqueda cuando cambien tus necesidades.
             </p>
           </div>
         </div>
@@ -114,3 +114,4 @@ const Index = () => {
 };
 
 export default Index;
+

@@ -1,0 +1,79 @@
+services:
+  frontend:
+    build:
+      context: .
+      args:
+        VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:?Set the public Supabase URL}
+        VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:?Set the public Supabase key}
+        VITE_MAP_TILE_URL: ${VITE_MAP_TILE_URL:-}
+        VITE_MAP_ATTRIBUTION: ${VITE_MAP_ATTRIBUTION:-}
+    ports: ["127.0.0.1:8080:8080"]
+    restart: unless-stopped
+    mem_limit: 128m
+    cpus: 0.5
+    security_opt: ["no-new-privileges:true"]
+  browser:
+    build:
+      context: .
+      dockerfile: workers/browser/Dockerfile
+      target: browser
+    init: true
+    shm_size: 512mb
+    mem_limit: 1536m
+    cpus: 1.5
+    pids_limit: 256
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:9222/json/version').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    ports: ["127.0.0.1:8000:8000"]
+    volumes: ["browser-profile:/app/workers/browser/data"]
+    restart: unless-stopped
+  worker:
+    build:
+      context: .
+      dockerfile: workers/browser/Dockerfile
+      target: worker
+    init: true
+    network_mode: service:browser
+    depends_on:
+      browser:
+        condition: service_healthy
+    mem_limit: 512m
+    cpus: 1
+    pids_limit: 128
+    security_opt: ["no-new-privileges:true"]
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    environment:
+      CDP_ENDPOINTS: http://127.0.0.1:9222
+      HOST: 0.0.0.0
+      SCRAPER_API_KEY: ${SCRAPER_API_KEY:?Set a worker key of at least 24 characters}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SCRAPER_SECRET: ${SCRAPER_SECRET:-}
+      SOURCES_FILE: /app/workers/browser/sources.local.json
+    volumes:
+      - worker-data:/app/workers/browser/data
+      - ./workers/browser/sources.local.json:/app/workers/browser/sources.local.json:ro
+    restart: unless-stopped
+volumes:
+  browser-profile:
+  worker-data:

@@ -1,73 +1,58 @@
-# Welcome to your Lovable project
+# InmoFinder / Findoo
 
-## Project info
+Buscador inmobiliario independiente de Lovable: React, Supabase propio y workers Node conectados a Chromium por CDP. Captura respuestas de red, conserva el bruto y permite revisar, normalizar y reproducir la ingesta sin volver a visitar la fuente. La interfaz mantiene la marca Findoo.
 
-**URL**: https://lovable.dev/projects/a7819bfb-09c5-49a1-a30f-16cab4887654
+**Estado: núcleo del roadmap implementado para validar un piloto.** Hay pruebas automatizadas y despliegue reproducible; faltan un HAR/contrato real de fuente, la migración al entorno propio y la aceptación integrada con usuarios. No se han activado cobros ni envío de email.
 
-## How can I edit this code?
+## Empezar
 
-There are several ways of editing your application.
+Node 22.13+; Deno 2 para comprobar las funciones.
 
-**Use Lovable**
-
-Simply visit the [Lovable Project](https://lovable.dev/projects/a7819bfb-09c5-49a1-a30f-16cab4887654) and start prompting.
-
-Changes made via Lovable will be committed automatically to this repo.
-
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+```bash
+npm ci --ignore-scripts
+cp .env.example .env.local
+# Configurar solo URL y clave pública de tu Supabase de staging.
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Aplicar migraciones y configurar servicios según [DEPLOYMENT.md](docs/DEPLOYMENT.md). El frontend rechaza una clave de servicio al compilar. El worker utiliza otras credenciales, nunca variables públicas `VITE_*`.
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+## Qué incluye
 
-**Use GitHub Codespaces**
+- Búsqueda transaccional y versionada, borradores recuperables, requisitos y preferencias, radio geográfico y resultados explicables.
+- Ficha con evidencia e historial, favoritos, seguimiento, notas, visitas y motivos de descarte.
+- Comparación de 2–4 inmuebles, PDF y enlaces temporales revocables sin información privada.
+- Escenarios de inversión editables/versionados, financiación, gastos, vacancia y sensibilidad; sin estimar datos desconocidos.
+- Bandeja de avisos, preferencias y outbox de email preparada; recuperación, exportación y borrado de cuenta.
+- Workers con checkpoints, outbox durable, reintentos idempotentes, programación por intervalos, cuotas, pausas y métricas.
+- Modelo de anuncios/observaciones/inmuebles, evidencia por campo, eventos, revisión por registro y matching atómico que rechaza versiones antiguas.
+- Contenedores independientes, pipeline optativo, copias de seguridad y pruebas de fallos, seguridad, navegador y Compose.
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+La captura no presupone JSON. Los decodificadores actuales admiten JSON/NDJSON; cualquier otro formato necesita su contrato. Los ejemplos de Fotocasa/Pisos siguen en modo captura sin un adaptador real validado. El sistema se detiene ante controles de acceso y no requiere el perfil personal del navegador.
 
-## What technologies are used for this project?
+## Comprobar
 
-This project is built with:
+```bash
+npm test
+npm run typecheck
+npm run build
+npm audit --audit-level=high
+deno check --no-lock --config supabase/functions/deno.json supabase/functions/*/index.ts
+npm ci --prefix workers/browser --ignore-scripts
+npx playwright install chromium
+npm test --prefix workers/browser
+npm run test:browser
+```
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Las pruebas SQL usan PostgreSQL/PGlite con roles simulados de Supabase. La interfaz usa fixtures; los workers prueban CDP con Chromium real y un servidor sintético. CI prueba también Compose, reinicio y persistencia. No equivalen a validar portales, Auth, correo o pagos reales.
 
-## How can I deploy this project?
+## Documentación vigente
 
-Simply open [Lovable](https://lovable.dev/projects/a7819bfb-09c5-49a1-a30f-16cab4887654) and click on Share -> Publish.
+- [Estado de las 63 tareas](docs/ROADMAP_IMPLEMENTATION.md): implementación, evidencia y dependencias pendientes.
+- [Roadmap original](docs/PRODUCT_ROADMAP.md): objetivos, prioridades y puertas de aceptación.
+- [Preparación comercial](docs/COMMERCIAL_READINESS.md): qué puede prometerse y qué falta antes de cobrar.
+- [Despliegue y migración](docs/DEPLOYMENT.md): entorno propio, secretos y secuencia de actualización.
+- [Workers y HAR](docs/BROWSER_WORKERS.md): captura, contratos, replay, programación y límites.
+- [Operación y recuperación](docs/OPERATIONS.md): incidentes, backup, retención y piloto.
 
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+Los documentos históricos del prototipo describen estados anteriores; no acreditan funciones actuales. El código ya no depende del editor/tagger/gateway de Lovable. Las cuentas, datos y dominio del despliegue anterior todavía necesitan migrarse.

@@ -1,0 +1,20 @@
+[
+  {
+    "id": "fotocasa",
+    "label": "Fotocasa — captura pendiente de validar",
+    "portal": "fotocasa",
+    "navigation_origins": ["https://www.fotocasa.es"],
+    "responses": [{"origin": "https://web.gw.fotocasa.es", "path_prefix": "/v1/search/ads"}],
+    "adapter": null,
+    "actions": []
+  },
+  {
+    "id": "pisos",
+    "label": "Pisos.com — descubrir respuestas JSON",
+    "portal": "pisos",
+    "navigation_origins": ["https://www.pisos.com"],
+    "responses": [{"origin": "https://www.pisos.com", "path_prefix": "/"}],
+    "adapter": null,
+    "actions": []
+  }
+]

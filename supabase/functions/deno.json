@@ -1,0 +1,9 @@
+{
+  "nodeModulesDir": "manual",
+  "compilerOptions": { "strict": false },
+  "imports": {
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2.76.1",
+    "stripe": "npm:stripe@18.5.0",
+    "zod": "npm:zod@3.25.76"
+  }
+}
