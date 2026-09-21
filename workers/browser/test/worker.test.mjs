@@ -112,7 +112,7 @@ test('HAR import preserves response bytes, excludes request credentials and reje
   assert.throws(()=>capturesFromHar({log:{entries:[{...entry,response:{status:200,content:{mimeType:'text/plain'}}}]}},fixture()),/har_response_body_missing/);
 });
 test('missing identity, wrong host, commercial use and invalid numeric values cannot be ingested',()=>{
-  for(const change of [{id:null},{href:'https://attacker.example/listing'},{description:'Local comercial en venta. Cambio de uso pendiente.'},{price:true},{price:'100.000 €'}]) {
+  for(const change of [{id:null},{href:'https://attacker.example/listing'},{description:'Local comercial en venta. Cambio de uso pendiente.'},{operation:'rent'},{price:true},{price:'100.000'},{price:'100.000 €'}]) {
     assert.throws(()=>decodeCapture(JSON.stringify({data:{ads:[{...item,...change}]}}),fixture()));
   }
 });

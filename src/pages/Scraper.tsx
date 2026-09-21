@@ -43,10 +43,11 @@ async function worker<T>(body: Record<string,unknown>): Promise<T> {
 }
 export default function Scraper() {
   const client=useQueryClient();
-  const [sourceId,setSourceId]=useState('fotocasa'), [urls,setUrls]=useState(''), [location,setLocation]=useState('');
+  const [sourceId,setSourceId]=useState(''), [urls,setUrls]=useState(''), [location,setLocation]=useState('');
   const [selected,setSelected]=useState(''), [captureId,setCaptureId]=useState('');
   const [busy,setBusy]=useState(false), [actionError,setActionError]=useState('');
   const sources=useQuery({queryKey:['worker-sources'],queryFn:()=>worker<{sources:Source[]}>({action:'sources'}),retry:false});
+  const activeSourceId=sources.data?.sources.find(source=>source.id===sourceId)?.id ?? sources.data?.sources[0]?.id ?? '';
   const jobs=useQuery({queryKey:['worker-jobs'],queryFn:()=>worker<{jobs:Job[]}>({action:'list'}),refetchInterval:5000,retry:false});
   const detail=useQuery({queryKey:['worker-job',selected],queryFn:()=>worker<Detail>({action:'get',job_id:selected}),enabled:!!selected,refetchInterval:5000,retry:false});
   const raw=useQuery({queryKey:['worker-capture',selected,captureId],queryFn:()=>worker<{capture:{body:string;text:string|null;mime_type:string}}>({action:'capture',job_id:selected,capture_id:captureId}),enabled:!!selected&&!!captureId,retry:false});
@@ -54,7 +55,7 @@ export default function Scraper() {
   const run=async (replay=false)=>{
     setBusy(true);setActionError('');
     try {
-      const result=await worker<{job_id:string}>(replay?{action:'replay',job_id:selected}:{action:'create',source_id:sourceId,search_urls:urls.split('\n').map(s=>s.trim()).filter(Boolean),ubicacion:location});
+      const result=await worker<{job_id:string}>(replay?{action:'replay',job_id:selected}:{action:'create',source_id:activeSourceId,search_urls:urls.split('\n').map(s=>s.trim()).filter(Boolean),ubicacion:location});
       select(result.job_id);
       await client.invalidateQueries({queryKey:['worker-jobs']});
       await client.invalidateQueries({queryKey:['worker-job',result.job_id]});
@@ -73,12 +74,12 @@ export default function Scraper() {
       <div className="space-y-6 min-w-0">
         <Card><CardHeader><CardTitle>Nueva búsqueda</CardTitle></CardHeader><CardContent>
           <form className="space-y-4" onSubmit={e=>{e.preventDefault();void run();}}>
-            <div className="space-y-2"><Label htmlFor="source">Fuente</Label><select id="source" value={sourceId} onChange={e=>setSourceId(e.target.value)} className="w-full rounded border bg-background p-2">
+            <div className="space-y-2"><Label htmlFor="source">Fuente</Label><select id="source" value={activeSourceId} onChange={e=>setSourceId(e.target.value)} className="w-full rounded border bg-background p-2">
               {(sources.data?.sources ?? []).map(source=><option key={source.id} value={source.id}>{source.label}</option>)}
             </select></div>
             <div className="space-y-2"><Label htmlFor="search-urls">URLs de búsqueda</Label><Textarea id="search-urls" required rows={5} value={urls} onChange={e=>setUrls(e.target.value)} placeholder="Pega la URL de resultados del portal"/><p className="text-xs text-muted-foreground">Una URL por línea, hasta cinco. Incluye en cada URL los filtros y la página que quieras revisar.</p></div>
             <div className="space-y-2"><Label htmlFor="location">Etiqueta de zona (opcional)</Label><Input id="location" value={location} maxLength={120} onChange={e=>setLocation(e.target.value)} placeholder="Murcia"/></div>
-            <p className="text-sm text-muted-foreground">{sources.data?.sources.find(s=>s.id===sourceId)?.adapter_version ? 'Adaptador configurado. Los datos válidos se enviarán al procesamiento.' : 'Solo captura: podrás revisar el bruto antes de configurar la normalización.'}</p>
+            <p className="text-sm text-muted-foreground">{sources.data?.sources.find(s=>s.id===activeSourceId)?.adapter_version ? 'Adaptador configurado. Los datos válidos se enviarán al procesamiento.' : 'Solo captura: podrás revisar el bruto antes de configurar la normalización.'}</p>
             <Button type="submit" disabled={busy||!sources.data} className="w-full">{busy?'Solicitando…':'Iniciar búsqueda'}</Button>
           </form>
         </CardContent></Card>

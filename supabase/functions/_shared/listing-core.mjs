@@ -19,6 +19,7 @@ export function normalizeListing(row) {
   const raw = envelope?._capture_version === 1 ? envelope.normalized : envelope;
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) throw new Error('Formato raw inválido');
   if (envelope?._capture_version === 1 && raw.operacion !== 'venta') throw new Error('Operación de venta no confirmada; requiere revisión');
+  if (envelope?._capture_version === 1 && typeof raw.precio !== 'number') throw new Error('El adaptador debe entregar un precio numérico sin formato ambiguo');
   const description = text(raw.descripcion ?? raw.description) ?? '';
   if (/^\s*(local comercial\b|se vende (?:un )?local\b)/i.test(description) || /\b(cambio de uso|sin c[eé]dula de habitabilidad)\b/i.test(description)) throw new Error('Uso residencial no confirmado; requiere revisión');
   const precio = number(raw.precio ?? raw.price ?? raw.transaction?.price);

@@ -34,9 +34,13 @@ jobs:
         run: |
           docker build --build-arg VITE_SUPABASE_URL --build-arg VITE_SUPABASE_PUBLISHABLE_KEY -t inmofinder-frontend .
           docker run -d --name inmofinder-frontend -p 127.0.0.1:8090:8080 inmofinder-frontend
-          curl --retry 10 --retry-connrefused --retry-delay 1 --fail http://127.0.0.1:8090/cliente/dashboard -o /tmp/inmofinder-page.html
+          cleanup() {
+            docker logs inmofinder-frontend
+            docker rm -f inmofinder-frontend
+          }
+          trap cleanup EXIT
+          curl --retry 10 --retry-all-errors --retry-max-time 20 --retry-delay 1 --max-time 5 --fail http://127.0.0.1:8090/cliente/dashboard -o /tmp/inmofinder-page.html
           grep -q 'id="root"' /tmp/inmofinder-page.html
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8090/assets/missing.js)" = 404
-          docker stop inmofinder-frontend
       - name: Worker production image
         run: docker build --target worker -f workers/browser/Dockerfile -t inmofinder-worker .

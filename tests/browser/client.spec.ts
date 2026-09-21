@@ -100,6 +100,7 @@ test('admin inspects captured response and reprocesses it without sending worker
   });
   await page.goto('/scraper');
   await expect(page.getByRole('heading',{name:'Búsquedas con navegador'})).toBeVisible();
+  await expect(page.getByLabel('Fuente',{exact:true})).toHaveValue('pisos');
   await page.getByRole('button',{name:/pisos · Murcia/}).click();
   await page.getByRole('button',{name:/fixture-api/}).click();
   await expect(page.getByLabel('Respuesta original')).toContainText('132456.78');
