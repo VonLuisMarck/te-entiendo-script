@@ -34,7 +34,7 @@ No se calcula un porcentaje mezclando código, validación de fuente y lanzamien
 | FND-02 | Implementado | Dependencias actualizadas, auditoría sin avisos en esta revisión y regresiones de reglas, UI y worker; CI repite el control                                                     |
 | FND-03 | Externo      | Docker/Compose/configuración preparados; falta crear y configurar proyecto, secretos y dominio propios                                                                          |
 | FND-04 | Externo      | Secuencia y acta de migración/restauración documentadas; sin exportación de datos/Auth/Storage ni restauración real                                                             |
-| FND-05 | Parcial      | Ensayo completo de Compose añadido a CI: CDP privado, cola, backup y reinicio. Su resultado debe comprobarse en el workflow del commit; staging propio sigue pendiente          |
+| FND-05 | Parcial      | Ensayo completo de Compose superado en CI: CDP privado, cola, backup y reinicio; aceptación en staging propio pendiente          |
 | FND-06 | Parcial      | Recuperar contraseña, cierre global, exportación y borrado con reautenticación; SQL/UI verificados, Auth/SMTP/Storage reales pendientes                                         |
 | PRD-01 | Externo      | Hipótesis y protocolo disponibles; faltan entrevistas y elección de cohorte con Luis                                                                                            |
 | PRD-02 | Parcial      | Diccionario operativo, feedback útil/no útil y costes; faltan instrumentación longitudinal y acuerdo de criterios con la cohorte                                                |
@@ -101,7 +101,7 @@ No se calcula un porcentaje mezclando código, validación de fuente y lanzamien
 - 16 recorridos Playwright: ocho flujos en escritorio y viewport móvil. Supabase interceptado; incluyen notas/escenarios, comparador/PDF, conflicto de búsqueda, recuperación de acceso y borrador tras recargar.
 - TypeScript, compilación de producción con configuración pública de prueba y comprobación Deno de 27 funciones.
 - Auditoría npm sin avisos en esta revisión. Debe volver a ejecutarse con el lockfile publicado.
-- CI incluye Compose completo, CDP sin puerto público, cola/pausa persistentes tras reinicio y backup verificable. El workflow del commit publicado es la evidencia definitiva de esa revisión.
+- Compose completo, CDP sin puerto público, cola/pausa persistentes tras reinicio y backup verificado: [ejecución aprobada en CI](https://github.com/VonLuisMarck/te-entiendo-script/actions/runs/35661974719), sobre `c46e9e5`. Los ajustes posteriores deben conservar sus propios checks aprobados en la PR.
 
 No se mide ni afirma calidad ≥98 %, cobertura ≥95 %, rentabilidad, latencia comercial o disponibilidad de portales. Los umbrales del roadmap siguen siendo objetivos de evaluación.
 

@@ -16,7 +16,7 @@ BEGIN
  IF length(p_from)>320 OR p_from !~ '@' OR p_app_url !~ '^https://' THEN RAISE EXCEPTION 'Invalid email configuration'; END IF;
  PERFORM pg_advisory_xact_lock(hashtextextended('notification-outbox',0));
  FOR u IN SELECT p.*,a.email FROM public.notification_preferences p JOIN auth.users a ON a.id=p.user_id
- WHERE public.email_allowed(p.user_id) AND EXISTS(SELECT 1 FROM public.notifications n JOIN public.notification_email_queue q ON q.notification_id=n.id WHERE n.user_id=p.user_id AND q.delivery_id IS NULL)
+ WHERE a.email_confirmed_at IS NOT NULL AND nullif(a.email,'') IS NOT NULL AND public.email_allowed(p.user_id) AND EXISTS(SELECT 1 FROM public.notifications n JOIN public.notification_email_queue q ON q.notification_id=n.id WHERE n.user_id=p.user_id AND q.delivery_id IS NULL)
  AND NOT EXISTS(SELECT 1 FROM public.notification_deliveries d WHERE d.user_id=p.user_id AND d.created_at>now()-CASE WHEN p.frequency='daily' THEN interval '24 hours' ELSE interval '1 hour' END)
  ORDER BY p.user_id LIMIT 20 LOOP
    SELECT array_agg(id),string_agg(title||': '||coalesce(details->>'titulo','')||E'\n'||coalesce(details->>'precio','')||' EUR',E'\n\n') INTO ids,body
@@ -33,7 +33,7 @@ BEGIN
  UPDATE public.notification_deliveries SET status='uncertain',updated_at=now() WHERE status='sending' AND updated_at<now()-interval '5 minutes';
  UPDATE public.notification_deliveries pending SET status='suppressed',updated_at=now() WHERE status IN ('pending','uncertain') AND
    (NOT EXISTS(SELECT 1 FROM public.notification_preferences p WHERE p.user_id=pending.user_id AND p.enabled AND p.email_enabled AND p.frequency<>'none') OR
-    NOT EXISTS(SELECT 1 FROM auth.users u WHERE u.id=pending.user_id AND u.email=pending.payload#>>'{to,0}'));
+    NOT EXISTS(SELECT 1 FROM auth.users u WHERE u.id=pending.user_id AND u.email_confirmed_at IS NOT NULL AND u.email=pending.payload#>>'{to,0}'));
  SELECT * INTO d FROM public.notification_deliveries x WHERE status IN ('pending','uncertain') AND attempts<3 AND
    (status='pending' OR (created_at>now()-interval '23 hours' AND updated_at<now()-interval '1 minute')) AND public.email_allowed(x.user_id)
  ORDER BY created_at FOR UPDATE SKIP LOCKED LIMIT 1;

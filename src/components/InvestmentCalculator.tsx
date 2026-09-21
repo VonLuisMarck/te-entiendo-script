@@ -209,7 +209,7 @@ export function InvestmentCalculator({
                   <tr key={s.label} className="border-t">
                     <td className="p-2">{s.label}</td>
                     <td className="text-right p-2">
-                      {money(s.result.cashflow)}
+                      {s.result ? money(s.result.cashflow) : s.error}
                     </td>
                   </tr>
                 ))}

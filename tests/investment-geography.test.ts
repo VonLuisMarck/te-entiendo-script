@@ -63,8 +63,21 @@ test("investment rejects missing/invalid assumptions and exposes undefined zero-
     null,
   );
   const s = investmentSensitivity(x);
-  assert.ok(s[1].result.cashflow < s[0].result.cashflow);
-  assert.ok(s[3].result.cashflow < s[0].result.cashflow);
+  assert.ok(s[1].result!.cashflow < s[0].result!.cashflow);
+  assert.ok(s[3].result!.cashflow < s[0].result!.cashflow);
+  assert.ok(
+    Math.abs(
+      calculateInvestment({ ...x, annualRate: 1e-14 }).monthlyDebt - 500,
+    ) < 1e-9,
+  );
+  const edge = investmentSensitivity({
+    ...x,
+    vacancyPct: 99,
+    monthlyRent: 100000000,
+  });
+  assert.equal(edge[2].result, null);
+  assert.equal(edge[3].result, null);
+  assert.ok(edge[3].error);
 });
 test("geographic filters respect boundaries and reject missing or approximate locations", () => {
   assert.ok(Math.abs(distanceKm([0, 0], [1, 0]) - 111.195) < 0.001);

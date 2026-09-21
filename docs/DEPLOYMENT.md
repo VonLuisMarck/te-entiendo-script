@@ -100,7 +100,7 @@ Para detener el procesamiento sin perder datos: `docker compose -f compose.yaml 
 
 1. Configurar `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL` y `EMAIL_ENABLED=true` **solo en el staging preparado para el ensayo**. El remitente debe pertenecer a un dominio verificado. Activar también `EMAIL_ENABLED` en el pipeline si se quiere ejecutar periódicamente el despacho.
 2. El usuario debe confirmar su email mediante Auth y habilitar email en preferencias. Nunca se toma el destinatario de un campo de perfil editable ni de una petición del navegador.
-3. El proveedor recibe un payload persistido y una clave estable por entrega. Reintentos automáticos: máximo tres, dentro de 23 horas del primer intento. Pasado ese plazo se requiere conciliación operativa; no se cambia la clave para forzar otro envío.
+3. El proveedor recibe un payload persistido y una clave estable por entrega. Reintentos automáticos: máximo tres, dentro de 23 horas de crear la entrega (límite conservador respecto al primer intento). Pasado ese plazo se requiere conciliación operativa; no se cambia la clave para forzar otro envío.
 4. Probar pausa/baja antes de reclamar el lote, cambios de email, horas de descanso en la zona elegida, pérdida de respuesta y recepción real. El registro `accepted` no es confirmación de entrega ni prueba de consentimiento futuro.
 5. Mantener desactivado fuera del ensayo hasta cerrar reputación, rebotes, soporte y responsabilidades. WhatsApp y llamadas con IA permanecen pausados.
 

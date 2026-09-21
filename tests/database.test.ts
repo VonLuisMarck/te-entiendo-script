@@ -9,7 +9,7 @@ test("all migrations, real PostgreSQL RLS, privileges and ingestion", async (t) 
   const db = new PGlite();
   await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role BYPASSRLS;
  CREATE PUBLICATION supabase_realtime; CREATE SCHEMA auth;
- CREATE TABLE auth.users(id uuid PRIMARY KEY, email text, raw_user_meta_data jsonb DEFAULT '{}');
+ CREATE TABLE auth.users(id uuid PRIMARY KEY, email text, email_confirmed_at timestamptz DEFAULT now(), raw_user_meta_data jsonb DEFAULT '{}');
  CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT NULLIF(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
  CREATE FUNCTION auth.role() RETURNS text LANGUAGE sql STABLE AS $$ SELECT NULLIF(current_setting('request.jwt.claim.role',true),'') $$;
  GRANT USAGE ON SCHEMA auth,public TO anon,authenticated,service_role;
@@ -910,6 +910,22 @@ test("all migrations, real PostgreSQL RLS, privileges and ingestion", async (t) 
       await db.query(
         "INSERT INTO notification_email_queue(notification_id) VALUES($1)",
         [notification],
+      );
+      await db.query(
+        "UPDATE auth.users SET email_confirmed_at=NULL WHERE id=$1",
+        [A],
+      );
+      assert.equal(
+        (
+          await db.query(
+            "SELECT prepare_email_outbox('Findoo <test@example.test>','https://example.test') AS n",
+          )
+        ).rows[0].n,
+        0,
+      );
+      await db.query(
+        "UPDATE auth.users SET email_confirmed_at=now() WHERE id=$1",
+        [A],
       );
       assert.equal(
         (

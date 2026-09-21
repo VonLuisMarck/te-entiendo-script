@@ -56,7 +56,8 @@ export function calculateInvestment(x: InvestmentInputs) {
       ? 0
       : monthlyRate === 0
         ? x.loanAmount / n
-        : (x.loanAmount * monthlyRate) / (1 - (1 + monthlyRate) ** -n);
+        : (x.loanAmount * monthlyRate) /
+          -Math.expm1(-n * Math.log1p(monthlyRate));
   const potentialIncome = x.monthlyRent * 12,
     effectiveIncome =
       potentialIncome * (1 - x.vacancyPct / 100) * (1 - x.nonPaymentPct / 100);
@@ -84,6 +85,7 @@ export function calculateInvestment(x: InvestmentInputs) {
   };
 }
 export function investmentSensitivity(x: InvestmentInputs) {
+  calculateInvestment(x);
   return [
     { label: "Central", inputs: x },
     {
@@ -96,15 +98,21 @@ export function investmentSensitivity(x: InvestmentInputs) {
     },
     {
       label: "Vacancia +5 puntos",
-      inputs: { ...x, vacancyPct: Math.min(100, x.vacancyPct + 5) },
+      inputs: { ...x, vacancyPct: x.vacancyPct + 5 },
     },
     {
       label: "Interés +2 puntos",
-      inputs: { ...x, annualRate: Math.min(100, x.annualRate + 2) },
+      inputs: { ...x, annualRate: x.annualRate + 2 },
     },
     {
       label: "Reforma +20 %",
       inputs: { ...x, renovation: x.renovation * 1.2 },
     },
-  ].map((s) => ({ ...s, result: calculateInvestment(s.inputs) }));
+  ].map((s) => {
+    try {
+      return { ...s, result: calculateInvestment(s.inputs), error: null };
+    } catch {
+      return { ...s, result: null, error: "Supuesto fuera del rango admitido" };
+    }
+  });
 }
